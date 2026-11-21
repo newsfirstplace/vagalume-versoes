@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Opções do Vagalume</title>
+  <link rel="stylesheet" href="../ui/tema.css">
+  <link rel="stylesheet" href="opcoes.css">
+</head>
+<body>
+  <header class="miolo">
+    <div class="topo">
+      <span class="ponto" aria-hidden="true"></span>
+      <h1>Vagalume</h1>
+      <span class="suave" id="versao"></span>
+      <span class="suave">Opções · extensão não oficial</span>
+    </div>
+    <p class="suave">Quase tudo é gravado assim que você muda; o estilo personalizado e as macros têm botão de gravar. O Vagalume não tem servidor próprio e não envia suas configurações nem suas conversas a ninguém. As configurações ficam no armazenamento do navegador: as macros e o estilo personalizado, só neste computador; o restante acompanha a sua conta do navegador, se a sincronização estiver ligada.</p>
+    <nav class="nav" id="nav" aria-label="Seções desta página"></nav>
+  </header>
+
+  <main class="miolo">
+    <div id="grupos"></div>
+
+    <section class="grupo" id="grupo-copia" aria-labelledby="grupo-copia-titulo">
+      <h2 id="grupo-copia-titulo">Cópia e redefinição</h2>
+      <div class="cartao">
+        <div class="bloco">
+          <h3>Cópia das configurações</h3>
+          <p class="suave">O arquivo guarda o que está gravado nesta página, inclusive apelido, termos, macros e estilo personalizado. Ele vai para a pasta de downloads do navegador e não é enviado a lugar nenhum.</p>
+          <div class="acoes">
+            <button type="button" class="botao" id="exportar" disabled>Exportar para um arquivo</button>
+            <button type="button" class="botao" id="importar" disabled>Importar de um arquivo…</button>
+            <input type="file" id="arquivo" accept=".json,application/json" hidden>
+          </div>
+        </div>
+        <div class="bloco">
+          <h3>Voltar ao padrão</h3>
+          <p class="suave">Apaga todas as configurações do Vagalume, inclusive macros, termos e estilo personalizado.</p>
+          <div class="acoes">
+            <button type="button" class="botao perigo" id="redefinir" disabled>Redefinir tudo…</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <p class="status fixo" id="status" role="status" aria-live="polite"></p>
+
+  <dialog class="dialogo" id="confirma" aria-labelledby="confirma-titulo" aria-describedby="confirma-texto">
+    <form method="dialog">
+      <h2 id="confirma-titulo"></h2>
+      <p id="confirma-texto"></p>
+      <div class="acoes fim">
+        <button class="botao" value="nao">Cancelar</button>
+        <button class="botao perigo" id="confirma-sim" value="sim"></button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="../core/padroes.js"></script>
+  <script src="../core/atalhos.js"></script>
+  <script src="../core/texto.js"></script>
+  <script src="../core/config.js"></script>
+  <script src="../core/campos.js"></script>
+  <script src="opcoes.js"></script>
+</body>
+</html>

@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Vagalume — tela compartilhada</title>
+  <link rel="stylesheet" href="tela.css">
+</head>
+<body>
+  <main id="palco">
+    <video id="video" playsinline autoplay hidden></video>
+    <section id="aviso" class="aviso">
+      <span class="marca" aria-hidden="true"></span>
+      <p id="texto">Preparando…</p>
+      <p id="detalhe" class="detalhe"></p>
+      <div id="opcoes" class="opcoes" hidden>
+        <label>Resolução <select id="resolucao"><option value="720">720p</option><option value="1080">1080p</option><option value="0">Original</option></select></label>
+        <label>Quadros <select id="quadros"><option value="15">15 FPS</option><option value="30">30 FPS</option><option value="60">60 FPS</option></select></label>
+        <label>Prioridade <select id="prioridade"><option value="nitidez">Nitidez (texto)</option><option value="fluidez">Fluidez (jogos e vídeos)</option></select></label>
+        <label class="chave"><input type="checkbox" id="comSom"> Som</label>
+      </div>
+      <button type="button" id="escolher" class="primario" hidden>Escolher o que compartilhar</button>
+    </section>
+  </main>
+  <footer id="barra" hidden>
+    <span id="estado" class="estado"></span>
+    <button type="button" id="som" title="Silenciar o som da tela" aria-label="Silenciar o som da tela" hidden>🔊</button>
+    <input type="range" id="volume" min="0" max="100" step="1" value="80" title="Volume da tela" aria-label="Volume da tela" hidden>
+    <button type="button" id="ajuste" title="Preencher a janela ou mostrar a tela inteira">Preencher</button>
+    <button type="button" id="pip" title="Picture-in-picture: a tela fica numa janelinha por cima de tudo">Picture-in-picture</button>
+    <button type="button" id="parar" class="perigo" hidden>Parar de compartilhar</button>
+  </footer>
+  <script src="tela.js"></script>
+</body>
+</html>

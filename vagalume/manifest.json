@@ -1,0 +1,182 @@
+{
+  "manifest_version": 3,
+  "name": "Vagalume",
+  "short_name": "Vagalume",
+  "version": "0.1.1",
+  "description": "Chat, comandos, construção, wired, loja, visual, amigos e ajustes de tela para o Habblet. Independente, sem vínculo com o Habblet.",
+  "minimum_chrome_version": "116",
+  "icons": {
+    "16": "icones/icone-16.png",
+    "32": "icones/icone-32.png",
+    "48": "icones/icone-48.png",
+    "128": "icones/icone-128.png"
+  },
+  "permissions": [
+    "storage",
+    "declarativeNetRequest",
+    "scripting",
+    "activeTab",
+    "offscreen",
+    "identity"
+  ],
+  "host_permissions": [
+    "*://*.habblet.city/*",
+    "https://api.habblet.radiohabblet.com.br/*",
+    "https://ws.audioscrobbler.com/*",
+    "https://lastfm.freetls.fastly.net/*",
+    "https://lastfm-img.freetls.fastly.net/*",
+    "https://www.youtube.com/*"
+  ],
+  "optional_host_permissions": [
+    "https://*/*",
+    "<all_urls>"
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "src/visor/visor.html",
+        "src/tela/tela.html",
+        "icones/aviso-mensagem.gif",
+        "icones/conexoes/discord.svg",
+        "icones/conexoes/steam.svg",
+        "icones/conexoes/valorant.svg",
+        "icones/conexoes/lol.png",
+        "icones/conexoes/letterboxd.svg",
+        "icones/conexoes/lastfm.svg"
+      ],
+      "matches": [
+        "*://*.habblet.city/*"
+      ]
+    }
+  ],
+  "background": {
+    "service_worker": "src/fundo.js"
+  },
+  "action": {
+    "default_title": "Vagalume",
+    "default_popup": "src/popup/popup.html",
+    "default_icon": {
+      "16": "icones/icone-16.png",
+      "32": "icones/icone-32.png"
+    }
+  },
+  "options_ui": {
+    "page": "src/opcoes/opcoes.html",
+    "open_in_tab": true
+  },
+  "commands": {
+    "capturar-tela": {
+      "suggested_key": {
+        "default": "Alt+Shift+P"
+      },
+      "description": "Capturar a tela do jogo"
+    }
+  },
+  "declarative_net_request": {
+    "rule_resources": [
+      {
+        "id": "anuncios",
+        "enabled": false,
+        "path": "regras/anuncios.json"
+      },
+      {
+        "id": "medicao",
+        "enabled": false,
+        "path": "regras/medicao.json"
+      }
+    ]
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.habblet.city/hotel*"
+      ],
+      "exclude_globs": [
+        "*vagalume=off*"
+      ],
+      "run_at": "document_idle",
+      "js": [
+        "src/conteudo/medidor.js",
+        "src/core/padroes.js",
+        "src/core/atalhos.js",
+        "src/core/texto.js",
+        "src/core/respostas.js",
+        "src/core/digitando.js",
+        "src/core/digitando-temas.js",
+        "src/core/config.js",
+        "src/core/lastfm.js",
+        "src/core/marca.js",
+        "src/core/noite.js",
+        "src/core/servidor.js",
+        "src/core/grupos.js",
+        "src/core/logo-imagem.js",
+        "src/core/youtube.js",
+        "src/core/conexoes-perfil.js",
+        "src/core/gerador-visual.js",
+        "src/core/campos.js",
+        "src/core/comandos.js",
+        "src/core/historico.js",
+        "src/core/mencoes.js",
+        "src/core/protocolo.js",
+        "src/core/codigos.js",
+        "src/core/agrupar.js",
+        "src/conteudo/nucleo.js",
+        "src/conteudo/jogo.js",
+        "src/conteudo/catalogo-visual.js",
+        "src/conteudo/dados-jogo.js",
+        "src/conteudo/camada.js",
+        "src/conteudo/ilustracoes.js",
+        "src/conteudo/conexao.js",
+        "src/conteudo/construcao-ferramenta.js",
+        "src/conteudo/grupos-voz.js",
+        "src/conteudo/tela-janela.js",
+        "src/conteudo/youtube-tv.js",
+        "src/conteudo/modulos/painel.js",
+        "src/conteudo/modulos/comandos.js",
+        "src/conteudo/modulos/macros.js",
+        "src/conteudo/modulos/historico.js",
+        "src/conteudo/modulos/mencoes.js",
+        "src/conteudo/modulos/chat.js",
+        "src/conteudo/modulos/digitando.js",
+        "src/conteudo/modulos/janelas.js",
+        "src/conteudo/modulos/interface.js",
+        "src/conteudo/modulos/estilo.js",
+        "src/conteudo/modulos/captura.js",
+        "src/conteudo/modulos/fps.js",
+        "src/conteudo/modulos/fluido.js",
+        "src/conteudo/modulos/silenciar.js",
+        "src/conteudo/modulos/contador.js",
+        "src/conteudo/modulos/conexao.js",
+        "src/conteudo/modulos/agrupar.js",
+        "src/conteudo/modulos/construcao.js",
+        "src/conteudo/modulos/notificacoes.js",
+        "src/conteudo/modulos/zoom.js",
+        "src/conteudo/modulos/amigos.js",
+        "src/conteudo/modulos/apelidos.js",
+        "src/conteudo/modulos/comunidade.js",
+        "src/conteudo/modulos/musica.js",
+        "src/conteudo/modulos/midia.js",
+        "src/conteudo/modulos/loja.js",
+        "src/conteudo/modulos/visual.js",
+        "src/conteudo/modulos/wired.js",
+        "src/conteudo/iniciar.js"
+      ]
+    },
+    {
+      "matches": [
+        "*://*.habblet.city/hotel*"
+      ],
+      "exclude_globs": [
+        "*vagalume=off*"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN",
+      "js": [
+        "src/principal/construcao.js",
+        "src/principal/digitando.js",
+        "src/principal/fluido.js"
+      ]
+    }
+  ],
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA7HNNQJFYkSDpCUnhGd+/Jq8sZRcnRunYvZ2lbcbdw7fHiLbmvE0XqO29aMtEvKW13mXcq13JCZFabB6yeOxkImKWS4zacBFouVt1FCUknHWW0zYqhT3lBJeTmLK+v8FN4Di1Ce319gukT/z6rXKqxZc0BQbrDJ7/7hVkcND+npDgzk/Pkhy4sQJFXixEKoYBnDMZkGd3385Dcn1twgKBTk0I60h+GlrT96QjavTTFarnhpnD8DMkm9TmMECrv/zQMxhP/o8QFZ3Zwpe+qiPs9jM+g30KWJXqNYtPb+Gg+p0ti3/Q3RcMcf5tYVtzedDA+sigPQZ+e2dTj8bw4rslzwIDAQAB"
+}

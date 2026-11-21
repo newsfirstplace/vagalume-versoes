@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Vagalume — visor</title>
+  <link rel="stylesheet" href="visor.css">
+</head>
+<body>
+  <header>
+    <span class="marca" aria-hidden="true"></span>
+    <button type="button" id="voltar" class="voltar" title="Voltar à página anterior" aria-label="Voltar" hidden>←</button>
+    <span id="endereco" class="endereco">…</span>
+    <button type="button" id="mudo" class="som" title="Silenciar o site" aria-label="Silenciar o site">🔊</button>
+    <input type="range" id="volume" min="0" max="100" step="1" value="30" title="Volume do site" aria-label="Volume do site">
+    <span id="nivel" class="nivel">30%</span>
+    <button type="button" id="janela" title="Abrir numa janela pop-up do navegador">Abrir em janela</button>
+    <button type="button" id="aba" title="Abrir numa aba nova">Abrir em aba</button>
+    <button type="button" id="fechar" class="fechar" title="Fechar (Esc)" aria-label="Fechar">✕</button>
+  </header>
+  <main>
+    <iframe id="site" title="Página do link" referrerpolicy="no-referrer" allow="autoplay; fullscreen; encrypted-media; picture-in-picture; clipboard-write" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox" hidden></iframe>
+    <section id="aviso" class="aviso">
+      <p id="texto">Preparando…</p>
+      <button type="button" id="permitir" class="primario" hidden>Permitir</button>
+    </section>
+  </main>
+  <script src="visor.js"></script>
+</body>
+</html>

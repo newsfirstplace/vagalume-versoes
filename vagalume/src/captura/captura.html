@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Editor da captura · Vagalume</title>
+  <link rel="stylesheet" href="../ui/tema.css">
+  <link rel="stylesheet" href="captura.css">
+</head>
+<body>
+  <header class="barra">
+    <div class="topo">
+      <span class="ponto" aria-hidden="true"></span>
+      <h1>Editor da captura</h1>
+      <span class="suave" id="tamanho"></span>
+    </div>
+    <div class="ferramentas" role="toolbar" aria-label="Ferramentas da imagem">
+      <button type="button" class="botao" id="recortar" disabled>Recortar seleção</button>
+      <button type="button" class="botao" id="inteira" disabled>Voltar à imagem inteira</button>
+      <label class="opcao"><input type="checkbox" class="chave" role="switch" id="carimbo" disabled> Carimbar data e hora</label>
+      <button type="button" class="botao" id="copiar" disabled>Copiar</button>
+      <button type="button" class="botao principal" id="salvar" disabled>Salvar</button>
+    </div>
+    <p class="suave">Arraste sobre a imagem para escolher a parte a recortar. Esc desfaz a seleção. A imagem fica só neste computador.</p>
+  </header>
+
+  <p class="status" id="status" role="status" aria-live="polite"></p>
+
+  <main class="palco" id="palco">
+    <div class="moldura" id="moldura" hidden>
+      <canvas id="imagem" aria-label="Imagem capturada"></canvas>
+      <div class="selecao" id="selecao" hidden></div>
+    </div>
+  </main>
+
+  <script src="recorte.js"></script>
+  <script src="captura.js"></script>
+</body>
+</html>

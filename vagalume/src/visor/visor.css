@@ -1,0 +1,21 @@
+:root { color-scheme: dark; }
+/* o atributo hidden precisa vencer o display das regras abaixo (senão o aviso fica por cima do site e engole os cliques) */
+[hidden] { display: none !important; }
+html, body { margin: 0; height: 100%; background: #12161f; color: #e8edf5; font: 13px/1.45 system-ui, "Segoe UI", Roboto, sans-serif; }
+body { display: flex; flex-direction: column; }
+header { flex: none; display: flex; align-items: center; gap: 8px; padding: 7px 8px 7px 12px;
+  background: linear-gradient(90deg, #1d2431, #1f2a1c); border-bottom: 2px solid #d6f24a; }
+.marca { flex: none; width: 10px; height: 10px; border-radius: 50%; background: #d6f24a; box-shadow: 0 0 8px #d6f24a; }
+.endereco { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #d6f24a; font: 600 12px ui-monospace, Consolas, monospace; }
+button { font: inherit; color: #e8edf5; background: #242d3d; border: 1px solid #36435c; border-radius: 6px; padding: 4px 10px; cursor: pointer; }
+button:hover { border-color: #d6f24a; }
+button.primario { background: #d6f24a; border-color: #d6f24a; color: #12161f; font-weight: 600; }
+button.fechar { width: 30px; padding: 4px 0; }
+button.voltar { width: 30px; padding: 4px 0; font-weight: 700; }
+button.som { width: 32px; padding: 4px 0; }
+input[type="range"] { width: 110px; accent-color: #d6f24a; cursor: pointer; }
+.nivel { width: 36px; color: #a9b4c7; font: 12px ui-monospace, Consolas, monospace; }
+main { flex: 1; position: relative; background: #0e1219; }
+iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: #fff; }
+.aviso { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 24px; text-align: center; color: #a9b4c7; }
+.aviso p { max-width: 520px; margin: 0; }

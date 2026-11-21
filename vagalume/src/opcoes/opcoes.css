@@ -1,0 +1,111 @@
+/* Vagalume — página de opções. As cores e os controles vêm de ../ui/tema.css. */
+body {
+  display: grid;
+  gap: 20px;
+  padding: 24px 16px 96px; /* a folga de baixo deixa o aviso fixo sem cobrir o fim da página */
+}
+
+.miolo {
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+  display: grid;
+  gap: 20px;
+}
+
+h4 { margin: 0; font-size: 14px; }
+
+.topo { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.topo h1 { font-size: 22px; }
+.nav { display: flex; flex-wrap: wrap; gap: 4px 16px; }
+
+#grupos { display: grid; gap: 20px; }
+.grupo { display: grid; gap: 10px; scroll-margin-top: 16px; }
+.grupo > h2 {
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--suave);
+}
+
+/* Os cartões não têm preenchimento: sobre o fundo da página, o contorno dos controles continua visível. */
+.cartao {
+  display: grid;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+}
+.cabeca { display: flex; align-items: flex-start; gap: 12px; }
+.cabeca .texto { flex: 1; display: grid; gap: 2px; }
+.cabeca h3, .bloco h3 { font-size: 15px; }
+.cabeca .chave { margin-top: 2px; }
+
+.ajustes { display: grid; gap: 14px; padding-top: 12px; border-top: 1px solid var(--borda); }
+.ajuste { display: grid; gap: 4px; }
+.linha { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; }
+.rotulo { flex: 1 1 200px; }
+.valor { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.empilhado .linha, .empilhado .valor { display: grid; gap: 6px; } /* rótulo em cima, campo embaixo */
+.nota, .recarga { font-size: 12px; color: var(--suave); }
+
+.campo.curto { width: 96px; }
+.campo.medio { width: 240px; max-width: 100%; }
+.campo[aria-invalid='true'] { border-color: var(--erro); }
+.faixa { width: 180px; accent-color: var(--luz); }
+.tecla { min-width: 132px; font-family: ui-monospace, Consolas, monospace; }
+
+.acoes { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.acoes.fim { justify-content: flex-end; }
+.bloco { display: grid; gap: 8px; }
+.bloco + .bloco { padding-top: 12px; border-top: 1px solid var(--borda); }
+
+.macros { display: grid; gap: 10px; }
+.lista-macros { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.macro {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+}
+.macro .texto { flex: 1 1 220px; min-width: 0; display: grid; }
+.macro .nota { overflow-wrap: anywhere; }
+.editor {
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--contorno);
+  border-radius: var(--raio);
+}
+
+.dialogo {
+  max-width: min(440px, calc(100vw - 32px));
+  padding: 18px;
+  background: var(--fundo);
+  color: var(--texto);
+  border: 1px solid var(--contorno);
+  border-radius: var(--raio);
+}
+.dialogo::backdrop { background: rgba(6, 8, 12, 0.72); }
+.dialogo form { display: grid; gap: 12px; }
+.dialogo h2 { font-size: 16px; }
+
+/* Aviso fixo no pé da janela: fica à vista em qualquer ponto da página. */
+.status.fixo {
+  position: fixed;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: min(680px, calc(100vw - 32px));
+  padding: 8px 14px;
+  background: var(--painel);
+  border: 1px solid var(--contorno);
+  border-radius: var(--raio);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+}
+.status.fixo:empty { opacity: 0; }

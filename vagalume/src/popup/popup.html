@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <title>Vagalume</title>
+  <link rel="stylesheet" href="../ui/tema.css">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header class="topo">
+    <span class="ponto" aria-hidden="true"></span>
+    <h1>Vagalume</h1>
+    <span class="suave" id="versao"></span>
+  </header>
+
+  <p class="suave" id="aba"></p>
+
+  <section class="captura" aria-label="Captura de tela">
+    <button type="button" class="botao principal" id="salvar" disabled>Salvar imagem</button>
+    <button type="button" class="botao" id="copiar" disabled>Copiar imagem</button>
+    <button type="button" class="botao largo" id="editar" disabled>Editar imagem (recortar, carimbar)</button>
+  </section>
+
+  <p class="status" id="status" role="status" aria-live="polite"></p>
+
+  <main id="modulos" aria-label="Módulos"></main>
+
+  <footer class="rodape">
+    <span class="suave">Extensão não oficial.</span>
+  </footer>
+
+  <script src="../core/padroes.js"></script>
+  <script src="../core/atalhos.js"></script>
+  <script src="../core/texto.js"></script>
+  <script src="../core/config.js"></script>
+  <script src="../captura/recorte.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>
