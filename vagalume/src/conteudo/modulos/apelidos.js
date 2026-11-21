@@ -11,9 +11,10 @@
   const CSS = '[' + MARCA + '] { font-size:0!important; }'
     + '[' + MARCA + ']::before { content:attr(' + MARCA + '); font-size:var(' + FONTE + ', 13px); white-space:pre; }'
     + '[' + MARCA + '][data-vl-usa]::after { vertical-align:calc(var(' + FONTE + ', 13px) * .25 - 4px); }'
-    // No balão a linha do nome tem fonte 0 e o vertical-align derruba a bolinha: centraliza por flex.
-    + '.bubble-container .username[' + MARCA + '][data-vl-usa], .chat-bubble .username[' + MARCA + '][data-vl-usa] { display:inline-flex!important; align-items:center; }'
-    + '.bubble-container .username[' + MARCA + '][data-vl-usa]::after, .chat-bubble .username[' + MARCA + '][data-vl-usa]::after { vertical-align:0; }'
+    // No balão a linha do nome tem fonte 0 e o vertical-align derruba a bolinha: põe a bolinha na linha de
+    // base do apelido e sobe meia altura de letra (o mesmo que vertical-align:middle faz sem apelido).
+    + '.bubble-container .username[' + MARCA + '][data-vl-usa], .chat-bubble .username[' + MARCA + '][data-vl-usa] { display:inline-flex!important; align-items:baseline; }'
+    + '.bubble-container .username[' + MARCA + '][data-vl-usa]::after, .chat-bubble .username[' + MARCA + '][data-vl-usa]::after { vertical-align:0; position:relative; top:calc(4px - var(' + FONTE + ', 13px) * .27); }'
     + '.vl-editar-apelido { min-height:24px; cursor:pointer; }';
 
   nucleo.definirModulo({
