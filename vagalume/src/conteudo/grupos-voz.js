@@ -494,7 +494,7 @@
       gerenciar.className = 'vl-icone';
       if (op.icones) gerenciar.appendChild(op.icones.grupo());
       gerenciar.title = 'Membros e convites'; gerenciar.setAttribute('aria-label', gerenciar.title);
-      let timer, codigo, textoAnterior, ultima, assinatura, ocupado = false, envios = 0;
+      let timer, codigo, textoAnterior, ultima, assinatura, ocupado = 0, envios = 0;
       const ativa = () => versao === geracao && pararConversa !== null;
       let membros = new Map();
       function exibirMembros(lista) {
@@ -531,18 +531,27 @@
         if (seguir || ultima === undefined) historico.scrollTop = historico.scrollHeight;
         ultima = chave;
       }
-      const enviar = botao('Fale', async () => {
+      // Limpa o campo na hora e põe o envio numa fila: quem digita rápido já escreve a próxima
+      // enquanto a anterior ainda vai ao servidor. Se falhar, o texto volta ao campo (se estiver vazio).
+      let fila = Promise.resolve();
+      const enviar = botao('Fale', () => {
         const texto = campo.value.trim();
-        if (!texto || ocupado) return;
+        if (!texto) return;
         if (texto !== textoAnterior) { codigo = crypto.randomUUID().replace(/-/g, ''); textoAnterior = texto; }
-        ocupado = true;
+        const deste = codigo;
+        campo.value = '';
+        if (ativa()) campo.focus();
+        ocupado++;
         envios++;
-        try {
-          exibir(await pedir('mensagem', { grupo, texto, codigo }));
-          if (campo.value.trim() === texto) campo.value = '';
-          textoAnterior = null;
-          if (ativa()) campo.focus();
-        } finally { ocupado = false; }
+        fila = fila.then(async () => {
+          try {
+            exibir(await pedir('mensagem', { grupo, texto, codigo: deste }));
+            if (textoAnterior === texto) textoAnterior = null;
+          } catch (e) {
+            if (!campo.value.trim()) campo.value = texto;
+            erro(e);
+          } finally { ocupado--; }
+        });
       });
       enviar.className = 'messenger-button chat-submit fw-bold px-3';
       campo.addEventListener('keydown', (e) => {
