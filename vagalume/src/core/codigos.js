@@ -772,12 +772,11 @@
     }
     return { trocar, faltam: lista.length - trocar.length };
   }
-  // Preencher: um item da classe em cada piso da área que ainda não tem um mobi dessa classe.
+  // Preencher: um item da classe em cada piso da área (por camada), mesmo onde já houver um igual.
   const MAX_PISOS_PREENCHER = 400;
   const MAX_CAMADAS = 10;
   function planoPreencher(area, classe, noQuarto, itens, direcao, camadas) {
     const n = Math.min(MAX_CAMADAS, Math.max(1, Math.floor(Number(camadas) || 1)));
-    const ocupados = new Set(noQuarto.filter((m) => m.tipo === classe).map((m) => m.x + ',' + m.y));
     // Em cima da pilha que já está no piso (topo = altura + altura do próprio mobi).
     const topos = new Map();
     for (const m of noQuarto) {
@@ -791,7 +790,6 @@
     for (let camada = 0; camada < n; camada++) {
       for (let y = area.y1; y <= area.y2; y++) {
         for (let x = area.x1; x <= area.x2; x++) {
-          if (ocupados.has(x + ',' + y)) continue;
           if (ids.length) colocar.push({ itemId: ids.shift(), x, y, direcao: direcao || 0, altura: topos.get(x + ',' + y) || 0, camada });
           else faltam++;
         }

@@ -517,22 +517,55 @@
         } finally { parar(); }
         return colocar.length - pendentes.size;
       }
+      // Com altura fixa: cada mobi só conta quando o servidor mostra o mesmo id no piso e na altura certos
+      // (pelo 1534 ao colocar ou pelo 3776 ao mover). O que falhar volta em mais duas rodadas, mais lentas.
       async function colocarLista(colocar) {
-        let feitos = 0;
-        await comAlturasFixas(async function (fixar) {
-          for (const m of colocar.slice().sort((a, b) => (a.altura || 0) - (b.altura || 0))) {
-            if (!ctx.ativo('construcao')) break;
-            if (!(await fixar(m.altura || 0))) break;
-            if (!(await mandar(SAIDA.COLOCAR_MOBI, [['s', m.itemId + ' ' + m.x + ' ' + m.y + ' ' + m.direcao]]))) break;
-            await esperar(350);
-            // Inclui altura zero: altura automática permitiria empilhar no destino.
-            if (!(await mandar(SAIDA.MOVER_MOBI, [['i', m.itemId], ['i', m.x], ['i', m.y], ['i', m.direcao]]))) break;
-            await esperar(350);
-            feitos++;
-            if (feitos % 20 === 0) camada.aviso(feitos + ' de ' + colocar.length + ' colocados…');
-          }
-        });
-        return feitos;
+        const certo = (m, lido) => lido.x === m.x && lido.y === m.y && Math.abs(lido.altura - (m.altura || 0)) < 0.01;
+        const colocados = new Set();
+        const prontos = new Set();
+        let acordar = null;
+        function ouvir(l, colocado) {
+          let lido = null;
+          try { lido = codigos.lerMobi(l); } catch (e) { return; }
+          const m = alvos.get(lido.id);
+          if (!m) return;
+          if (colocado) colocados.add(lido.id);
+          if (certo(m, lido)) prontos.add(lido.id);
+          if (acordar) acordar();
+        }
+        const alvos = new Map(colocar.map((m) => [m.itemId, m]));
+        const pararA = conexao.ouvir('entrada', ENTRADA.MOBI_COLOCADO, (l) => ouvir(l, true));
+        const pararB = conexao.ouvir('entrada', ENTRADA.MOBI_ATUALIZADO, (l) => ouvir(l, false));
+        const aguardar = (feito) => new Promise(function (r) { if (feito()) { r(); return; } acordar = () => { if (feito()) r(); }; setTimeout(r, 700); }).then(() => { acordar = null; });
+        try {
+          await comAlturasFixas(async function (fixar) {
+            for (const folga of FOLGAS_COLOCAR) {
+              const rodada = colocar.filter((m) => !prontos.has(m.itemId)).sort((a, b) => (a.altura || 0) - (b.altura || 0));
+              if (!rodada.length) break;
+              for (const m of rodada) {
+                if (!ctx.ativo('construcao')) return;
+                if (prontos.has(m.itemId)) continue;
+                const inicio = Date.now();
+                if (!(await fixar(m.altura || 0))) return;
+                if (!colocados.has(m.itemId)) {
+                  if (!(await mandar(SAIDA.COLOCAR_MOBI, [['s', m.itemId + ' ' + m.x + ' ' + m.y + ' ' + m.direcao]]))) return;
+                  await aguardar(() => colocados.has(m.itemId));
+                  if (!colocados.has(m.itemId)) continue; // recusado: volta na próxima rodada
+                }
+                // Já pousou na altura certa? Senão move no lugar com a altura fixa (inclusive zero).
+                if (!prontos.has(m.itemId)) {
+                  if (!(await mandar(SAIDA.MOVER_MOBI, [['i', m.itemId], ['i', m.x], ['i', m.y], ['i', m.direcao]]))) return;
+                  await aguardar(() => prontos.has(m.itemId));
+                }
+                const resto = folga - (Date.now() - inicio);
+                if (resto > 0) await esperar(resto);
+                if (prontos.size && prontos.size % 20 === 0) camada.aviso(prontos.size + ' de ' + colocar.length + ' colocados…');
+              }
+              await esperar(500); // confirmações atrasadas antes de decidir quem repete
+            }
+          });
+        } finally { pararA(); pararB(); }
+        return prontos.size;
       }
       async function colarQuarto() {
         if (!conexao.disponivel()) { exigir(); return; }
@@ -1251,7 +1284,7 @@
               return p;
             };
             const plano = planoDe(1);
-            if (!plano.colocar.length) { camada.aviso(plano.faltam ? 'Não há ' + nome + ' no seu inventário.' : 'Todos os pisos da área já têm esse mobi.', { tipo: 'erro' }); return; }
+            if (!plano.colocar.length) { camada.aviso('Não há ' + nome + ' no seu inventário.', { tipo: 'erro' }); return; }
             let ficha = null;
             try { const dados = await VL.dadosJogo.mobis(); ficha = dados && dados.chao && dados.chao.get(classe); } catch (e) { /* sem ícone */ }
             const escolha = await escolherAltura(planoDe, { nome: ficha && ficha.nome ? ficha.nome : nome.replace(/^"|"$/g, ''), area: textoArea(alvo), icone: ficha ? VL.dadosJogo.iconeDe(ficha.classe) : null }, previa);
