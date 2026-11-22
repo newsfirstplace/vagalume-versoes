@@ -654,19 +654,47 @@
     }
     return saida;
   }
-  // Planta para colar: o mapa da cópia mais uma porta separada, a alguns pisos de distância, ligada ao
-  // quarto por um corredor fora da área (pedido do usuário em 2026-11-22: quem entra não fica em cima
-  // de onde os mobis vão). Só acrescenta colunas à direita ou linhas embaixo, então nenhuma posição
-  // da cópia muda. Devolve { mapa, porta: { x, y, direcao } } ou null sem piso nenhum.
-  function plantaComPorta(mapaTexto, distancia) {
+  // Planta para colar com uma porta separada de onde os mobis vão (pedido do usuário em 2026-11-22: quem
+  // entra não pode ficar em cima de um piso da cópia). O hotel recusa floor grande demais ("modelo muito
+  // grande"), então primeiro tenta sem aumentar o mapa: (1) um piso novo num buraco do mapa ("x" ao lado
+  // de um piso), longe dos mobis; (2) um piso livre da cópia, longe dos mobis; (3) só então um corredor
+  // para fora (direita ou embaixo). Nenhuma posição da cópia muda; linhas e colunas vazias do fim saem.
+  // ocupados: [[x, y], ...] dos mobis da cópia. Devolve { mapa, porta: { x, y, direcao } } ou null.
+  function plantaComPorta(mapaTexto, ocupados, distancia) {
     const d = Math.max(2, Math.floor(distancia || 4));
-    const linhas = String(mapaTexto || '').split(/\r\n|\r|\n/);
-    while (linhas.length && linhas[linhas.length - 1] === '') linhas.pop();
-    const largura = Math.max(0, ...linhas.map((l) => l.length));
     const valido = (c) => !!c && c !== 'x' && c !== 'X';
-    const grade = linhas.map((l) => l.padEnd(largura, 'x').split(''));
+    const linhas = String(mapaTexto || '').split(/\r\n|\r|\n/);
+    let largura = Math.max(0, ...linhas.map((l) => l.length));
+    let grade = linhas.map((l) => l.padEnd(largura, 'x').split(''));
+    while (grade.length && !grade[grade.length - 1].some(valido)) grade.pop();
+    while (largura && !grade.some((l) => valido(l[largura - 1]))) { largura--; grade.forEach((l) => l.pop()); }
     const altura = grade.length;
-    // Lado direito: as linhas cujo piso vai mais longe; fica a do meio. Embaixo: o mesmo com as colunas.
+    if (!altura || !largura) return null;
+    const texto = () => grade.map((l) => l.join('')).join('\r');
+    const mobis = (ocupados || []).filter((p) => Array.isArray(p) && Number.isInteger(p[0]) && Number.isInteger(p[1]));
+    const ocupado = new Set(mobis.map((p) => p[0] + ',' + p[1]));
+    const longe = (x, y) => mobis.reduce((m, p) => Math.min(m, Math.max(Math.abs(p[0] - x), Math.abs(p[1] - y))), 99);
+    // Vizinhos na ordem oeste, leste, norte, sul; a direção é para onde quem entra olha (para o quarto).
+    const VIZ = [[-1, 0, 6], [1, 0, 2], [0, -1, 0], [0, 1, 4]];
+    let buraco = null, livre = null;
+    for (let y = 0; y < altura; y++) {
+      for (let x = 0; x < largura; x++) {
+        const dist = longe(x, y);
+        if (!valido(grade[y][x])) {
+          const v = VIZ.find(([dx, dy]) => grade[y + dy] && valido(grade[y + dy][x + dx]));
+          if (v && (!buraco || dist > buraco.dist)) buraco = { x, y, dist, h: grade[y + v[1]][x + v[0]], direcao: v[2] };
+        } else if (!ocupado.has(x + ',' + y) && (!livre || dist > livre.dist)) {
+          const v = VIZ.find(([dx, dy]) => grade[y + dy] && valido(grade[y + dy][x + dx]));
+          livre = { x, y, dist, direcao: v ? v[2] : 2 };
+        }
+      }
+    }
+    if (buraco && buraco.dist >= 2) {
+      grade[buraco.y][buraco.x] = buraco.h;
+      return { mapa: texto(), porta: { x: buraco.x, y: buraco.y, direcao: buraco.direcao } };
+    }
+    if (livre && livre.dist >= 3) return { mapa: texto(), porta: { x: livre.x, y: livre.y, direcao: livre.direcao } };
+    // Corredor para fora, no lado que deixa o quarto menos comprido.
     let dir = null, baixo = null;
     for (let y = 0; y < altura; y++) {
       for (let x = largura - 1; x >= 0; x--) if (valido(grade[y][x])) { if (!dir || x > dir.max) dir = { max: x, lista: [] }; if (x === dir.max) dir.lista.push(y); break; }
@@ -674,19 +702,17 @@
     for (let x = 0; x < largura; x++) {
       for (let y = altura - 1; y >= 0; y--) if (valido(grade[y][x])) { if (!baixo || y > baixo.max) baixo = { max: y, lista: [] }; if (y === baixo.max) baixo.lista.push(x); break; }
     }
-    if (!dir || !baixo) return null;
     const meio = (lista) => lista[Math.floor((lista.length - 1) / 2)];
-    // O lado que deixa o quarto menos comprido.
     if (Math.max(largura + d, altura) <= Math.max(largura, altura + d)) {
       const y = meio(dir.lista), h = grade[y][dir.max], portaX = largura + d - 1;
       for (const linha of grade) while (linha.length <= portaX) linha.push('x');
       for (let x = dir.max + 1; x <= portaX; x++) grade[y][x] = h;
-      return { mapa: grade.map((l) => l.join('')).join('\r'), porta: { x: portaX, y, direcao: 6 } };
+      return { mapa: texto(), porta: { x: portaX, y, direcao: 6 } };
     }
     const x = meio(baixo.lista), h = grade[baixo.max][x], portaY = altura + d - 1;
     while (grade.length <= portaY) grade.push(new Array(largura).fill('x'));
     for (let y = baixo.max + 1; y <= portaY; y++) grade[y][x] = h;
-    return { mapa: grade.map((l) => l.join('')).join('\r'), porta: { x, y: portaY, direcao: 0 } };
+    return { mapa: texto(), porta: { x, y: portaY, direcao: 0 } };
   }
   // Raro, LTD e afins (o arquivo de mobis do Habblet não marca raridade: vai pelo nome técnico e pelo nome).
   // Não ficam à venda em moedas, então a compra para completar uma cópia os deixa de fora.

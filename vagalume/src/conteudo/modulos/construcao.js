@@ -668,7 +668,7 @@
       // Planta: o editor de chão do jogo salva com uma mensagem só; o quarto recarrega depois.
       async function aplicarPlanta(p) {
         const pronto = esperarMensagem(ENTRADA.QUARTO_PRONTO, 15000);
-        const comPorta = codigos.plantaComPorta(p.mapa);
+        const comPorta = codigos.plantaComPorta(p.mapa, (copiaQuarto || []).filter((m) => !m.parede).map((m) => [m.x, m.y]));
         if (!comPorta) return false;
         if (!(await mandar(SAIDA.SALVAR_PLANTA, [['s', comPorta.mapa], ['i', comPorta.porta.x], ['i', comPorta.porta.y], ['i', comPorta.porta.direcao], ['i', p.parede], ['i', p.piso], ['i', p.alturaParede]]))) return false;
         if (!(await pronto)) return false;
@@ -734,7 +734,7 @@
           const resumo = [];
           if (extrasCopia.planta && quer('planta')) {
             camada.aviso('Aplicando o floor do quarto…');
-            resumo.push((await aplicarPlanta(extrasCopia.planta)) ? 'floor aplicado' : 'o floor não foi aplicado (precisa ser dono do quarto)');
+            resumo.push((await aplicarPlanta(extrasCopia.planta)) ? 'floor aplicado' : 'o floor não foi aplicado (o hotel recusou: quarto que não é seu ou floor grande demais)');
           }
           if (extrasCopia.decoracao && quer('decoracao')) {
             const r = await aplicarDecoracao(extrasCopia.decoracao);
