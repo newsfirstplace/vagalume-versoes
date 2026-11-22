@@ -233,6 +233,17 @@
     }
     return true;
   }
+  // Topo da pilha (onde o próximo mobi pousa, já com mobis de vários pisos) e altura do chão de cada piso,
+  // pelos mapas do próprio jogo. null = piso fora do quarto ou sem dado.
+  function alturasDosPisos(pontos) {
+    if (!motor || !Array.isArray(pontos)) return null;
+    const pilha = motor.getFurnitureStackingHeightMap && motor.getFurnitureStackingHeightMap(motor.activeRoomId);
+    const chao = motor.getLegacyWallGeometry && motor.getLegacyWallGeometry(motor.activeRoomId);
+    if (!pilha && !chao) return null;
+    const ler = (mapa, x, y) => { try { const h = mapa ? Number(mapa.getTileHeight ? mapa.getTileHeight(x, y) : mapa.getHeight(x, y)) : NaN; return Number.isFinite(h) && h >= 0 ? Math.round(h * 100) / 100 : null; } catch (e) { return null; } };
+    const lista = pontos.slice(0, 400).filter((p) => Array.isArray(p) && Number.isInteger(p[0]) && Number.isInteger(p[1]));
+    return { topos: lista.map((p) => ler(pilha, p[0], p[1])), chaos: lista.map((p) => ler(chao, p[0], p[1])) };
+  }
   // Os objetos entram no quarto no quadro seguinte: só então dá para deixá-los translúcidos.
   function clarearColocacao() {
     if (!colocacao || !colocacao.novos.length) return;
@@ -273,6 +284,7 @@
     try { d = JSON.parse(ev.detail); } catch (e) { return; }
     if (!d || typeof d !== 'object') return;
     let ok = true;
+    let extra = null;
     try {
       switch (d.acao) {
         case 'ativar': ativo = true; preparar(); if (!quadro) quadro = requestAnimationFrame(ciclo); break;
@@ -284,6 +296,7 @@
           break;
         // Falha na prévia não pode derrubar a seleção de área em andamento.
         case 'colocacao': try { ok = mostrarColocacao(d); } catch (e) { ok = false; try { pararColocacao(); } catch (e2) { colocacao = null; } } break;
+        case 'alturas': extra = alturasDosPisos(d.pontos); ok = !!extra; break;
         case 'cancelar': pararSelecao(); pararPrevia(); break;
         case 'desativar':
           ativo = false; pararSelecao(); pararPrevia(); pararColocacao();
@@ -294,6 +307,6 @@
         default: return;
       }
     } catch (e) { ok = false; pararSelecao(); pararPrevia(); }
-    responder({ tipo: 'resposta', id: d.id, ok });
+    responder(Object.assign({ tipo: 'resposta', id: d.id, ok }, extra));
   });
 })();

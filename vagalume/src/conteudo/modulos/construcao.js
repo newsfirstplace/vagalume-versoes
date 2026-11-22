@@ -1129,19 +1129,57 @@
           return preencherArea(area, classe, direcao, 'mobis do tipo ' + classe);
         },
       });
+      // Altura de cada mobi do plano: "pilha" = topo do que já está no piso; "chao" = o chão do piso;
+      // "altura" = a mesma altura para todos. Topo e chão vêm do motor do jogo (contam mobis de vários
+      // pisos); sem ele, o topo cai na conta pelos mobis conhecidos e o chão em 0.
+      function comAltura(colocar, modo, altura) {
+        const lidas = ferramenta && ferramenta.alturasPisos ? ferramenta.alturasPisos(colocar.map((m) => [m.x, m.y])) : null;
+        return colocar.map(function (m, i) {
+          let z = m.altura || 0;
+          if (modo === 'altura') z = altura;
+          else if (modo === 'chao') z = lidas && lidas.chaos && lidas.chaos[i] != null ? lidas.chaos[i] : 0;
+          else if (lidas && lidas.topos && lidas.topos[i] != null) z = lidas.topos[i];
+          return Object.assign({}, m, { altura: z });
+        });
+      }
+      // Escolha antes de colocar: empilhar, no chão ou numa altura; a prévia no quarto acompanha.
+      async function escolherAltura(plano, texto, previa) {
+        let modo = 'pilha';
+        const pilha = comAltura(plano.colocar, 'pilha');
+        const campo = camada.el('input', { type: 'number', min: 0, max: codigos.MAX_ALTURA, step: 0.05, class: 'vl-campo', 'aria-label': 'Altura', value: String(Math.max(0, ...pilha.map((m) => m.altura))), style: 'width:90px' });
+        const linhaAltura = camada.el('label', { style: 'display:none;align-items:center;gap:8px;margin-top:10px' }, ['Altura (0 a ' + codigos.MAX_ALTURA + '):', campo]);
+        const opcoes = [['pilha', 'Empilhar por cima'], ['chao', 'Colocar no chão'], ['altura', 'Escolher altura']];
+        const botoes = opcoes.map(([valor, rotulo]) => camada.el('button', { type: 'button', class: 'vl-botao', texto: rotulo, onclick() { modo = valor; atualizar(); } }));
+        function atualizar() {
+          botoes.forEach((b, i) => { const sim = opcoes[i][0] === modo; b.classList.toggle('primario', sim); b.setAttribute('aria-pressed', String(sim)); });
+          linhaAltura.style.display = modo === 'altura' ? 'flex' : 'none';
+          const h = codigos.alturaValida(campo.value);
+          previa(modo === 'pilha' ? pilha : comAltura(plano.colocar, modo, h == null ? 0 : h));
+        }
+        campo.addEventListener('input', atualizar);
+        const conteudo = camada.el('div', { style: 'margin-top:10px' }, [camada.el('div', { role: 'group', 'aria-label': 'Altura dos mobis', style: 'display:flex;flex-wrap:wrap;gap:8px' }, botoes), linhaAltura]);
+        atualizar();
+        const ok = await camada.dialogo({ titulo: 'Colocar vários', texto, conteudo, largo: true,
+          botoes: [{ rotulo: 'Cancelar', valor: null }, { rotulo: 'Colocar', valor: 'ok', destaque: true, foco: true }] });
+        if (!ok) return null;
+        if (modo !== 'altura') return { modo, lista: modo === 'pilha' ? plano.colocar : comAltura(plano.colocar, 'chao') };
+        const h = codigos.alturaValida(campo.value);
+        if (h == null) { camada.aviso('Altura inválida: use um número de 0 a ' + codigos.MAX_ALTURA + '.', { tipo: 'erro' }); return null; }
+        return { modo, lista: comAltura(plano.colocar, 'altura', h) };
+      }
       function preencherArea(alvo, classe, direcao, nome, itensProntos) {
-        const previa = (plano) => { if (ferramenta) ferramenta.previaColocacao(classe, direcao, plano ? plano.colocar.map((m) => ({ x: m.x, y: m.y, z: m.altura })) : []); };
+        const previa = (lista) => { if (ferramenta) ferramenta.previaColocacao(classe, direcao, (lista || []).map((m) => ({ x: m.x, y: m.y, z: m.altura }))); };
         return emLote(async function () {
           try {
             const itens = itensProntos || await pedirInventario();
             if (!itens) { camada.aviso('O inventário não respondeu.', { tipo: 'erro' }); return; }
             const plano = codigos.planoPreencher(alvo, classe, [...mobis.values()], itens, direcao);
             if (!plano.colocar.length) { camada.aviso(plano.faltam ? 'Não há ' + nome + ' no seu inventário.' : 'Todos os pisos da área já têm esse mobi.', { tipo: 'erro' }); return; }
-            previa(plano); // a prévia fica no quarto enquanto a confirmação está aberta
-            const ok = await camada.confirmar('Colocar ' + plano.colocar.length + ' ' + nome + ' na área ' + textoArea(alvo) + ', um por piso livre, em cima do que já estiver no piso?' + (plano.faltam ? ' Faltam ' + plano.faltam + ' no inventário; esses pisos ficam vazios.' : ''), { titulo: 'Colocar vários', sim: 'Colocar' });
+            const escolha = await escolherAltura(plano, 'Colocar ' + plano.colocar.length + ' ' + nome + ' na área ' + textoArea(alvo) + ', um por piso livre.' + (plano.faltam ? ' Faltam ' + plano.faltam + ' no inventário; esses pisos ficam vazios.' : '') + ' Em que altura?', previa);
             previa(null);
-            if (!ok) return;
-            const feitos = await colocarNoTopo(plano.colocar);
+            if (!escolha) return;
+            // Empilhar: o jogo pousa cada um no topo (rápido). Chão ou altura: fixa a altura de cada um.
+            const feitos = escolha.modo === 'pilha' ? await colocarNoTopo(escolha.lista) : await colocarLista(escolha.lista);
             camada.aviso('Pronto: ' + feitos + ' de ' + plano.colocar.length + ' mobis colocados.', { tipo: feitos === plano.colocar.length ? 'ok' : 'erro' });
           } finally { previa(null); }
         }).finally(() => previa(null)); // também quando outra tarefa ainda está rodando
@@ -1174,7 +1212,7 @@
         }, function (alvo) {
           // Prévia ao vivo enquanto arrasta: os mobis aparecem em cada piso livre, em cima das pilhas.
           const plano = grande(alvo) ? { colocar: [] } : codigos.planoPreencher(alvo, tipo, [...mobis.values()], itens, 0);
-          ferramenta.previaColocacao(tipo, 0, plano.colocar.map((m) => ({ x: m.x, y: m.y, z: m.altura })));
+          ferramenta.previaColocacao(tipo, 0, comAltura(plano.colocar, 'pilha').map((m) => ({ x: m.x, y: m.y, z: m.altura })));
         });
       }
       let vigiaInventario = 0;

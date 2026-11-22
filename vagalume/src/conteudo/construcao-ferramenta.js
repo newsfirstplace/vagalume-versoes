@@ -169,6 +169,8 @@
     }
     // Mobis só de prévia (desenhados pelo motor, sem ir ao servidor). Lista vazia tira todos.
     function previaColocacao(tipo, direcao, pontos) { return pedirMotor('colocacao', { tipo, direcao: direcao || 0, pontos: pontos || [] }); }
+    // { topos, chaos } por piso, lidos do motor do jogo (null sem o motor).
+    function alturasPisos(pontos) { return pedirMotor('alturas', { pontos }) ? respostaMotor : null; }
     function largarPreviaArea() { if (aoMudarArea) { aoMudarArea = null; previaColocacao(0, 0, []); } }
     function limparSelecao() {
       largarPreviaArea();
@@ -754,6 +756,6 @@
     ctx.aoParar(function () { pedirMotor('desativar'); });
     ctx.aoParar(function () { document.documentElement.removeAttribute('data-vl-ferramenta-integrada'); });
 
-    return { abrirJanela, comecarSelecao, selecionarIguais, selecionarPilha, limparSelecao, montarPainel, previaColocacao };
+    return { abrirJanela, comecarSelecao, selecionarIguais, selecionarPilha, limparSelecao, montarPainel, previaColocacao, alturasPisos };
   };
 })(typeof globalThis !== 'undefined' ? globalThis : this);
