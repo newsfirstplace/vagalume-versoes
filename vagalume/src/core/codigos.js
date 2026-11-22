@@ -12,8 +12,6 @@
     PEDIR_REGULADOR: 2813,    // ITEM_DIMMER_SETTINGS -> 2710
     SALVAR_REGULADOR: 1648,   // ITEM_DIMMER_SAVE: i efeito, i tipo, s cor "#RRGGBB", i claridade, b aplicar
     LIGAR_REGULADOR: 2296,    // ITEM_DIMMER_TOGGLE (liga/desliga)
-    PEDIR_CONFIG_QUARTO: 3129, // ROOM_SETTINGS: i id do quarto -> 1498
-    SALVAR_CONFIG_QUARTO: 1969, // ROOM_SETTINGS_SAVE (campos em camposConfigQuarto)
     ANDAR: 3320,          // i x, i y
     FALAR: 1314,          // s texto, i estilo
     ENTRAR_GRUPO: 998,    // i grupo (GROUP_REQUEST do cliente)
@@ -84,7 +82,6 @@
     MOBI_PAREDE_ATUALIZADO: 2009, // ITEM_WALL_UPDATE
     MOBI_PAREDE_RETIRADO: 3208,   // ITEM_WALL_REMOVE: s id, i dono
     REGULADOR: 2710,          // ITEM_DIMMER_SETTINGS: i nº, i selecionado, por efeito: i id, i tipo, s cor, i claridade
-    CONFIG_QUARTO: 1498,      // ROOM_SETTINGS: configurações do quarto (lerConfigQuarto)
     FALA: 1446,           // i índice, s texto, i gesto, i estilo, links, i controle
     GRITO: 1036,          // igual à fala
     SUSSURRO: 2704,       // igual à fala (UNIT_CHAT_WHISPER); também a cópia do que você sussurra
@@ -650,7 +647,6 @@
       for (const k of Object.keys(CLASSE_DECORACAO)) if (typeof o.decoracao[k] === 'string' && /^[0-9.]{1,12}$/.test(o.decoracao[k])) d[k] = o.decoracao[k];
       if (Object.keys(d).length) saida.decoracao = d;
     }
-    if (typeof o.esconderParedes === 'boolean') saida.esconderParedes = o.esconderParedes;
     const r = o.regulador;
     if (r && Array.isArray(r.efeitos) && r.efeitos.length && r.efeitos.length <= 10 && inteiro(r.selecionado, 0, 99)
       && r.efeitos.every((e) => e && inteiro(e.id, 0, 99) && inteiro(e.tipo, 0, 9) && /^#[0-9a-fA-F]{6}$/.test(e.cor) && inteiro(e.brilho, 0, 255))) {
@@ -731,27 +727,6 @@
       if (!m.parede) return Object.assign({}, m, { x: m.x - d.x, y: m.y - d.y });
       return Object.assign({}, m, { local: m.local.replace(/^:w=(\d+),(\d+)/, (t, x, y) => ':w=' + (Number(x) - d.x) + ',' + (Number(y) - d.y)) });
     }).filter((m) => m.parede ? LOCAL_PAREDE.test(m.local) : m.x >= 0 && m.y >= 0);
-  }
-  // Configurações do quarto (1498), na ordem do cliente. Só para mudar "esconder paredes" e mandar o
-  // resto igual (camposConfigQuarto monta o 1969 na ordem do cliente; a senha vai vazia).
-  function lerConfigQuarto(l) {
-    const c = { id: l.inteiro(), nome: l.texto(), descricao: l.texto(), porta: l.inteiro(), categoria: l.inteiro(), visitantes: l.inteiro(), limiteVisitantes: l.inteiro(), tags: [] };
-    const n = l.inteiro();
-    for (let i = 0; i < n && i < 20; i++) c.tags.push(l.texto());
-    c.troca = l.inteiro();
-    c.pets = l.inteiro() === 1; c.comerPets = l.inteiro() === 1; c.atravessar = l.inteiro() === 1; c.esconderParedes = l.inteiro() === 1;
-    c.parede = l.inteiro(); c.piso = l.inteiro();
-    c.chat = { modo: l.inteiro(), peso: l.inteiro(), velocidade: l.inteiro(), distancia: l.inteiro(), protecao: l.inteiro() };
-    c.categoriasDinamicas = l.booleano();
-    c.moderacao = { mutar: l.inteiro(), expulsar: l.inteiro(), banir: l.inteiro() };
-    return c;
-  }
-  function camposConfigQuarto(c) {
-    return [['i', c.id], ['s', c.nome], ['s', c.descricao], ['i', c.porta], ['s', ''], ['i', c.visitantes], ['i', c.categoria], ['i', c.tags.length]]
-      .concat(c.tags.map((t) => ['s', t]))
-      .concat([['i', c.troca], ['b', c.pets], ['b', c.comerPets], ['b', c.atravessar], ['b', c.esconderParedes], ['i', c.parede], ['i', c.piso],
-        ['i', c.moderacao.mutar], ['i', c.moderacao.expulsar], ['i', c.moderacao.banir],
-        ['i', c.chat.modo], ['i', c.chat.peso], ['i', c.chat.velocidade], ['i', c.chat.distancia], ['i', c.chat.protecao]]);
   }
   // Conferência do quarto colado com a cópia: cada mobi esperado é casado com um do quarto (mesmo tipo e
   // posição; altura e estado comparados). Devolve contagens e os tipos de cada problema.
@@ -1103,7 +1078,7 @@
     return { id, nome, visual, genero };
   }
 
-  const api = { lerConfigQuarto, camposConfigQuarto, conferirCopia, deslocarCopia, plantaComPorta, lerPlanta, lerEspessura, lerPorta, lerDecoracao, lerMobiParede, lerMobisParede, lerRegulador, reguladorLigado, LOCAL_PAREDE, CLASSE_DECORACAO, validarExtrasQuarto, mobiRaro, estadoNumero, origemDaAmostra, pisoNaTela, telaNoPiso, origemMediana, cantosDaArea, planoGirarArea, planoEspelharArea, planoEscada, caminhoPaginaLoja, semAcento, acharPaginasLoja, MAX_PISOS_PREENCHER, MAX_CAMADAS, planoPreencher, lerCompra, resumoCarrinho, areaDe, mobisNaArea, planoMoverArea, planoDuplicar, planoSubstituir, repetidos, lerMeusDados, FEIRA_ESTADO, lerConfigFeira, lerOfertaFeira, lerOfertasFeira, lerMinhasOfertas, ofertasParaRepor, copiaDoQuarto, validarCopiaQuarto, planoDeColagem, SALVAR_WIRED, lerVisuais, visualValido, lerIndiceLoja, lerPaginaLoja, lerItemInventario, lerInventario, planoDeCompra, EXPRESSAO_INATIVO, lerAmigos, lerAmigo, lerAtualizacaoAmigos, lerMensagemRecebida, mencaoNaFala, referenciasDeQuarto, MAX_ALTURA, alturaValida, alturaDoMobi, SAIDA, ENTRADA, EXPRESSOES, MAX_DANCA, DANCAS_EXTRAS, MAX_PLACA, lerUmaOferta, lerFala, lerUsuarios, filtrarUsuarios, trocarPosicao, lerEstados, destinoDoMovimento, passo, PASSOS, EIXOS_SETAS, passoSetas, LADOS, NOMES_LADOS, linhasAoEntrar,
+  const api = { conferirCopia, deslocarCopia, plantaComPorta, lerPlanta, lerEspessura, lerPorta, lerDecoracao, lerMobiParede, lerMobisParede, lerRegulador, reguladorLigado, LOCAL_PAREDE, CLASSE_DECORACAO, validarExtrasQuarto, mobiRaro, estadoNumero, origemDaAmostra, pisoNaTela, telaNoPiso, origemMediana, cantosDaArea, planoGirarArea, planoEspelharArea, planoEscada, caminhoPaginaLoja, semAcento, acharPaginasLoja, MAX_PISOS_PREENCHER, MAX_CAMADAS, planoPreencher, lerCompra, resumoCarrinho, areaDe, mobisNaArea, planoMoverArea, planoDuplicar, planoSubstituir, repetidos, lerMeusDados, FEIRA_ESTADO, lerConfigFeira, lerOfertaFeira, lerOfertasFeira, lerMinhasOfertas, ofertasParaRepor, copiaDoQuarto, validarCopiaQuarto, planoDeColagem, SALVAR_WIRED, lerVisuais, visualValido, lerIndiceLoja, lerPaginaLoja, lerItemInventario, lerInventario, planoDeCompra, EXPRESSAO_INATIVO, lerAmigos, lerAmigo, lerAtualizacaoAmigos, lerMensagemRecebida, mencaoNaFala, referenciasDeQuarto, MAX_ALTURA, alturaValida, alturaDoMobi, SAIDA, ENTRADA, EXPRESSOES, MAX_DANCA, DANCAS_EXTRAS, MAX_PLACA, lerUmaOferta, lerFala, lerUsuarios, filtrarUsuarios, trocarPosicao, lerEstados, destinoDoMovimento, passo, PASSOS, EIXOS_SETAS, passoSetas, LADOS, NOMES_LADOS, linhasAoEntrar,
     lerDadosExtras, lerMobi, lerMobisDoQuarto, mexer, EIXOS, mobisIguaisNaArea, encaixeSobreMobis };
   raiz.VL = raiz.VL || {};
   raiz.VL.codigos = api;

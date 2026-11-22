@@ -484,7 +484,6 @@
         // Floor: o mapa vem ao entrar no quarto; a porta é criada ao colar (separada da área).
         if (planta) extrasCopia.planta = { mapa: planta.mapa, alturaParede: planta.alturaParede, parede: espessura ? espessura.parede : 0, piso: espessura ? espessura.piso : 0 };
         if (Object.keys(decoracao).length) extrasCopia.decoracao = Object.assign({}, decoracao);
-        if (espessura) extrasCopia.esconderParedes = espessura.esconderParedes;
         const dimmer = [...mobisParede.values()].find((m) => codigos.reguladorLigado(m.estado) != null);
         if (dimmer) {
           const lReg = await esperarMensagem(ENTRADA.REGULADOR, 2500, () => mandar(SAIDA.PEDIR_REGULADOR, []));
@@ -495,7 +494,6 @@
         if (extrasCopia.planta) partes.push('floor');
         if (extrasCopia.decoracao) partes.push('papel de parede, piso e paisagem');
         if (extrasCopia.regulador) partes.push('regulador de luz');
-        if (extrasCopia.esconderParedes) partes.push('paredes escondidas');
         camada.aviso('Cópia guardada: ' + partes.join(', ') + (incompleto ? ' (a lista do quarto pode estar incompleta)' : '') + '.'
           + (extrasCopia.planta ? '' : ' O floor não veio: saia e entre de novo no quarto e copie outra vez.') + ' Exporte para ter um backup em arquivo.', { tipo: extrasCopia.planta ? 'ok' : 'erro', duracaoMs: 9000 });
         // Já oferece comprar o que falta no inventário para montar a cópia (pedido do usuário em 2026-11-22).
@@ -679,22 +677,6 @@
         r.ok = true;
         return r;
       }
-      // "Esconder paredes" é das configurações do quarto: lê as atuais, troca só isso e grava de volta.
-      // Quarto com senha fica de fora (o jogo não devolve a senha, e gravar sem ela poderia trocá-la).
-      async function aplicarEsconderParedes(esconder) {
-        if (espessura && espessura.esconderParedes === esconder) return 'ok';
-        const quarto = VL.pessoas && VL.pessoas.quartoAtual ? VL.pessoas.quartoAtual() : null;
-        if (!quarto) return 'sem quarto';
-        const l = await esperarMensagem(ENTRADA.CONFIG_QUARTO, 4000, () => mandar(SAIDA.PEDIR_CONFIG_QUARTO, [['i', quarto]]));
-        if (!l) return 'sem resposta';
-        let c;
-        try { c = codigos.lerConfigQuarto(l); } catch (e) { return 'sem resposta'; }
-        if (c.porta === 2) return 'senha';
-        c.esconderParedes = esconder;
-        const mudou = esperarMensagem(ENTRADA.ESPESSURA, 4000);
-        await mandar(SAIDA.SALVAR_CONFIG_QUARTO, codigos.camposConfigQuarto(c));
-        return (await mudou) ? 'ok' : 'sem resposta';
-      }
       // Compara o quarto atual com a cópia (pedido do usuário em 2026-11-22: "poderia revisar?").
       let ultimaCopiaColada = null;
       async function mostrarConferencia(copia) {
@@ -725,7 +707,6 @@
           for (let y = 0; y < Math.max(a.length, e.length); y++) for (let x = 0; x < Math.max((a[y] || '').length, (e[y] || '').length); x++) if ((a[y] || '')[x] !== (e[y] || '')[x]) diferentes++;
           linhas.push(diferentes <= 2 ? 'Floor igual ao da cópia.' : 'Floor diferente da cópia em ' + diferentes + ' pisos (o floor não foi aplicado ou o hotel mudou algo).');
         }
-        if (typeof extrasCopia.esconderParedes === 'boolean' && espessura) linhas.push(espessura.esconderParedes === extrasCopia.esconderParedes ? 'Paredes como na cópia.' : (extrasCopia.esconderParedes ? 'As paredes do quarto deveriam estar escondidas.' : 'As paredes do quarto deveriam aparecer.'));
         await camada.dialogo({ titulo: 'Conferência do quarto colado', conteudo: el('div', null, linhas.map((t) => el('p', { style: 'margin:0 0 8px', texto: t }))),
           botoes: [{ rotulo: 'Fechar', valor: true, destaque: true, foco: true }] });
       }
@@ -773,7 +754,6 @@
           if (extrasCopia.planta) partes.unshift(['planta', 'Floor (primeiro; a porta fica separada da área e o quarto recarrega)', true]);
           if (extrasCopia.decoracao) partes.push(['decoracao', 'Papel de parede, piso e paisagem', true]);
           if (extrasCopia.regulador) partes.push(['regulador', 'Configuração do regulador de luz', true]);
-          if (typeof extrasCopia.esconderParedes === 'boolean') partes.push(['paredes', extrasCopia.esconderParedes ? 'Esconder as paredes do quarto' : 'Mostrar as paredes do quarto', true]);
           const marcas = {};
           if (partes.length > 1) {
             const caixas = partes.map(function ([id, rotulo, ligado]) {
@@ -794,10 +774,6 @@
             const tam = r ? ' (' + r.largura + ' × ' + r.altura + ' pisos)' : '';
             if (r && r.ok) { copia = codigos.deslocarCopia(copiaQuarto, r.deslocar); resumo.push('floor aplicado' + tam); }
             else resumo.push('o floor' + tam + ' não foi aplicado (o hotel recusou: quarto que não é seu ou floor maior do que a sua conta pode criar)');
-          }
-          if (typeof extrasCopia.esconderParedes === 'boolean' && quer('paredes')) {
-            const p = await aplicarEsconderParedes(extrasCopia.esconderParedes);
-            if (p !== 'ok') resumo.push(p === 'senha' ? 'paredes não mudaram (quarto com senha: mude nas configurações)' : 'paredes não mudaram (o hotel não respondeu)');
           }
           if (extrasCopia.decoracao && quer('decoracao')) {
             const r = await aplicarDecoracao(extrasCopia.decoracao);
@@ -1071,7 +1047,7 @@
       ctx.comando({
         nome: 'conferirquarto',
         uso: 'conferirquarto',
-        descricao: 'Compara este quarto com a cópia guardada: mobis faltando, altura e estado diferentes, mobis de parede, floor e paredes.',
+        descricao: 'Compara este quarto com a cópia guardada: mobis faltando, altura e estado diferentes, mobis de parede e floor.',
         executar() {
           if (!copiaQuarto) { camada.aviso('Copie ou importe um quarto primeiro.', { tipo: 'erro' }); return; }
           mostrarConferencia(ultimaCopiaColada || copiaQuarto);
