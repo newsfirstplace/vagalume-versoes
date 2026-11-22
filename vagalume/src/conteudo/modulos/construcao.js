@@ -356,6 +356,7 @@
       }
 
       let ferramenta = null;
+      let subAba = 'area';
       ctx.aba({
         id: 'construcao',
         titulo: 'Construção',
@@ -374,9 +375,15 @@
           const botao = (rotulo, dica, fazer, classe) => el('button', { type: 'button', class: 'vl-botao' + (classe ? ' ' + classe : ''), texto: rotulo, title: dica, onclick: fazer });
           const mexer = (rotulo, dica, tecla, girar) => { const b = botaoMexer(rotulo, tecla, girar); b.title = dica; return b; };
           const secao = (titulo, filhos) => el('section', { class: 'vl-cons-secao' }, [el('h3', { class: 'vl-acoes-titulo', texto: titulo })].concat(filhos));
-          alvo.replaceChildren(
+          const congelar = botao('Congelar (não andar)', 'O avatar não anda ao clicar no chão enquanto você constrói', function () { alternarCongelar(); });
+          const tele = botao('Teleporte', 'Clique num piso e vá direto (:tele do jogo; precisa de direitos)', function () { alternarTeleporte(); });
+          botoesModo = { congelar, tele };
+          setTimeout(atualizarModo, 0);
+          // Duas partes (pedido do usuário em 2026-11-22): Área (vários mobis) e Mobi (um só); o resto fica embaixo.
+          const area = el('div', { class: 'vl-cons-painel', role: 'tabpanel', 'aria-label': 'Área' }, []);
+          const mobi = el('div', { class: 'vl-cons-painel', role: 'tabpanel', 'aria-label': 'Mobi' }, [
             situacao,
-            el('p', { class: 'vl-cuidado', texto: '⚠ Não clique sem parar nos botões: cada clique manda uma mensagem ao jogo, e o Habblet dá mute por flood a quem manda muitas em pouco tempo.' }),
+            el('p', { class: 'vl-cuidado', texto: '⚠ Não clique sem parar: cada clique manda uma mensagem ao jogo, e o Habblet dá mute por flood.' }),
             el('div', { class: 'vl-cons-colunas' }, [
               secao('Mover e girar', [
                 el('div', { class: 'vl-cruz' }, [
@@ -391,51 +398,44 @@
                 historico,
               ]),
             ]),
-            secao('Mobi selecionado', [el('div', { class: 'vl-linha' }, [
+            secao('Ações', [el('div', { class: 'vl-linha' }, [
               botao('Usar', 'Liga, desliga ou muda o estado', function () { const m = exigir(); if (m) mandar(SAIDA.USAR_MOBI, [['i', m.id], ['i', 0]]); }),
               botao('Recolher…', 'Volta o mobi para o inventário', function () { recolher(); }),
               botao('Lista de mobis', 'Todos os mobis do chão', function () { listar(); }),
             ])]),
-            (function () {
-              const congelar = botao('Congelar (não andar)', 'O avatar não anda ao clicar no chão enquanto você constrói', function () { alternarCongelar(); });
-              const tele = botao('Teleporte', 'Clique num piso e vá direto (:tele do jogo; precisa de direitos)', function () { alternarTeleporte(); });
-              botoesModo = { congelar, tele };
-              setTimeout(atualizarModo, 0);
-              return secao('Modo construção', [el('div', { class: 'vl-linha' }, [congelar, tele])]);
-            })(),
-            secao('Área marcada', [
-              el('div', { class: 'vl-linha' }, [
-                botao('Selecionar no chão', 'Arraste no chão para marcar a área (como no Paint)', function () { if (ferramenta) ferramenta.comecarSelecao(); }, 'primario'),
-              ]),
-              el('div', { class: 'vl-linha' }, [
-                botao('Girar 90°', 'Gira a área marcada (posições e direções)', function () { girarArea(); }),
-                botao('Espelhar ↔', 'Troca esquerda e direita', function () { espelharArea('x'); }),
-                botao('Espelhar ↕', 'Troca frente e trás', function () { espelharArea('y'); }),
-              ]),
-              el('div', { class: 'vl-linha' }, [
-                botao('Nivelar…', 'Mesma altura para toda a área', function () { escreverNoChat('nivelar '); }),
-                botao('Escada…', 'Altura subindo a cada piso', function () { escreverNoChat('escada 0.5 x'); }),
-              ]),
-              el('p', { class: 'vl-nota', texto: 'Marque a área arrastando no chão (Selecionar no chão) ou com /area. Até 40 mobis para nivelar e escada.' }),
-            ]),
-            secao('Quarto inteiro', [el('div', { class: 'vl-linha' }, [
-              botao('Copiar quarto', 'Guarda a posição de todos os mobis', function () { copiarQuarto(); }),
-              botao('Colar quarto…', 'Coloca de novo, com mobis do inventário', function () { colarQuarto(); }),
-              botao('Exportar', 'Salva a cópia num arquivo', function () { exportarQuarto(); }),
-              botao('Importar…', 'Traz uma cópia de um arquivo', function () { arquivo.click(); }),
-              arquivo,
-            ])]),
-            el('p', { class: 'vl-nota', texto: 'Atalhos no quarto: Ctrl+setas movem o mobi selecionado, Ctrl+Shift+← → giram, Shift+roda muda a altura. Só funciona em quartos onde você pode mexer nos mobis.' })
-          );
-          const avancadas = el('details', { class: 'vl-cons-avancadas' }, [
-            el('summary', { texto: 'Ferramentas avançadas do Vagalume' }),
-            ...Array.from(alvo.childNodes),
+            el('p', { class: 'vl-nota', texto: 'Atalhos no quarto: Ctrl+setas movem o mobi, Ctrl+Shift+← → giram, Shift+roda muda a altura.' }),
           ]);
-          const principal = el('div', { class: 'vl-cons-principal' });
-          alvo.replaceChildren(principal, avancadas);
-          let desmontarFerramenta = ferramenta && ferramenta.montarPainel ? ferramenta.montarPainel(principal) : null;
+          const geral = el('div', { class: 'vl-cons-geral' }, [
+            secao('Modo construção', [el('div', { class: 'vl-linha' }, [congelar, tele])]),
+          ]);
+          const fimGeral = secao('Quarto inteiro', [el('div', { class: 'vl-linha' }, [
+            botao('Copiar quarto', 'Guarda a posição de todos os mobis', function () { copiarQuarto(); }),
+            botao('Colar quarto…', 'Coloca de novo, com mobis do inventário', function () { colarQuarto(); }),
+            botao('Exportar', 'Salva a cópia num arquivo', function () { exportarQuarto(); }),
+            botao('Importar…', 'Traz uma cópia de um arquivo', function () { arquivo.click(); }),
+            arquivo,
+          ])]);
+          const fimArea = secao('Altura da área', [
+            el('div', { class: 'vl-linha' }, [
+              botao('Nivelar…', 'Mesma altura para toda a área', function () { escreverNoChat('nivelar '); }),
+              botao('Escada…', 'Altura subindo a cada piso', function () { escreverNoChat('escada 0.5 x'); }),
+            ]),
+            el('p', { class: 'vl-nota', texto: 'Até 40 mobis por vez.' }),
+          ]);
+          const abas = [['area', 'Área', 'Vários mobis de uma vez', area], ['mobi', 'Mobi', 'Um mobi só', mobi]];
+          const botoesAba = abas.map(([id, titulo, resumo]) => el('button', { type: 'button', role: 'tab', class: 'vl-cons-subaba', onclick() { subAba = id; mostrar(); } },
+            [el('b', { texto: titulo }), el('small', { texto: resumo })]));
+          function mostrar() {
+            abas.forEach(([id, , , painel], i) => { painel.hidden = id !== subAba; botoesAba[i].setAttribute('aria-selected', String(id === subAba)); });
+          }
+          mostrar();
+          alvo.replaceChildren(el('div', { class: 'vl-cons-subabas', role: 'tablist', 'aria-label': 'Construção' }, botoesAba), area, mobi, geral);
+          const fechos = () => { area.appendChild(fimArea); geral.appendChild(fimGeral); };
+          const montarFerramenta = () => { const desmontar = ferramenta.montarPainel({ area, mobi, geral }); fechos(); return desmontar; };
+          let desmontarFerramenta = ferramenta && ferramenta.montarPainel ? montarFerramenta() : null;
           const aguardarFerramenta = !desmontarFerramenta ? setTimeout(function () {
-            if (alvo.isConnected && ferramenta && ferramenta.montarPainel) desmontarFerramenta = ferramenta.montarPainel(principal);
+            if (alvo.isConnected && ferramenta && ferramenta.montarPainel) desmontarFerramenta = montarFerramenta();
+            else fechos();
           }, 0) : null;
           atualizarSituacao();
           if (!dadosMobis && VL.dadosJogo) VL.dadosJogo.mobis().then(function (d) { dadosMobis = d; atualizarSituacao(); }, function () {});

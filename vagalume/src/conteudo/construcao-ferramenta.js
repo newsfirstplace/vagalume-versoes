@@ -194,7 +194,6 @@
       document.documentElement.setAttribute('data-vl-selecionando', '');
       selecionandoMotor = true;
       if (pedirMotor('selecionar')) {
-        ctx.emitir('painel:fechar');
         camada.aviso('Arraste no chão para marcar a área. Esc cancela.');
         atualizarJanela(); return;
       }
@@ -596,7 +595,8 @@
     // quarto), que recebe o tema do Vagalume (CSS no módulo Interface). O botão "Selecionar" dela usa a
     // seleção do Vagalume (arrastar no chão, área em limão e o menu ao lado), porque a do jogo é desenhada
     // dentro do quarto e não dá para mudar a cor.
-    function montarPainel(alvo) {
+    // alvos: { area, mobi, geral } — as partes da aba Construção.
+    function montarPainel(alvos) {
       const secao = (titulo, filhos) => el('section', { class: 'vl-cons-secao' }, [el('h3', { class: 'vl-acoes-titulo', texto: titulo })].concat(filhos));
       const botao = (rotulo, acao, destaque) => el('button', { type: 'button', class: 'vl-botao' + (destaque ? ' primario' : ''), texto: rotulo, onclick: acao });
       const linha = (filhos) => el('div', { class: 'vl-linha' }, filhos);
@@ -642,41 +642,48 @@
       }
       const status = el('p', { class: 'vl-nota' });
       const selecionar = botao('Selecionar área', () => { if (selecionando) pararSelecao(); else comecarSelecao(false); }, true);
-      const iguaisArea = botao('Selecionar mobis iguais na área', () => { if (selecionando) pararSelecao(); else comecarSelecao(true); });
+      const iguaisArea = botao('Iguais na área', () => { if (selecionando) pararSelecao(); else comecarSelecao(true); });
+      iguaisArea.title = 'Clique antes num mobi modelo; depois arraste: só os iguais a ele entram';
       const moverBotao = botao('Mover', () => comecarDestino('mover'));
       const copiarBotao = botao('Copiar', () => comecarDestino('copiar'));
       const girarBotao = botao('Rotacionar', girar);
       const estadoBotao = botao('Alterar estado', alterarEstado);
-      const escolherBotao = botao('Escolher', recolherSelecao);
-      escolherBotao.title = 'Recolher os mobis selecionados para o inventário';
-      const cancelarBotao = botao('Cancelar', limparSelecao);
-      const bloco = el('div', { class: 'vl-cons-integrada' }, [
-        secao('Seleção no quarto', [status, linha([selecionar, iguaisArea]), linha([
-          botao('Iguais no quarto', selecionarIguais), botao('Pilha', selecionarPilha), botao('Selecionar um a um', escolher),
-        ])]),
-        secao('Ações com a seleção', [linha([moverBotao, copiarBotao, girarBotao, estadoBotao]),
-          linha([escolherBotao, cancelarBotao]),
-          linha([botao('Espelhar ↔', () => espelhar('x')), botao('Espelhar ↕', () => espelhar('y'))]),
-          el('p', { class: 'vl-nota', texto: 'Mover e Copiar: clique no piso de destino. Se houver mobis lá, escolha entre empilhar e manter as alturas.' })]),
-        secao('Ações com personagem', [opcaoNativa('Congelar personagem')]),
-        secao('Ações com mobis', [
-          opcaoNativa('Altura', { min: 0, max: 63, step: 0.1 }),
-          opcaoNativa('Aumentar gradualmente a altura', { min: 0, max: 63, step: 0.1 }),
-          opcaoNativa('Estado', { min: 0, max: 999, step: 1 }),
-          opcaoNativa('Direção', { min: 0, max: 7, step: 2 }),
-          opcaoNativa('Alterar altura dos mobis iguais'),
-          opcaoNativa('Alterar estado dos mobis iguais'),
-          opcaoNativa('Rotacionar os mobis iguais'),
-          opcaoNativa('Escolher os mobis iguais'),
+      const espelharX = botao('Espelhar ↔', () => espelhar('x'));
+      const espelharY = botao('Espelhar ↕', () => espelhar('y'));
+      const escolherBotao = botao('Recolher ao inventário', recolherSelecao);
+      const cancelarBotao = botao('Limpar seleção', limparSelecao);
+      const caixa = (alvoBloco, filhos) => { const b = el('div', { class: 'vl-cons-integrada' }, filhos); alvoBloco.appendChild(b); return b; };
+      const blocos = [
+        caixa(alvos.area, [
+          secao('1. Escolha os mobis', [status, linha([selecionar, iguaisArea]), linha([
+            botao('Iguais no quarto', selecionarIguais), botao('Pilha', selecionarPilha), botao('Um a um', escolher),
+          ]), el('p', { class: 'vl-nota', texto: 'Selecionar área: arraste no chão. Iguais, Pilha e Um a um partem do último mobi clicado.' })]),
+          secao('2. O que fazer com eles', [linha([moverBotao, copiarBotao]), linha([girarBotao, espelharX, espelharY, estadoBotao]),
+            linha([escolherBotao, cancelarBotao]),
+            el('p', { class: 'vl-nota', texto: 'Mover e Copiar: clique no piso de destino. Se houver mobis lá, escolha entre empilhar e manter as alturas.' })]),
         ]),
-        secao('Histórico e piso', [linha([botao('Desfazer', function () { if (api.desfazer()) limparSelecao(); }), botao('Refazer', function () { if (api.refazer()) limparSelecao(); }),
-          botao('Editor de Chão', function () {
-            const janela = garantirNativa();
-            const acao = janela && [...janela.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Editor de Chão');
-            if (acao) acao.click(); else camada.aviso('Editor de Chão indisponível neste quarto.', { tipo: 'erro' });
-          })])]),
-      ]);
-      alvo.appendChild(bloco);
+        caixa(alvos.mobi, [
+          secao('Ao clicar num mobi (ferramenta do jogo)', [
+            el('p', { class: 'vl-nota', texto: 'Ligue uma opção e clique nos mobis no quarto: o jogo aplica a cada clique.' }),
+            opcaoNativa('Altura', { min: 0, max: 63, step: 0.1 }),
+            opcaoNativa('Aumentar gradualmente a altura', { min: 0, max: 63, step: 0.1 }),
+            opcaoNativa('Estado', { min: 0, max: 999, step: 1 }),
+            opcaoNativa('Direção', { min: 0, max: 7, step: 2 }),
+            opcaoNativa('Alterar altura dos mobis iguais'),
+            opcaoNativa('Alterar estado dos mobis iguais'),
+            opcaoNativa('Rotacionar os mobis iguais'),
+            opcaoNativa('Escolher os mobis iguais'),
+          ]),
+        ]),
+        caixa(alvos.geral, [
+          secao('Desfazer e piso', [linha([botao('Desfazer', function () { if (api.desfazer()) limparSelecao(); }), botao('Refazer', function () { if (api.refazer()) limparSelecao(); }),
+            botao('Editor de Chão', function () {
+              const janela = garantirNativa();
+              const acao = janela && [...janela.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Editor de Chão');
+              if (acao) acao.click(); else camada.aviso('Editor de Chão indisponível neste quarto.', { tipo: 'erro' });
+            })])]),
+        ]),
+      ];
       function sincronizarNativa() {
         garantirNativa();
         for (const ref of referencias) {
@@ -694,14 +701,14 @@
         const n = idsDaSelecao().length;
         status.textContent = executando ? 'Aplicando a ação aos mobis…' : selecionando ? (calibrado() ? 'Arraste no chão para selecionar.' : 'Clique no centro de um piso livre para calibrar; depois arraste.') : modoDestino ? 'Clique no piso de destino.'
           : escolhendo ? 'Clique em mobis para incluir ou retirar.' : n ? n + ' mobi(s) selecionado(s).' : 'Nenhuma área selecionada.';
-        for (const b of [moverBotao, copiarBotao, girarBotao, estadoBotao, escolherBotao]) b.disabled = !n || executando;
+        for (const b of [moverBotao, copiarBotao, girarBotao, estadoBotao, espelharX, espelharY, escolherBotao]) b.disabled = !n || executando;
         cancelarBotao.disabled = !n && !selecionando && !modoDestino && !escolhendo;
         selecionar.textContent = selecionando && selecionandoIguais == null ? 'Cancelar seleção' : 'Selecionar área';
       };
       atualizarPainel();
       sincronizarNativa();
       const relogio = setInterval(sincronizarNativa, 800);
-      return function () { clearInterval(relogio); atualizarPainel = function () {}; };
+      return function () { clearInterval(relogio); atualizarPainel = function () {}; blocos.forEach((b) => b.remove()); };
     }
 
     function abrirNativa(silencioso) {

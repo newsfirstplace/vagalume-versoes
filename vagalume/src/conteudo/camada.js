@@ -169,6 +169,17 @@
 .vl-cons-integrada .vl-linha { flex-wrap: wrap; }
 .vl-cons-integrada .vl-ajuste.chave { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; }
 .vl-cons-integrada .vl-numero { width: 68px; }
+.vl-cons-subabas { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+.vl-cons-subaba { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 10px 12px; font: inherit; text-align: left; cursor: pointer;
+  color: var(--texto); background: var(--superficie-2); border: 1px solid var(--borda); border-radius: 10px; }
+.vl-cons-subaba b { font-size: 14px; }
+.vl-cons-subaba small { font-size: 11px; color: var(--suave); }
+.vl-cons-subaba:hover { border-color: rgba(214, 242, 74, .55); }
+.vl-cons-subaba[aria-selected="true"] { border-color: var(--brilho); background: rgba(214, 242, 74, .1); box-shadow: inset 0 -3px 0 var(--brilho); }
+.vl-cons-subaba[aria-selected="true"] b { color: var(--brilho); }
+.vl-cons-painel { display: flex; flex-direction: column; gap: 10px; }
+.vl-cons-geral { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--borda); }
+.vl-cons-painel > .vl-cons-secao, .vl-cons-painel > .vl-cons-colunas > .vl-cons-secao, .vl-cons-geral > .vl-cons-secao { padding: 10px 12px; border: 1px solid var(--borda); border-radius: 9px; background: var(--superficie-2); }
 .vl-cons-avancadas { margin-top: 12px; border: 1px solid var(--borda); border-radius: 9px; padding: 10px 12px; }
 .vl-cons-avancadas > summary { cursor: pointer; color: var(--brilho); font-weight: 600; }
 .vl-cons-avancadas[open] > summary { margin-bottom: 12px; }
