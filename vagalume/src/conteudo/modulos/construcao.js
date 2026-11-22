@@ -938,7 +938,7 @@
             if (!(await enviarAjustes(livres))) return;
           }
           await fn(async function (altura, estado) {
-            const z = codigos.alturaValida(altura);
+            const z = codigos.alturaDoMobi(altura);
             if (z == null) throw new Error('Altura do mobi fora do limite aceito pelo hotel.');
             // Estado fixo (campos 4 e 5 da ferramenta do jogo, como o "Estado" do pincel): vale ao colocar e mover.
             const e = codigos.estadoNumero(estado);

@@ -439,7 +439,7 @@
       if (escolha === 'manter') return new Map();
       const encaixe = medir();
       if (encaixe.semTopo) { camada.aviso('Não consegui ler a altura de todos os mobis no destino. A ação foi cancelada.', { tipo: 'erro' }); return null; }
-      if (lista.some((m) => codigos.alturaValida((m.altura || 0) + (encaixe.deslocamentos.get((m.x + dx) + ',' + (m.y + dy)) || 0)) == null)) {
+      if (lista.some((m) => codigos.alturaDoMobi((m.altura || 0) + (encaixe.deslocamentos.get((m.x + dx) + ',' + (m.y + dy)) || 0)) == null)) {
         camada.aviso('A pilha ultrapassaria a altura máxima permitida pelo hotel.', { tipo: 'erro' });
         return null;
       }
@@ -453,7 +453,7 @@
       if (deslocamentos == null || geracaoQuarto !== salaOriginal) return;
       return executarGrupo(async function () {
         const plano = codigos.planoMoverArea(lista, dx, dy);
-        const alturas = new Map(lista.map((m) => [m.id, codigos.alturaValida((m.altura || 0) + (deslocamentos.get((m.x + dx) + ',' + (m.y + dy)) || 0))]));
+        const alturas = new Map(lista.map((m) => [m.id, codigos.alturaDoMobi((m.altura || 0) + (deslocamentos.get((m.x + dx) + ',' + (m.y + dy)) || 0))]));
         for (const p of plano) p.altura = alturas.get(p.id);
         const feitos = await api.moverLista(plano, true);
         if (selecao && selecao.area) {
@@ -504,7 +504,7 @@
       return executarGrupo(async function () {
         const itens = await api.pedirInventario();
         if (!itens) { camada.aviso('O inventário não respondeu.', { tipo: 'erro' }); return; }
-        const origem = lista.map((m) => Object.assign({}, m, { altura: codigos.alturaValida((m.altura || 0) + (deslocamentos.get((m.x + dx) + ',' + (m.y + dy)) || 0)) }));
+        const origem = lista.map((m) => Object.assign({}, m, { altura: codigos.alturaDoMobi((m.altura || 0) + (deslocamentos.get((m.x + dx) + ',' + (m.y + dy)) || 0)) }));
         const plano = codigos.planoDuplicar(origem, dx, dy, itens);
         const faltam = [...plano.faltam.values()].reduce((s, n) => s + n, 0);
         const feitos = plano.colocar.length ? await api.colocarLista(plano.colocar) : 0;

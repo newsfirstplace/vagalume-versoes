@@ -558,6 +558,13 @@
     if (!Number.isFinite(n) || n < 0 || n > MAX_ALTURA) return null;
     return Math.round(n * 100) / 100;
   }
+  // Altura de um mobi que já existe (pode ser negativa: há quartos com mobis abaixo do chão). Para copiar,
+  // colar e mover sem perder a altura; valores digitados pelo usuário continuam em alturaValida (0 a 40).
+  function alturaDoMobi(z) {
+    const n = Number(z);
+    if (!Number.isFinite(n) || n < -MAX_ALTURA || n > MAX_ALTURA) return null;
+    return Math.round(n * 100) / 100 || 0;
+  }
 
   // Referências a quartos numa fala: "room:123", "quarto:123" (com ou sem parênteses). Até 5, sem repetir.
   function referenciasDeQuarto(texto) {
@@ -581,7 +588,7 @@
   }
   function copiaDoQuarto(lista) {
     return lista.map(function (m) {
-      const c = { tipo: m.tipo, x: m.x, y: m.y, direcao: m.direcao, altura: alturaValida(m.altura) || 0 };
+      const c = { tipo: m.tipo, x: m.x, y: m.y, direcao: m.direcao, altura: alturaDoMobi(m.altura) || 0 };
       const e = estadoNumero(m.estado);
       if (e != null) c.estado = e;
       return c;
@@ -596,7 +603,7 @@
     for (const m of lista) {
       if (!m || typeof m !== 'object') return null;
       const ok = [m.tipo, m.x, m.y, m.direcao].every(Number.isInteger) && m.x >= 0 && m.y >= 0 && m.x <= 200 && m.y <= 200 && m.direcao >= 0 && m.direcao <= 7;
-      const altura = alturaValida(m.altura == null ? 0 : m.altura);
+      const altura = alturaDoMobi(m.altura == null ? 0 : m.altura);
       if (!ok || altura == null) return null;
       if (m.estado != null && estadoNumero(m.estado) == null) return null;
       saida.push({ tipo: m.tipo, x: m.x, y: m.y, direcao: m.direcao, altura, estado: m.estado });
@@ -887,7 +894,7 @@
     return { id, nome, visual, genero };
   }
 
-  const api = { estadoNumero, origemDaAmostra, pisoNaTela, telaNoPiso, origemMediana, cantosDaArea, planoGirarArea, planoEspelharArea, planoEscada, caminhoPaginaLoja, semAcento, acharPaginasLoja, MAX_PISOS_PREENCHER, MAX_CAMADAS, planoPreencher, lerCompra, resumoCarrinho, areaDe, mobisNaArea, planoMoverArea, planoDuplicar, planoSubstituir, repetidos, lerMeusDados, FEIRA_ESTADO, lerConfigFeira, lerOfertaFeira, lerOfertasFeira, lerMinhasOfertas, ofertasParaRepor, copiaDoQuarto, validarCopiaQuarto, planoDeColagem, SALVAR_WIRED, lerVisuais, visualValido, lerIndiceLoja, lerPaginaLoja, lerItemInventario, lerInventario, planoDeCompra, EXPRESSAO_INATIVO, lerAmigos, lerAmigo, lerAtualizacaoAmigos, lerMensagemRecebida, mencaoNaFala, referenciasDeQuarto, MAX_ALTURA, alturaValida, SAIDA, ENTRADA, EXPRESSOES, MAX_DANCA, DANCAS_EXTRAS, MAX_PLACA, lerUmaOferta, lerFala, lerUsuarios, filtrarUsuarios, trocarPosicao, lerEstados, destinoDoMovimento, passo, PASSOS, EIXOS_SETAS, passoSetas, LADOS, NOMES_LADOS, linhasAoEntrar,
+  const api = { estadoNumero, origemDaAmostra, pisoNaTela, telaNoPiso, origemMediana, cantosDaArea, planoGirarArea, planoEspelharArea, planoEscada, caminhoPaginaLoja, semAcento, acharPaginasLoja, MAX_PISOS_PREENCHER, MAX_CAMADAS, planoPreencher, lerCompra, resumoCarrinho, areaDe, mobisNaArea, planoMoverArea, planoDuplicar, planoSubstituir, repetidos, lerMeusDados, FEIRA_ESTADO, lerConfigFeira, lerOfertaFeira, lerOfertasFeira, lerMinhasOfertas, ofertasParaRepor, copiaDoQuarto, validarCopiaQuarto, planoDeColagem, SALVAR_WIRED, lerVisuais, visualValido, lerIndiceLoja, lerPaginaLoja, lerItemInventario, lerInventario, planoDeCompra, EXPRESSAO_INATIVO, lerAmigos, lerAmigo, lerAtualizacaoAmigos, lerMensagemRecebida, mencaoNaFala, referenciasDeQuarto, MAX_ALTURA, alturaValida, alturaDoMobi, SAIDA, ENTRADA, EXPRESSOES, MAX_DANCA, DANCAS_EXTRAS, MAX_PLACA, lerUmaOferta, lerFala, lerUsuarios, filtrarUsuarios, trocarPosicao, lerEstados, destinoDoMovimento, passo, PASSOS, EIXOS_SETAS, passoSetas, LADOS, NOMES_LADOS, linhasAoEntrar,
     lerDadosExtras, lerMobi, lerMobisDoQuarto, mexer, EIXOS, mobisIguaisNaArea, encaixeSobreMobis };
   raiz.VL = raiz.VL || {};
   raiz.VL.codigos = api;
