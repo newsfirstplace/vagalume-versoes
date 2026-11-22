@@ -175,12 +175,22 @@
           if (pedidos.has(item.tipo)) pedidos.get(item.tipo).quantidade += q;
           else pedidos.set(item.tipo, { f, quantidade: q });
         }
+        const nomeDe = (tipo, p) => (p.f && p.f.nome) || 'tipo ' + tipo;
+        // Raros, LTD e mobis sem oferta na loja não entram (pedido do usuário em 2026-11-22: não podem ser
+        // comprados e travavam o colar); ficam de fora da cópia.
+        let foraDaLoja = 0;
+        for (const [tipo, p] of [...pedidos]) {
+          if (p.f && p.f.oferta && !codigos.mobiRaro(p.f.classe, p.f.nome)) continue;
+          foraDaLoja += p.quantidade;
+          pedidos.delete(tipo);
+        }
+        const notaFora = foraDaLoja ? ' ' + foraDaLoja + (foraDaLoja === 1 ? ' raro, LTD ou fora da loja fica' : ' raros, LTD ou fora da loja ficam') + ' de fora.' : '';
+        if (!pedidos.size) { camada.aviso((motivo ? motivo + ' ' : '') + 'Nada disso está à venda.' + notaFora); return; }
         const unidades = [...pedidos.values()].reduce((s, p) => s + p.quantidade, 0);
         if (unidades > MAX_UNIDADES_COMPRA) { camada.aviso('São ' + unidades + ' unidades; o máximo por vez é ' + MAX_UNIDADES_COMPRA + '.', { tipo: 'erro' }); return; }
-        const nomeDe = (tipo, p) => (p.f && p.f.nome) || 'tipo ' + tipo;
         const ok = await camada.dialogoMobis({
           titulo: 'Comprar mobis',
-          texto: (motivo ? motivo + ' ' : '') + unidades + (unidades === 1 ? ' mobi' : ' mobis') + ' de ' + pedidos.size + (pedidos.size === 1 ? ' tipo' : ' tipos') + '. O Vagalume compra um tipo depois do outro, só os vendidos em moedas.',
+          texto: (motivo ? motivo + ' ' : '') + 'Comprar ' + unidades + (unidades === 1 ? ' mobi' : ' mobis') + ' de ' + pedidos.size + (pedidos.size === 1 ? ' tipo' : ' tipos') + '.' + notaFora + ' O Vagalume compra um tipo depois do outro, só os vendidos em moedas.',
           itens: [...pedidos].map(([tipo, p]) => ({ nome: nomeDe(tipo, p), icone: p.f ? VL.dadosJogo.iconeDe(p.f.classe) : null, quantidade: p.quantidade })),
           botoes: [{ rotulo: 'Cancelar', valor: false, foco: true }, { rotulo: 'Comprar', valor: true, destaque: true }],
         });
@@ -201,7 +211,7 @@
         const falhas = { semOferta: [], outraMoeda: [], pacote: [], recusada: [] };
         let feitas = 0, gasto = 0, tiposFeitos = 0;
         try {
-          const comOferta = [...pedidos].filter(([tipo, p]) => { if (p.f && p.f.oferta) return true; falhas.semOferta.push(nomeDe(tipo, p)); return false; });
+          const comOferta = [...pedidos];
           for (let i = 0; i < comOferta.length; i++) {
             const [tipo, p] = comOferta[i];
             if (!ctx.ativo('loja')) break;
@@ -563,15 +573,13 @@
       // Filtros da aba (pedido do usuário em 2026-11-15). O arquivo de mobis do Habblet não preenche
       // categoria nem "raro" (conferido: todos "unknown" e false), então a divisão é pelo nome técnico,
       // pelo nome e pelo que o jogo diz do mobi (sentar, deitar, parede, vendável na Feira Livre).
-      const RARO_CLASSE = /(^|_)(rare|minirare|ltd|raresrubi)|ltd\d*(_|$)|^nft_|_r\d+_/i;
-      const RARO_NOME = /\bltd\b|\braro\b/i;
       const FILTROS_INV = [
         { id: 'todos', rotulo: 'Todos', testa: () => true },
         { id: 'wired', rotulo: 'Wired', testa: (g, d) => /^wf_/i.test(d ? d.classe : '') || /wired/i.test(g.nome) },
         { id: 'ltd', rotulo: 'LTD', testa: (g, d) => /(?:^|[_-])ltd(?:\d|[_-]|$)/i.test(d ? d.classe : '') || /\bltd\b/i.test(g.nome) },
         { id: 'chao', rotulo: 'Chão', testa: (g) => g.chao },
         { id: 'parede', rotulo: 'Parede', testa: (g) => !g.chao },
-        { id: 'raros', rotulo: 'Raros', testa: (g, d) => g.vendavel || RARO_CLASSE.test(d ? d.classe : '') || RARO_NOME.test(g.nome) },
+        { id: 'raros', rotulo: 'Raros', testa: (g, d) => g.vendavel || codigos.mobiRaro(d ? d.classe : '', g.nome) },
         { id: 'sentar', rotulo: 'Cadeiras', testa: (g, d) => !!(d && d.sentar) },
         { id: 'deitar', rotulo: 'Camas', testa: (g, d) => !!(d && d.deitar) },
         { id: 'roupas', rotulo: 'Roupas', testa: (g, d) => /^clothing_/i.test(d ? d.classe : '') },

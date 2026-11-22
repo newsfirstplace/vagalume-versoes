@@ -618,7 +618,7 @@
           if (!itens) { camada.aviso('O inventário não respondeu.', { tipo: 'erro' }); return; }
           const faltam = [...plano.faltam.values()].reduce((s, n) => s + n, 0);
           if (!plano.colocar.length) { camada.aviso('Nenhum dos mobis da cópia está no seu inventário.', { tipo: 'erro' }); return; }
-          const ok = await camada.confirmar('Colocar ' + plano.colocar.length + ' mobis do seu inventário neste quarto, nas posições da cópia?' + (faltam ? ' Faltam ' + faltam + ' no inventário; esses ficam de fora.' : ''),
+          const ok = await camada.confirmar('Colocar ' + plano.colocar.length + ' mobis do seu inventário neste quarto, nas posições da cópia?' + (faltam ? ' ' + faltam + ' não estão no inventário (raros, LTD ou que não deu para comprar); o resto é colocado sem eles.' : ''),
             { titulo: 'Colar quarto', sim: 'Colocar' });
           if (!ok) return;
           const feitos = await colocarLista(plano.colocar);

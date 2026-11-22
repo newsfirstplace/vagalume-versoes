@@ -581,6 +581,11 @@
 
   // Cópia dos mobis do chão: tipo, posição, direção e altura, ordenada pela altura (os do chão
   // primeiro, e cada altura de uma vez, para ligar o :UP o mínimo de vezes).
+  // Raro, LTD e afins (o arquivo de mobis do Habblet não marca raridade: vai pelo nome técnico e pelo nome).
+  // Não ficam à venda em moedas, então a compra para completar uma cópia os deixa de fora.
+  const RARO_CLASSE = /(^|_)(rare|minirare|ltd|raresrubi)|ltd\d*(_|$)|^nft_|_r\d+_/i;
+  const RARO_NOME = /\bltd\b|\braro\b/i;
+  function mobiRaro(classe, nome) { return RARO_CLASSE.test(String(classe || '')) || RARO_NOME.test(String(nome || '')); }
   // Estado do mobi como número (o que a ferramenta do jogo aceita fixar); null quando não é um número simples.
   function estadoNumero(v) {
     if (typeof v === 'number') return Number.isInteger(v) && v >= 0 && v <= 999999 ? v : null;
@@ -894,7 +899,7 @@
     return { id, nome, visual, genero };
   }
 
-  const api = { estadoNumero, origemDaAmostra, pisoNaTela, telaNoPiso, origemMediana, cantosDaArea, planoGirarArea, planoEspelharArea, planoEscada, caminhoPaginaLoja, semAcento, acharPaginasLoja, MAX_PISOS_PREENCHER, MAX_CAMADAS, planoPreencher, lerCompra, resumoCarrinho, areaDe, mobisNaArea, planoMoverArea, planoDuplicar, planoSubstituir, repetidos, lerMeusDados, FEIRA_ESTADO, lerConfigFeira, lerOfertaFeira, lerOfertasFeira, lerMinhasOfertas, ofertasParaRepor, copiaDoQuarto, validarCopiaQuarto, planoDeColagem, SALVAR_WIRED, lerVisuais, visualValido, lerIndiceLoja, lerPaginaLoja, lerItemInventario, lerInventario, planoDeCompra, EXPRESSAO_INATIVO, lerAmigos, lerAmigo, lerAtualizacaoAmigos, lerMensagemRecebida, mencaoNaFala, referenciasDeQuarto, MAX_ALTURA, alturaValida, alturaDoMobi, SAIDA, ENTRADA, EXPRESSOES, MAX_DANCA, DANCAS_EXTRAS, MAX_PLACA, lerUmaOferta, lerFala, lerUsuarios, filtrarUsuarios, trocarPosicao, lerEstados, destinoDoMovimento, passo, PASSOS, EIXOS_SETAS, passoSetas, LADOS, NOMES_LADOS, linhasAoEntrar,
+  const api = { mobiRaro, estadoNumero, origemDaAmostra, pisoNaTela, telaNoPiso, origemMediana, cantosDaArea, planoGirarArea, planoEspelharArea, planoEscada, caminhoPaginaLoja, semAcento, acharPaginasLoja, MAX_PISOS_PREENCHER, MAX_CAMADAS, planoPreencher, lerCompra, resumoCarrinho, areaDe, mobisNaArea, planoMoverArea, planoDuplicar, planoSubstituir, repetidos, lerMeusDados, FEIRA_ESTADO, lerConfigFeira, lerOfertaFeira, lerOfertasFeira, lerMinhasOfertas, ofertasParaRepor, copiaDoQuarto, validarCopiaQuarto, planoDeColagem, SALVAR_WIRED, lerVisuais, visualValido, lerIndiceLoja, lerPaginaLoja, lerItemInventario, lerInventario, planoDeCompra, EXPRESSAO_INATIVO, lerAmigos, lerAmigo, lerAtualizacaoAmigos, lerMensagemRecebida, mencaoNaFala, referenciasDeQuarto, MAX_ALTURA, alturaValida, alturaDoMobi, SAIDA, ENTRADA, EXPRESSOES, MAX_DANCA, DANCAS_EXTRAS, MAX_PLACA, lerUmaOferta, lerFala, lerUsuarios, filtrarUsuarios, trocarPosicao, lerEstados, destinoDoMovimento, passo, PASSOS, EIXOS_SETAS, passoSetas, LADOS, NOMES_LADOS, linhasAoEntrar,
     lerDadosExtras, lerMobi, lerMobisDoQuarto, mexer, EIXOS, mobisIguaisNaArea, encaixeSobreMobis };
   raiz.VL = raiz.VL || {};
   raiz.VL.codigos = api;
