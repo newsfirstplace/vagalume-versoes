@@ -1133,14 +1133,25 @@
       // "altura" = a mesma altura para todos. Topo e chão vêm do motor do jogo (contam mobis de vários
       // pisos); sem ele, o topo cai na conta pelos mobis conhecidos e o chão em 0.
       function comAltura(colocar, modo, altura) {
-        const lidas = ferramenta && ferramenta.alturasPisos ? ferramenta.alturasPisos(colocar.map((m) => [m.x, m.y])) : null;
-        return colocar.map(function (m, i) {
+        const pisos = [...new Set(colocar.map((m) => m.x + ',' + m.y))];
+        const indice = new Map(pisos.map((k, i) => [k, i]));
+        const lidas = ferramenta && ferramenta.alturasPisos ? ferramenta.alturasPisos(pisos.map((k) => k.split(',').map(Number))) : null;
+        const tipo = colocar.length ? colocar[0].tipo : null;
+        const h = alturaDoMobi(lidas, tipo);
+        return colocar.map(function (m) {
+          const i = indice.get(m.x + ',' + m.y);
           let z = m.altura || 0;
           if (modo === 'altura') z = altura;
           else if (modo === 'chao') z = lidas && lidas.chaos && lidas.chaos[i] != null ? lidas.chaos[i] : 0;
           else if (lidas && lidas.topos && lidas.topos[i] != null) z = lidas.topos[i];
-          return Object.assign({}, m, { altura: z });
+          return Object.assign({}, m, { altura: Math.round((z + (m.camada || 0) * h) * 100) / 100 });
         });
+      }
+      // Altura de um mobi (o passo entre camadas): pela prévia carregada no jogo, ou por um igual no quarto.
+      function alturaDoMobi(lidas, tipo) {
+        if (lidas && Number(lidas.alturaMobi) > 0) return Number(lidas.alturaMobi);
+        for (const m of mobis.values()) if (m.tipo === tipo && Number(m.alturaMobi) > 0) return m.alturaMobi;
+        return 1; // shortcut: sem prévia carregada nem igual no quarto, supõe 1; a prévia corrige ao carregar
       }
       // Escolha antes de colocar: empilhar, no chão ou numa altura. O painel fica de lado, sem escurecer,
       // e a prévia no quarto acompanha cada mudança.
@@ -1157,11 +1168,12 @@
         const p = document.createElementNS(ns, 'path'); p.setAttribute('d', ICONES_ALTURA[modo]); svg.appendChild(p);
         return camada.el('span', { class: 'vl-alt-icone', 'aria-hidden': 'true' }, [svg]);
       }
-      async function escolherAltura(plano, info, previa) {
+      async function escolherAltura(planoDe, info, previa) {
         const el = camada.el;
         let modo = 'pilha';
-        const pilha = comAltura(plano.colocar, 'pilha');
-        const inicial = Math.max(0, ...pilha.map((m) => m.altura));
+        let camadas = 1;
+        let plano = planoDe(1);
+        const inicial = Math.max(0, ...comAltura(plano.colocar, 'pilha').map((m) => m.altura));
         const campo = el('input', { type: 'number', min: 0, max: codigos.MAX_ALTURA, step: 0.05, class: 'vl-campo', 'aria-label': 'Altura', value: String(inicial) });
         const regua = el('input', { type: 'range', min: 0, max: codigos.MAX_ALTURA, step: 0.05, value: String(inicial), 'aria-label': 'Altura (régua)' });
         const passo = (d) => () => { const h = codigos.alturaValida(Math.min(codigos.MAX_ALTURA, Math.max(0, (Number(campo.value) || 0) + d))); campo.value = String(h); regua.value = String(h); atualizar(); };
@@ -1180,36 +1192,52 @@
         ];
         const botoes = opcoes.map(([valor, titulo, resumo]) => el('button', { type: 'button', class: 'vl-alt-opcao', 'aria-pressed': 'false', onclick() { modo = valor; atualizar(); if (valor === 'altura') campo.focus(); } },
           [iconeAltura(valor), el('span', null, [el('b', { texto: titulo }), el('small', { texto: resumo })])]));
+        const numCamadas = el('output', { class: 'vl-alt-num', 'aria-live': 'polite', texto: '1' });
+        const mudarCamadas = (d) => () => { camadas = Math.min(codigos.MAX_CAMADAS, Math.max(1, camadas + d)); plano = planoDe(camadas); atualizar(); };
+        const linhaCamadas = el('div', { class: 'vl-alt-passos' }, [
+          el('button', { type: 'button', class: 'vl-botao', texto: '−', 'aria-label': 'Menos uma camada', onclick: mudarCamadas(-1) }),
+          numCamadas,
+          el('button', { type: 'button', class: 'vl-botao', texto: '+', 'aria-label': 'Mais uma camada', onclick: mudarCamadas(1) }),
+        ]);
+        const qtd = el('span', { class: 'vl-alt-qtd', style: 'display:inline;font-size:inherit;margin:0' });
+        const aviso = el('p', { class: 'vl-alt-aviso' });
         function atualizar() {
           botoes.forEach((b, i) => b.setAttribute('aria-pressed', String(opcoes[i][0] === modo)));
           caixaValor.hidden = modo !== 'altura';
+          numCamadas.textContent = camadas + (camadas === 1 ? ' mobi por piso' : ' mobis por piso');
+          qtd.textContent = plano.colocar.length + '× ';
+          aviso.textContent = plano.faltam ? 'Faltam ' + plano.faltam + ' no inventário; esses ficam de fora.' : '';
+          aviso.hidden = !plano.faltam;
           const h = codigos.alturaValida(campo.value);
-          previa(modo === 'pilha' ? pilha : comAltura(plano.colocar, modo, h == null ? 0 : h));
+          previa(comAltura(plano.colocar, modo, h == null ? 0 : h));
         }
         campo.addEventListener('input', () => { regua.value = campo.value; atualizar(); });
         regua.addEventListener('input', () => { campo.value = regua.value; atualizar(); });
         const cabeca = el('div', { class: 'vl-alt-mobi' }, [
           info.icone ? el('img', { src: info.icone, alt: '' }) : null,
           el('div', null, [
-            el('b', null, [el('span', { class: 'vl-alt-qtd', style: 'display:inline;font-size:inherit;margin:0', texto: plano.colocar.length + '× ' }), info.nome]),
+            el('b', null, [qtd, info.nome]),
             el('span', { texto: 'Área ' + info.area + ' · um por piso livre' }),
           ]),
         ]);
         const conteudo = el('div', null, [
           cabeca,
-          plano.faltam ? el('p', { class: 'vl-alt-aviso', texto: 'Faltam ' + plano.faltam + ' no inventário; esses pisos ficam vazios.' }) : null,
+          aviso,
           el('p', { class: 'vl-alt-rotulo', texto: 'Altura' }),
           el('div', { class: 'vl-alt-opcoes', role: 'group', 'aria-label': 'Altura dos mobis' }, botoes),
           caixaValor,
+          el('p', { class: 'vl-alt-rotulo', style: 'margin-top:14px', texto: 'Camadas' }),
+          linhaCamadas,
         ]);
         atualizar();
         const ok = await camada.dialogo({ titulo: 'Colocar vários', conteudo, lateral: true,
-          botoes: [{ rotulo: 'Cancelar', valor: null }, { rotulo: 'Colocar ' + plano.colocar.length + ' mobis', valor: 'ok', destaque: true, foco: true }] });
+          botoes: [{ rotulo: 'Cancelar', valor: null }, { rotulo: 'Colocar', valor: 'ok', destaque: true, foco: true }] });
         if (!ok) return null;
-        if (modo !== 'altura') return { modo, lista: modo === 'pilha' ? plano.colocar : comAltura(plano.colocar, 'chao') };
-        const h = codigos.alturaValida(campo.value);
+        const h = modo === 'altura' ? codigos.alturaValida(campo.value) : 0;
         if (h == null) { camada.aviso('Altura inválida: use um número de 0 a ' + codigos.MAX_ALTURA + '.', { tipo: 'erro' }); return null; }
-        return { modo, lista: comAltura(plano.colocar, 'altura', h) };
+        const lista = comAltura(plano.colocar, modo, h);
+        if (modo !== 'pilha' && lista.some((m) => codigos.alturaValida(m.altura) == null)) { camada.aviso('Com essas camadas a pilha passaria da altura máxima (' + codigos.MAX_ALTURA + ').', { tipo: 'erro' }); return null; }
+        return { modo, lista, plano };
       }
       function preencherArea(alvo, classe, direcao, nome, itensProntos) {
         const previa = (lista) => { if (ferramenta) ferramenta.previaColocacao(classe, direcao, (lista || []).map((m) => ({ x: m.x, y: m.y, z: m.altura }))); };
@@ -1217,16 +1245,29 @@
           try {
             const itens = itensProntos || await pedirInventario();
             if (!itens) { camada.aviso('O inventário não respondeu.', { tipo: 'erro' }); return; }
-            const plano = codigos.planoPreencher(alvo, classe, [...mobis.values()], itens, direcao);
+            const planoDe = (n) => {
+              const p = codigos.planoPreencher(alvo, classe, [...mobis.values()], itens, direcao, n);
+              p.colocar.forEach((m) => { m.tipo = classe; });
+              return p;
+            };
+            const plano = planoDe(1);
             if (!plano.colocar.length) { camada.aviso(plano.faltam ? 'Não há ' + nome + ' no seu inventário.' : 'Todos os pisos da área já têm esse mobi.', { tipo: 'erro' }); return; }
             let ficha = null;
             try { const dados = await VL.dadosJogo.mobis(); ficha = dados && dados.chao && dados.chao.get(classe); } catch (e) { /* sem ícone */ }
-            const escolha = await escolherAltura(plano, { nome: ficha && ficha.nome ? ficha.nome : nome.replace(/^"|"$/g, ''), area: textoArea(alvo), icone: ficha ? VL.dadosJogo.iconeDe(ficha.classe) : null }, previa);
+            const escolha = await escolherAltura(planoDe, { nome: ficha && ficha.nome ? ficha.nome : nome.replace(/^"|"$/g, ''), area: textoArea(alvo), icone: ficha ? VL.dadosJogo.iconeDe(ficha.classe) : null }, previa);
             previa(null);
             if (!escolha) return;
             // Empilhar: o jogo pousa cada um no topo (rápido). Chão ou altura: fixa a altura de cada um.
-            const feitos = escolha.modo === 'pilha' ? await colocarNoTopo(escolha.lista) : await colocarLista(escolha.lista);
-            camada.aviso('Pronto: ' + feitos + ' de ' + plano.colocar.length + ' mobis colocados.', { tipo: feitos === plano.colocar.length ? 'ok' : 'erro' });
+            let feitos = 0;
+            if (escolha.modo === 'pilha') {
+              const n = Math.max(...escolha.lista.map((m) => m.camada || 0)) + 1;
+              for (let k = 0; k < n; k++) {
+                if (!ctx.ativo('construcao')) break;
+                feitos += await colocarNoTopo(escolha.lista.filter((m) => (m.camada || 0) === k));
+              }
+            } else feitos = await colocarLista(escolha.lista);
+            const total = escolha.lista.length;
+            camada.aviso('Pronto: ' + feitos + ' de ' + total + ' mobis colocados.', { tipo: feitos === total ? 'ok' : 'erro' });
           } finally { previa(null); }
         }).finally(() => previa(null)); // também quando outra tarefa ainda está rodando
       }

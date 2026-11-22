@@ -94,6 +94,8 @@
 .vl-alt-passos { display: flex; align-items: center; gap: 6px; }
 .vl-alt-passos .vl-botao { width: 34px; padding: 5px 0; font-weight: 700; }
 .vl-alt-passos input { flex: 1; min-width: 0; text-align: center; font: 600 14px var(--mono, monospace); }
+.vl-alt-num { flex: 1; text-align: center; font-weight: 600; font-size: 13px; color: var(--texto); }
+.vl-alt-aviso[hidden] { display: none; }
 .vl-alt-valor input[type="range"] { width: 100%; accent-color: var(--brilho); margin: 0; }
 .vl-compra-lista { display: grid; gap: 8px; max-height: 250px; overflow: auto; margin: 0 0 14px; padding: 2px; }
 .vl-compra-item { display: flex; align-items: center; gap: 12px; min-width: 0; padding: 9px 11px;

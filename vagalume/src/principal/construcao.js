@@ -211,7 +211,7 @@
   }
   // Mostra o mobi "tipo" em cada ponto {x,y,z}; os que já existem ficam, os que saíram são tirados.
   function mostrarColocacao(d) {
-    const pontos = Array.isArray(d.pontos) ? d.pontos.slice(0, 400) : [];
+    const pontos = Array.isArray(d.pontos) ? d.pontos.slice(0, 2000) : [];
     if (!pontos.length) { pararColocacao(); return true; }
     const k = acharClasses();
     if (!motor || !k || !Number.isInteger(d.tipo) || d.tipo <= 0) return false;
@@ -242,7 +242,18 @@
     if (!pilha && !chao) return null;
     const ler = (mapa, x, y) => { try { const h = mapa ? Number(mapa.getTileHeight ? mapa.getTileHeight(x, y) : mapa.getHeight(x, y)) : NaN; return Number.isFinite(h) && h >= 0 ? Math.round(h * 100) / 100 : null; } catch (e) { return null; } };
     const lista = pontos.slice(0, 400).filter((p) => Array.isArray(p) && Number.isInteger(p[0]) && Number.isInteger(p[1]));
-    return { topos: lista.map((p) => ler(pilha, p[0], p[1])), chaos: lista.map((p) => ler(chao, p[0], p[1])) };
+    // Altura do próprio mobi (para as camadas): a do primeiro mobi da prévia que o jogo já carregou.
+    let alturaMobi = null;
+    if (colocacao) {
+      for (const id of colocacao.objetos.values()) {
+        try {
+          const o = motor.getRoomObject(colocacao.quarto, id, 10);
+          const h = o && o.model ? Number(o.model.getValue('furniture_size_z')) : NaN;
+          if (Number.isFinite(h) && h > 0) { alturaMobi = Math.round(h * 100) / 100; break; }
+        } catch (e) { /* ainda carregando */ }
+      }
+    }
+    return { topos: lista.map((p) => ler(pilha, p[0], p[1])), chaos: lista.map((p) => ler(chao, p[0], p[1])), alturaMobi };
   }
   // Os objetos entram no quarto no quadro seguinte: só então dá para deixá-los translúcidos.
   function clarearColocacao() {

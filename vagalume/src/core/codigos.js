@@ -774,7 +774,9 @@
   }
   // Preencher: um item da classe em cada piso da área que ainda não tem um mobi dessa classe.
   const MAX_PISOS_PREENCHER = 400;
-  function planoPreencher(area, classe, noQuarto, itens, direcao) {
+  const MAX_CAMADAS = 10;
+  function planoPreencher(area, classe, noQuarto, itens, direcao, camadas) {
+    const n = Math.min(MAX_CAMADAS, Math.max(1, Math.floor(Number(camadas) || 1)));
     const ocupados = new Set(noQuarto.filter((m) => m.tipo === classe).map((m) => m.x + ',' + m.y));
     // Em cima da pilha que já está no piso (topo = altura + altura do próprio mobi).
     const topos = new Map();
@@ -786,11 +788,13 @@
     const ids = itens.filter((i) => i.chao && i.classe === classe).map((i) => i.id);
     const colocar = [];
     let faltam = 0;
-    for (let y = area.y1; y <= area.y2; y++) {
-      for (let x = area.x1; x <= area.x2; x++) {
-        if (ocupados.has(x + ',' + y)) continue;
-        if (ids.length) colocar.push({ itemId: ids.shift(), x, y, direcao: direcao || 0, altura: topos.get(x + ',' + y) || 0 });
-        else faltam++;
+    for (let camada = 0; camada < n; camada++) {
+      for (let y = area.y1; y <= area.y2; y++) {
+        for (let x = area.x1; x <= area.x2; x++) {
+          if (ocupados.has(x + ',' + y)) continue;
+          if (ids.length) colocar.push({ itemId: ids.shift(), x, y, direcao: direcao || 0, altura: topos.get(x + ',' + y) || 0, camada });
+          else faltam++;
+        }
       }
     }
     return { colocar, faltam };
@@ -867,7 +871,7 @@
     return { id, nome, visual, genero };
   }
 
-  const api = { origemDaAmostra, pisoNaTela, telaNoPiso, origemMediana, cantosDaArea, planoGirarArea, planoEspelharArea, planoEscada, caminhoPaginaLoja, semAcento, acharPaginasLoja, MAX_PISOS_PREENCHER, planoPreencher, lerCompra, resumoCarrinho, areaDe, mobisNaArea, planoMoverArea, planoDuplicar, planoSubstituir, repetidos, lerMeusDados, FEIRA_ESTADO, lerConfigFeira, lerOfertaFeira, lerOfertasFeira, lerMinhasOfertas, ofertasParaRepor, copiaDoQuarto, validarCopiaQuarto, planoDeColagem, SALVAR_WIRED, lerVisuais, visualValido, lerIndiceLoja, lerPaginaLoja, lerItemInventario, lerInventario, planoDeCompra, EXPRESSAO_INATIVO, lerAmigos, lerAmigo, lerAtualizacaoAmigos, lerMensagemRecebida, mencaoNaFala, referenciasDeQuarto, MAX_ALTURA, alturaValida, SAIDA, ENTRADA, EXPRESSOES, MAX_DANCA, DANCAS_EXTRAS, MAX_PLACA, lerUmaOferta, lerFala, lerUsuarios, filtrarUsuarios, trocarPosicao, lerEstados, destinoDoMovimento, passo, PASSOS, EIXOS_SETAS, passoSetas, LADOS, NOMES_LADOS, linhasAoEntrar,
+  const api = { origemDaAmostra, pisoNaTela, telaNoPiso, origemMediana, cantosDaArea, planoGirarArea, planoEspelharArea, planoEscada, caminhoPaginaLoja, semAcento, acharPaginasLoja, MAX_PISOS_PREENCHER, MAX_CAMADAS, planoPreencher, lerCompra, resumoCarrinho, areaDe, mobisNaArea, planoMoverArea, planoDuplicar, planoSubstituir, repetidos, lerMeusDados, FEIRA_ESTADO, lerConfigFeira, lerOfertaFeira, lerOfertasFeira, lerMinhasOfertas, ofertasParaRepor, copiaDoQuarto, validarCopiaQuarto, planoDeColagem, SALVAR_WIRED, lerVisuais, visualValido, lerIndiceLoja, lerPaginaLoja, lerItemInventario, lerInventario, planoDeCompra, EXPRESSAO_INATIVO, lerAmigos, lerAmigo, lerAtualizacaoAmigos, lerMensagemRecebida, mencaoNaFala, referenciasDeQuarto, MAX_ALTURA, alturaValida, SAIDA, ENTRADA, EXPRESSOES, MAX_DANCA, DANCAS_EXTRAS, MAX_PLACA, lerUmaOferta, lerFala, lerUsuarios, filtrarUsuarios, trocarPosicao, lerEstados, destinoDoMovimento, passo, PASSOS, EIXOS_SETAS, passoSetas, LADOS, NOMES_LADOS, linhasAoEntrar,
     lerDadosExtras, lerMobi, lerMobisDoQuarto, mexer, EIXOS, mobisIguaisNaArea, encaixeSobreMobis };
   raiz.VL = raiz.VL || {};
   raiz.VL.codigos = api;
