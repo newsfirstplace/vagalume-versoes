@@ -616,7 +616,7 @@
         return grupo && grupo.querySelector('input[type="' + tipo + '"]');
       }
       const referencias = [];
-      function opcaoNativa(rotulo, numerico) {
+      function opcaoNativa(rotulo, numerico, titulo, texto) {
         const caixa = el('input', { type: 'checkbox', class: 'vl-interruptor', 'aria-label': rotulo });
         caixa.addEventListener('change', function () {
           const entrada = campoNativo(rotulo, 'checkbox');
@@ -624,7 +624,7 @@
           else camada.aviso('Ferramenta do jogo indisponível neste quarto.', { tipo: 'erro' });
           sincronizarNativa();
         });
-        const filhos = [caixa, el('span', { texto: rotulo })];
+        const filhos = [caixa, el('span', { class: 'vl-cons-pincel-tx' }, [el('b', { texto: titulo || rotulo }), texto ? el('small', { texto }) : null])];
         let numero = null;
         if (numerico) {
           numero = el('input', { type: 'number', class: 'vl-campo vl-numero', min: numerico.min, max: numerico.max, step: numerico.step, 'aria-label': rotulo + ': valor' });
@@ -640,50 +640,62 @@
         referencias.push({ rotulo, caixa, numero });
         return el('label', { class: 'vl-ajuste chave' }, filhos);
       }
-      const status = el('p', { class: 'vl-nota' });
-      const selecionar = botao('Selecionar área', () => { if (selecionando) pararSelecao(); else comecarSelecao(false); }, true);
-      const iguaisArea = botao('Iguais na área', () => { if (selecionando) pararSelecao(); else comecarSelecao(true); });
-      iguaisArea.title = 'Clique antes num mobi modelo; depois arraste: só os iguais a ele entram';
-      const moverBotao = botao('Mover', () => comecarDestino('mover'));
-      const copiarBotao = botao('Copiar', () => comecarDestino('copiar'));
-      const girarBotao = botao('Rotacionar', girar);
-      const estadoBotao = botao('Alterar estado', alterarEstado);
-      const espelharX = botao('Espelhar ↔', () => espelhar('x'));
-      const espelharY = botao('Espelhar ↕', () => espelhar('y'));
-      const escolherBotao = botao('Recolher ao inventário', recolherSelecao);
-      const cancelarBotao = botao('Limpar seleção', limparSelecao);
+      const status = el('span', { class: 'vl-cons-status-tx' });
+      // Cartão de ação: ícone, nome e o que faz (pedido do usuário: "não sei o que algumas funções fazem").
+      const acao = (icone, titulo, texto, fazer, destaque) => el('button', { type: 'button', class: 'vl-cons-acao' + (destaque ? ' destaque' : ''), onclick: fazer }, [
+        el('span', { class: 'vl-cons-acao-ic', 'aria-hidden': 'true', texto: icone }),
+        el('span', { class: 'vl-cons-acao-tx' }, [el('b', { texto: titulo }), el('small', { texto })]),
+      ]);
+      const grade = (filhos) => el('div', { class: 'vl-cons-acoes' }, filhos);
+      const nomeDe = (b, t) => { b.querySelector('b').textContent = t; };
+      const selecionar = acao('▭', 'Arrastar no chão', 'Marca tudo o que estiver dentro do retângulo.', () => { if (selecionando) pararSelecao(); else comecarSelecao(false); }, true);
+      const iguaisArea = acao('◫', 'Só os iguais, no chão', 'Clique antes num mobi modelo e arraste: entram só os iguais a ele.', () => { if (selecionando) pararSelecao(); else comecarSelecao(true); });
+      const iguaisQuarto = acao('▦', 'Iguais do quarto todo', 'Todos os mobis iguais ao último que você clicou.', selecionarIguais);
+      const pilhaBotao = acao('☰', 'Pilha', 'Tudo o que está empilhado no piso do último mobi clicado.', selecionarPilha);
+      const umAUm = acao('☝', 'Um a um', 'Clique nos mobis do quarto para pôr ou tirar da seleção.', escolher);
+      const moverBotao = acao('✥', 'Mover', 'Depois clique no piso para onde o grupo vai.', () => comecarDestino('mover'));
+      const copiarBotao = acao('⧉', 'Copiar', 'Depois clique no piso: uma cópia é feita com mobis do inventário.', () => comecarDestino('copiar'));
+      const girarBotao = acao('↻', 'Girar 90°', 'Gira o grupo inteiro, posições e direções.', girar);
+      const espelharX = acao('⇆', 'Espelhar ↔', 'Inverte o grupo da esquerda para a direita.', () => espelhar('x'));
+      const espelharY = acao('⇅', 'Espelhar ↕', 'Inverte o grupo de frente para trás.', () => espelhar('y'));
+      const estadoBotao = acao('◐', 'Mudar estado', 'Liga, desliga ou troca o estado de todos.', alterarEstado);
+      const escolherBotao = acao('⤓', 'Recolher', 'Devolve todos os marcados ao inventário.', recolherSelecao);
+      const cancelarBotao = el('button', { type: 'button', class: 'vl-botao', texto: 'Limpar', title: 'Desmarcar tudo', onclick: limparSelecao });
       const caixa = (alvoBloco, filhos) => { const b = el('div', { class: 'vl-cons-integrada' }, filhos); alvoBloco.appendChild(b); return b; };
+      const pincel = el('details', { class: 'vl-cons-pincel' }, [
+        el('summary', null, [el('b', { texto: 'Pincel do jogo' }), el('small', { texto: ' · aplica algo a cada mobi que você clicar' })]),
+        el('p', { class: 'vl-nota', texto: 'Ligue uma opção e clique nos mobis do quarto. Desligue quando terminar, senão continua valendo.' }),
+        opcaoNativa('Altura', { min: 0, max: 63, step: 0.1 }, 'Altura fixa', 'Cada mobi clicado vai para esta altura.'),
+        opcaoNativa('Aumentar gradualmente a altura', { min: 0, max: 63, step: 0.1 }, 'Altura que sobe', 'Cada clique põe o mobi um pouco mais alto que o anterior.'),
+        opcaoNativa('Estado', { min: 0, max: 999, step: 1 }, 'Estado fixo', 'Cada mobi clicado fica neste estado.'),
+        opcaoNativa('Direção', { min: 0, max: 7, step: 2 }, 'Direção fixa', 'Cada mobi clicado vira para esta direção (0 a 7).'),
+        el('p', { class: 'vl-cons-pincel-sub', texto: 'Valer também para os iguais do quarto' }),
+        opcaoNativa('Alterar altura dos mobis iguais', null, 'Altura nos iguais', 'A altura vai para todos os iguais ao mobi clicado.'),
+        opcaoNativa('Alterar estado dos mobis iguais', null, 'Estado nos iguais', 'O estado vai para todos os iguais ao mobi clicado.'),
+        opcaoNativa('Rotacionar os mobis iguais', null, 'Girar os iguais', 'Girar um mobi gira todos os iguais a ele.'),
+        opcaoNativa('Escolher os mobis iguais', null, 'Recolher os iguais', 'Clicar num mobi recolhe todos os iguais a ele.'),
+      ]);
       const blocos = [
         caixa(alvos.area, [
-          secao('1. Escolha os mobis', [status, linha([selecionar, iguaisArea]), linha([
-            botao('Iguais no quarto', selecionarIguais), botao('Pilha', selecionarPilha), botao('Um a um', escolher),
-          ]), el('p', { class: 'vl-nota', texto: 'Selecionar área: arraste no chão. Iguais, Pilha e Um a um partem do último mobi clicado.' })]),
-          secao('2. O que fazer com eles', [linha([moverBotao, copiarBotao]), linha([girarBotao, espelharX, espelharY, estadoBotao]),
-            linha([escolherBotao, cancelarBotao]),
-            el('p', { class: 'vl-nota', texto: 'Mover e Copiar: clique no piso de destino. Se houver mobis lá, escolha entre empilhar e manter as alturas.' })]),
+          secao('1. Marque os mobis', [grade([selecionar, iguaisArea, iguaisQuarto, pilhaBotao, umAUm])]),
+          el('div', { class: 'vl-cons-status' }, [status, cancelarBotao]),
+          secao('2. Faça algo com os marcados', [grade([moverBotao, copiarBotao, girarBotao, espelharX, espelharY, estadoBotao, escolherBotao]),
+            el('p', { class: 'vl-nota', texto: 'Mover e Copiar: se já houver mobis no destino, você escolhe entre empilhar por cima e manter as alturas.' })]),
         ]),
-        caixa(alvos.mobi, [
-          secao('Ao clicar num mobi (ferramenta do jogo)', [
-            el('p', { class: 'vl-nota', texto: 'Ligue uma opção e clique nos mobis no quarto: o jogo aplica a cada clique.' }),
-            opcaoNativa('Altura', { min: 0, max: 63, step: 0.1 }),
-            opcaoNativa('Aumentar gradualmente a altura', { min: 0, max: 63, step: 0.1 }),
-            opcaoNativa('Estado', { min: 0, max: 999, step: 1 }),
-            opcaoNativa('Direção', { min: 0, max: 7, step: 2 }),
-            opcaoNativa('Alterar altura dos mobis iguais'),
-            opcaoNativa('Alterar estado dos mobis iguais'),
-            opcaoNativa('Rotacionar os mobis iguais'),
-            opcaoNativa('Escolher os mobis iguais'),
-          ]),
-        ]),
-        caixa(alvos.geral, [
-          secao('Desfazer e piso', [linha([botao('Desfazer', function () { if (api.desfazer()) limparSelecao(); }), botao('Refazer', function () { if (api.refazer()) limparSelecao(); }),
-            botao('Editor de Chão', function () {
-              const janela = garantirNativa();
-              const acao = janela && [...janela.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Editor de Chão');
-              if (acao) acao.click(); else camada.aviso('Editor de Chão indisponível neste quarto.', { tipo: 'erro' });
-            })])]),
-        ]),
+        caixa(alvos.mobi, [pincel]),
       ];
+      // Botões gerais entram na grade de ferramentas do quarto (montada pelo módulo).
+      const gerais = [
+        acao('↶', 'Desfazer', 'Volta a última ação da construção.', function () { if (api.desfazer()) limparSelecao(); }),
+        acao('↷', 'Refazer', 'Refaz o que foi desfeito.', function () { if (api.refazer()) limparSelecao(); }),
+        acao('▤', 'Editor de chão', 'Abre o editor de piso do jogo.', function () {
+          const janela = garantirNativa();
+          const botaoJogo = janela && [...janela.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Editor de Chão');
+          if (botaoJogo) botaoJogo.click(); else camada.aviso('Editor de Chão indisponível neste quarto.', { tipo: 'erro' });
+        }),
+      ];
+      gerais.forEach((b) => alvos.geral.appendChild(b));
+      blocos.push(...gerais);
       function sincronizarNativa() {
         garantirNativa();
         for (const ref of referencias) {
@@ -699,11 +711,14 @@
       }
       atualizarPainel = function () {
         const n = idsDaSelecao().length;
-        status.textContent = executando ? 'Aplicando a ação aos mobis…' : selecionando ? (calibrado() ? 'Arraste no chão para selecionar.' : 'Clique no centro de um piso livre para calibrar; depois arraste.') : modoDestino ? 'Clique no piso de destino.'
-          : escolhendo ? 'Clique em mobis para incluir ou retirar.' : n ? n + ' mobi(s) selecionado(s).' : 'Nenhuma área selecionada.';
+        status.textContent = executando ? 'Aplicando a ação aos mobis…' : selecionando ? (calibrado() ? 'Arraste no chão para marcar.' : 'Clique no centro de um piso livre para calibrar; depois arraste.') : modoDestino ? 'Clique no piso de destino.'
+          : escolhendo ? 'Clique em mobis para pôr ou tirar.' : n ? n + (n === 1 ? ' mobi marcado' : ' mobis marcados') : 'Nada marcado ainda';
+        status.parentNode.classList.toggle('ativo', !!n || selecionando || !!modoDestino || escolhendo);
         for (const b of [moverBotao, copiarBotao, girarBotao, estadoBotao, espelharX, espelharY, escolherBotao]) b.disabled = !n || executando;
         cancelarBotao.disabled = !n && !selecionando && !modoDestino && !escolhendo;
-        selecionar.textContent = selecionando && selecionandoIguais == null ? 'Cancelar seleção' : 'Selecionar área';
+        nomeDe(selecionar, selecionando && selecionandoIguais == null ? 'Cancelar' : 'Arrastar no chão');
+        nomeDe(iguaisArea, selecionando && selecionandoIguais != null ? 'Cancelar' : 'Só os iguais, no chão');
+        nomeDe(umAUm, escolhendo ? 'Terminar' : 'Um a um');
       };
       atualizarPainel();
       sincronizarNativa();

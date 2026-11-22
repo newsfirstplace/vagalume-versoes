@@ -180,6 +180,33 @@
 .vl-cons-painel { display: flex; flex-direction: column; gap: 10px; }
 .vl-cons-geral { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--borda); }
 .vl-cons-painel > .vl-cons-secao, .vl-cons-painel > .vl-cons-colunas > .vl-cons-secao, .vl-cons-geral > .vl-cons-secao { padding: 10px 12px; border: 1px solid var(--borda); border-radius: 9px; background: var(--superficie-2); }
+.vl-cons-acoes { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; }
+.vl-cons-acao { display: flex; align-items: flex-start; gap: 9px; padding: 8px 10px; font: inherit; text-align: left; cursor: pointer; color: var(--texto);
+  background: var(--superficie); border: 1px solid var(--borda); border-radius: 9px; transition: border-color .15s, background .15s; }
+.vl-cons-acao:hover:not(:disabled) { border-color: rgba(214, 242, 74, .55); }
+.vl-cons-acao:disabled { opacity: .42; cursor: default; }
+.vl-cons-acao.destaque, .vl-cons-acao.ligado { border-color: var(--brilho); background: rgba(214, 242, 74, .1); }
+.vl-cons-acao-ic { flex: none; width: 26px; height: 26px; border-radius: 7px; display: grid; place-items: center; font-size: 15px; line-height: 1;
+  background: rgba(214, 242, 74, .12); color: var(--brilho); }
+.vl-cons-acao.destaque .vl-cons-acao-ic, .vl-cons-acao.ligado .vl-cons-acao-ic { background: var(--brilho); color: #12161f; }
+.vl-cons-acao-tx { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.vl-cons-acao-tx b { font-size: 12.5px; }
+.vl-cons-acao-tx small { font-size: 10.5px; line-height: 1.3; color: var(--suave); }
+.vl-cons-status { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 12px; border-radius: 9px;
+  border: 1px dashed var(--borda); font-size: 12.5px; color: var(--suave); }
+.vl-cons-status.ativo { border-style: solid; border-color: var(--brilho); color: var(--brilho); font-weight: 700; background: rgba(214, 242, 74, .06); }
+.vl-cons-status .vl-botao { padding: 4px 10px; }
+.vl-cons-pincel { border: 1px solid var(--borda); border-radius: 9px; padding: 10px 12px; background: var(--superficie-2); }
+.vl-cons-pincel > summary { cursor: pointer; }
+.vl-cons-pincel > summary b { color: var(--brilho); }
+.vl-cons-pincel > summary small { color: var(--suave); }
+.vl-cons-pincel[open] > summary { margin-bottom: 8px; }
+.vl-cons-pincel-tx { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.vl-cons-pincel-tx b { font-size: 12.5px; font-weight: 600; }
+.vl-cons-pincel-tx small { font-size: 10.5px; color: var(--suave); }
+.vl-cons-pincel-sub { margin: 10px 0 2px; font-size: 10.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--suave); }
+.vl-cons-pincel .vl-ajuste.chave { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 6px 2px; }
+.vl-cons-pincel .vl-numero { width: 68px; }
 .vl-cons-avancadas { margin-top: 12px; border: 1px solid var(--borda); border-radius: 9px; padding: 10px 12px; }
 .vl-cons-avancadas > summary { cursor: pointer; color: var(--brilho); font-weight: 600; }
 .vl-cons-avancadas[open] > summary { margin-bottom: 12px; }

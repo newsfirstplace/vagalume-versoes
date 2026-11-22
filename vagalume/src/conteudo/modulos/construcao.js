@@ -375,22 +375,27 @@
           const botao = (rotulo, dica, fazer, classe) => el('button', { type: 'button', class: 'vl-botao' + (classe ? ' ' + classe : ''), texto: rotulo, title: dica, onclick: fazer });
           const mexer = (rotulo, dica, tecla, girar) => { const b = botaoMexer(rotulo, tecla, girar); b.title = dica; return b; };
           const secao = (titulo, filhos) => el('section', { class: 'vl-cons-secao' }, [el('h3', { class: 'vl-acoes-titulo', texto: titulo })].concat(filhos));
-          const congelar = botao('Congelar (não andar)', 'O avatar não anda ao clicar no chão enquanto você constrói', function () { alternarCongelar(); });
-          const tele = botao('Teleporte', 'Clique num piso e vá direto (:tele do jogo; precisa de direitos)', function () { alternarTeleporte(); });
+          const acao = (icone, titulo, texto, fazer) => el('button', { type: 'button', class: 'vl-cons-acao', onclick: fazer }, [
+            el('span', { class: 'vl-cons-acao-ic', 'aria-hidden': 'true', texto: icone }),
+            el('span', { class: 'vl-cons-acao-tx' }, [el('b', { texto: titulo }), el('small', { texto })]),
+          ]);
+          const grade = (filhos) => el('div', { class: 'vl-cons-acoes' }, filhos);
+          const congelar = acao('❄', 'Congelar', 'Seu avatar não anda ao clicar no chão.', function () { alternarCongelar(); });
+          const tele = acao('✦', 'Teleporte', 'Clique num piso e vá direto (precisa de direitos).', function () { alternarTeleporte(); });
           botoesModo = { congelar, tele };
           setTimeout(atualizarModo, 0);
           // Duas partes (pedido do usuário em 2026-11-22): Área (vários mobis) e Mobi (um só); o resto fica embaixo.
           const area = el('div', { class: 'vl-cons-painel', role: 'tabpanel', 'aria-label': 'Área' }, []);
           const mobi = el('div', { class: 'vl-cons-painel', role: 'tabpanel', 'aria-label': 'Mobi' }, [
             situacao,
-            el('p', { class: 'vl-cuidado', texto: '⚠ Não clique sem parar: cada clique manda uma mensagem ao jogo, e o Habblet dá mute por flood.' }),
+            el('p', { class: 'vl-nota', texto: 'Clique num mobi no quarto para escolher com qual mexer.' }),
             el('div', { class: 'vl-cons-colunas' }, [
-              secao('Mover e girar', [
+              secao('Posição', [
                 el('div', { class: 'vl-cruz' }, [
                   mexer('↖', 'x − 1', 'ArrowLeft', false), mexer('↗', 'y − 1', 'ArrowUp', false),
                   mexer('↙', 'y + 1', 'ArrowDown', false), mexer('↘', 'x + 1', 'ArrowRight', false),
                 ]),
-                el('div', { class: 'vl-linha' }, [mexer('↺ Girar', 'Girar para a esquerda', 'ArrowLeft', true), mexer('↻ Girar', 'Girar para a direita', 'ArrowRight', true)]),
+                el('div', { class: 'vl-linha' }, [mexer('↺', 'Girar para a esquerda', 'ArrowLeft', true), mexer('↻', 'Girar para a direita', 'ArrowRight', true)]),
               ]),
               secao('Altura', [
                 el('div', { class: 'vl-linha' }, [botaoAltura('−', -1), botaoAltura('+', 1),
@@ -398,30 +403,26 @@
                 historico,
               ]),
             ]),
-            secao('Ações', [el('div', { class: 'vl-linha' }, [
-              botao('Usar', 'Liga, desliga ou muda o estado', function () { const m = exigir(); if (m) mandar(SAIDA.USAR_MOBI, [['i', m.id], ['i', 0]]); }),
-              botao('Recolher…', 'Volta o mobi para o inventário', function () { recolher(); }),
-              botao('Lista de mobis', 'Todos os mobis do chão', function () { listar(); }),
-            ])]),
-            el('p', { class: 'vl-nota', texto: 'Atalhos no quarto: Ctrl+setas movem o mobi, Ctrl+Shift+← → giram, Shift+roda muda a altura.' }),
-          ]);
-          const geral = el('div', { class: 'vl-cons-geral' }, [
-            secao('Modo construção', [el('div', { class: 'vl-linha' }, [congelar, tele])]),
-          ]);
-          const fimGeral = secao('Quarto inteiro', [el('div', { class: 'vl-linha' }, [
-            botao('Copiar quarto', 'Guarda a posição de todos os mobis', function () { copiarQuarto(); }),
-            botao('Colar quarto…', 'Coloca de novo, com mobis do inventário', function () { colarQuarto(); }),
-            botao('Exportar', 'Salva a cópia num arquivo', function () { exportarQuarto(); }),
-            botao('Importar…', 'Traz uma cópia de um arquivo', function () { arquivo.click(); }),
-            arquivo,
-          ])]);
-          const fimArea = secao('Altura da área', [
-            el('div', { class: 'vl-linha' }, [
-              botao('Nivelar…', 'Mesma altura para toda a área', function () { escreverNoChat('nivelar '); }),
-              botao('Escada…', 'Altura subindo a cada piso', function () { escreverNoChat('escada 0.5 x'); }),
+            grade([
+              acao('◐', 'Usar', 'Liga, desliga ou troca o estado do mobi.', function () { const m = exigir(); if (m) mandar(SAIDA.USAR_MOBI, [['i', m.id], ['i', 0]]); }),
+              acao('⤓', 'Recolher', 'Devolve este mobi ao inventário.', function () { recolher(); }),
             ]),
-            el('p', { class: 'vl-nota', texto: 'Até 40 mobis por vez.' }),
+            el('p', { class: 'vl-cuidado', texto: '⚠ Não clique sem parar: cada clique manda uma mensagem ao jogo, e o Habblet dá mute por flood.' }),
+            el('p', { class: 'vl-nota', texto: 'No quarto: Ctrl+setas movem, Ctrl+Shift+← → giram e Shift+roda muda a altura do mobi.' }),
           ]);
+          const geralAcoes = grade([congelar, tele]);
+          const geral = el('div', { class: 'vl-cons-geral' }, [secao('Ferramentas do quarto', [geralAcoes])]);
+          const fimGeral = secao('Quarto inteiro', [grade([
+            acao('☷', 'Lista de mobis', 'Todos os mobis do chão deste quarto.', function () { listar(); }),
+            acao('⧉', 'Copiar quarto', 'Guarda onde está cada mobi.', function () { copiarQuarto(); }),
+            acao('⎘', 'Colar quarto', 'Monta de novo com mobis do seu inventário.', function () { colarQuarto(); }),
+            acao('⇩', 'Exportar', 'Salva a cópia num arquivo.', function () { exportarQuarto(); }),
+            acao('⇧', 'Importar', 'Traz uma cópia de um arquivo.', function () { arquivo.click(); }),
+          ]), arquivo]);
+          const fimArea = secao('3. Altura dos marcados', [grade([
+            acao('═', 'Nivelar', 'Mesma altura para todos (você digita qual).', function () { escreverNoChat('nivelar '); }),
+            acao('⟋', 'Escada', 'Altura subindo a cada piso.', function () { escreverNoChat('escada 0.5 x'); }),
+          ]), el('p', { class: 'vl-nota', texto: 'Vale para a área arrastada no chão, até 40 mobis.' })]);
           const abas = [['area', 'Área', 'Vários mobis de uma vez', area], ['mobi', 'Mobi', 'Um mobi só', mobi]];
           const botoesAba = abas.map(([id, titulo, resumo]) => el('button', { type: 'button', role: 'tab', class: 'vl-cons-subaba', onclick() { subAba = id; mostrar(); } },
             [el('b', { texto: titulo }), el('small', { texto: resumo })]));
@@ -431,7 +432,7 @@
           mostrar();
           alvo.replaceChildren(el('div', { class: 'vl-cons-subabas', role: 'tablist', 'aria-label': 'Construção' }, botoesAba), area, mobi, geral);
           const fechos = () => { area.appendChild(fimArea); geral.appendChild(fimGeral); };
-          const montarFerramenta = () => { const desmontar = ferramenta.montarPainel({ area, mobi, geral }); fechos(); return desmontar; };
+          const montarFerramenta = () => { const desmontar = ferramenta.montarPainel({ area, mobi, geral: geralAcoes }); fechos(); return desmontar; };
           let desmontarFerramenta = ferramenta && ferramenta.montarPainel ? montarFerramenta() : null;
           const aguardarFerramenta = !desmontarFerramenta ? setTimeout(function () {
             if (alvo.isConnected && ferramenta && ferramenta.montarPainel) desmontarFerramenta = montarFerramenta();
@@ -1045,8 +1046,11 @@
       function atualizarModo() {
         if (!botoesModo) return;
         const congelado = document.documentElement.hasAttribute('data-vl-congelado');
-        botoesModo.congelar.textContent = congelado ? 'Descongelar' : 'Congelar (não andar)';
-        botoesModo.tele.textContent = teleporteLigado ? 'Teleporte: ligado' : 'Teleporte';
+        const nome = (b, t) => { (b.querySelector('b') || b).textContent = t; };
+        nome(botoesModo.congelar, congelado ? 'Descongelar' : 'Congelar');
+        nome(botoesModo.tele, teleporteLigado ? 'Teleporte: ligado' : 'Teleporte');
+        botoesModo.congelar.classList.toggle('ligado', congelado);
+        botoesModo.tele.classList.toggle('ligado', teleporteLigado);
       }
       ctx.aoParar(function () { botoesModo = null; });
 
