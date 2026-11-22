@@ -469,28 +469,13 @@
     async function sugerirCompra(faltam, pendentes, feitos, salaOriginal) {
       const lista = [...faltam].map(([tipo, quantidade]) => ({ tipo, quantidade }));
       const total = lista.reduce((s, item) => s + item.quantidade, 0);
-      let dados = null;
-      try { if (VL.dadosJogo) dados = await VL.dadosJogo.mobis(); } catch (erro) { /* exibe o tipo quando os nomes não carregam */ }
-      const itens = lista.map(({ tipo, quantidade }) => {
-        const mobi = dados && (dados.chao.get(tipo) || dados.parede.get(tipo));
-        return { nome: mobi && mobi.nome ? mobi.nome : 'Tipo ' + tipo, icone: mobi && VL.dadosJogo.iconeDe(mobi.classe), quantidade };
-      });
-      const escolha = await camada.dialogoMobis({
-        titulo: 'Completar a cópia',
-        texto: (feitos ? feitos + ' já copiados. ' : '') + total + ' faltaram no inventário. Confira os preços antes de comprar; depois o Vagalume colocará somente os que faltaram.',
-        itens,
-        botoes: [
-          { rotulo: 'Agora não', valor: false, foco: true },
-          { rotulo: 'Ver preços e comprar', valor: true, destaque: true },
-        ],
-      });
-      if (!escolha) return;
       if (geracaoQuarto !== salaOriginal) { camada.aviso('Você mudou de quarto; a compra desta cópia foi cancelada.', { tipo: 'erro' }); return; }
       if (!VL.loja || !VL.loja.comprarTipos) {
         camada.aviso('Ligue o módulo "Loja e inventário" para comprar.', { tipo: 'erro' });
         return;
       }
-      const compra = await VL.loja.comprarTipos(lista);
+      // Uma confirmação só: a da compra, já com os preços.
+      const compra = await VL.loja.comprarTipos(lista, (feitos ? feitos + ' já copiados; ' : '') + total + ' faltaram no inventário. Depois da compra o Vagalume coloca os que faltaram.');
       if (!compra || !compra.feitas) return;
       if (geracaoQuarto !== salaOriginal) { camada.aviso('A compra terminou, mas você mudou de quarto. Os mobis ficaram no inventário.', { tipo: 'erro' }); return; }
       camada.aviso('Compra concluída. Atualizando o inventário para terminar a cópia…');

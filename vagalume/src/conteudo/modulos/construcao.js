@@ -1238,11 +1238,11 @@
           botoes.forEach((b, i) => b.setAttribute('aria-pressed', String(opcoes[i][0] === modo)));
           caixaValor.hidden = modo !== 'altura';
           numCamadas.textContent = camadas + (camadas === 1 ? ' mobi por piso' : ' mobis por piso');
-          qtd.textContent = plano.colocar.length + '× ';
-          aviso.textContent = plano.faltam ? 'Faltam ' + plano.faltam + ' no inventário; esses ficam de fora.' : '';
+          qtd.textContent = (plano.colocar.length + plano.pendentes.length) + '× ';
+          aviso.textContent = plano.faltam ? 'Faltam ' + plano.faltam + ' no inventário. Ao colocar, o Vagalume oferece comprar os que faltam.' : '';
           aviso.hidden = !plano.faltam;
           const h = codigos.alturaValida(campo.value);
-          previa(comAltura(plano.colocar, modo, h == null ? 0 : h));
+          previa(comAltura(plano.colocar.concat(plano.pendentes), modo, h == null ? 0 : h)); // já com os que faltam
         }
         campo.addEventListener('input', () => { regua.value = campo.value; atualizar(); });
         regua.addEventListener('input', () => { campo.value = regua.value; atualizar(); });
@@ -1268,28 +1268,41 @@
         if (!ok) return null;
         const h = modo === 'altura' ? codigos.alturaValida(campo.value) : 0;
         if (h == null) { camada.aviso('Altura inválida: use um número de 0 a ' + codigos.MAX_ALTURA + '.', { tipo: 'erro' }); return null; }
-        const lista = comAltura(plano.colocar, modo, h);
-        if (modo !== 'pilha' && lista.some((m) => codigos.alturaValida(m.altura) == null)) { camada.aviso('Com essas camadas a pilha passaria da altura máxima (' + codigos.MAX_ALTURA + ').', { tipo: 'erro' }); return null; }
-        return { modo, lista, plano };
+        if (modo !== 'pilha' && comAltura(plano.colocar.concat(plano.pendentes), modo, h).some((m) => codigos.alturaValida(m.altura) == null)) { camada.aviso('Com essas camadas a pilha passaria da altura máxima (' + codigos.MAX_ALTURA + ').', { tipo: 'erro' }); return null; }
+        return { modo, altura: h, camadas, plano };
       }
       function preencherArea(alvo, classe, direcao, nome, itensProntos) {
         const previa = (lista) => { if (ferramenta) ferramenta.previaColocacao(classe, direcao, (lista || []).map((m) => ({ x: m.x, y: m.y, z: m.altura }))); };
         return emLote(async function () {
           try {
-            const itens = itensProntos || await pedirInventario();
+            let itens = itensProntos || await pedirInventario();
             if (!itens) { camada.aviso('O inventário não respondeu.', { tipo: 'erro' }); return; }
             const planoDe = (n) => {
               const p = codigos.planoPreencher(alvo, classe, [...mobis.values()], itens, direcao, n);
               p.colocar.forEach((m) => { m.tipo = classe; });
               return p;
             };
-            const plano = planoDe(1);
-            if (!plano.colocar.length) { camada.aviso('Não há ' + nome + ' no seu inventário.', { tipo: 'erro' }); return; }
             let ficha = null;
             try { const dados = await VL.dadosJogo.mobis(); ficha = dados && dados.chao && dados.chao.get(classe); } catch (e) { /* sem ícone */ }
             const escolha = await escolherAltura(planoDe, { nome: ficha && ficha.nome ? ficha.nome : nome.replace(/^"|"$/g, ''), area: textoArea(alvo), icone: ficha ? VL.dadosJogo.iconeDe(ficha.classe) : null }, previa);
-            previa(null);
             if (!escolha) return;
+            let plano = escolha.plano;
+            // Faltam no inventário: a compra (uma confirmação, com o preço) vem antes, com a prévia ainda no quarto.
+            if (plano.faltam) {
+              if (!VL.loja || !VL.loja.comprarTipos) camada.aviso('Ligue o módulo "Loja e inventário" para comprar os que faltam.', { tipo: 'erro' });
+              else {
+                const compra = await VL.loja.comprarTipos([{ tipo: classe, quantidade: plano.faltam }], 'Faltam ' + plano.faltam + ' para completar a área.');
+                for (let i = 0; compra && compra.feitas && i < 3; i++) {
+                  const novos = await pedirInventario();
+                  if (novos) { itens = novos; plano = planoDe(escolha.camadas); }
+                  if (plano.colocar.length >= escolha.plano.colocar.length + compra.feitas) break; // os comprados já chegaram
+                  await esperar(400);
+                }
+              }
+            }
+            previa(null);
+            if (!plano.colocar.length) { camada.aviso('Não há ' + nome + ' no seu inventário.', { tipo: 'erro' }); return; }
+            escolha.lista = comAltura(plano.colocar, escolha.modo, escolha.altura);
             // Empilhar: o jogo pousa cada um no topo (rápido). Chão ou altura: fixa a altura de cada um.
             let feitos = 0;
             if (escolha.modo === 'pilha') {
@@ -1332,7 +1345,7 @@
         }, function (alvo) {
           // Prévia ao vivo enquanto arrasta: os mobis aparecem em cada piso livre, em cima das pilhas.
           const plano = grande(alvo) ? { colocar: [] } : codigos.planoPreencher(alvo, tipo, [...mobis.values()], itens, 0);
-          ferramenta.previaColocacao(tipo, 0, comAltura(plano.colocar, 'pilha').map((m) => ({ x: m.x, y: m.y, z: m.altura })));
+          ferramenta.previaColocacao(tipo, 0, comAltura(plano.colocar.concat(plano.pendentes || []), 'pilha').map((m) => ({ x: m.x, y: m.y, z: m.altura })));
         });
       }
       let vigiaInventario = 0;

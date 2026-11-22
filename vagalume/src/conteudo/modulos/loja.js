@@ -155,7 +155,7 @@
       }
       // Compra por tipo de mobi (lista da Construção): oferta pelo arquivo de mobis do jogo, preço conferido
       // antes (2594 -> 3388), só em moedas, com confirmação do total. lista: [{ tipo, quantidade }].
-      async function comprarTipos(lista) {
+      async function comprarTipos(lista, motivo) {
         if (!conexao.disponivel()) { camada.aviso('Ligue o módulo "Conexão do jogo" e recarregue o hotel.', { tipo: 'erro' }); return; }
         if (!VL.dadosJogo) return;
         if (lista.length > 150) { camada.aviso('Há mais de 150 tipos de mobi; divida a compra em grupos menores.', { tipo: 'erro' }); return; }
@@ -200,7 +200,7 @@
         const total = plano.reduce((s, c) => s + c.moedas * c.quantidade, 0);
         const ok = await camada.dialogoMobis({
           titulo: 'Confirmar compra de mobis',
-          texto: unidades + (unidades === 1 ? ' mobi por ' : ' mobis por ') + total.toLocaleString('pt-BR') + ' moedas (preço de lista).' + (fora.length ? ' Sem oferta em moedas: ' + fora.slice(0, 8).join(', ') + (fora.length > 8 ? '…' : '') + '.' : ''),
+          texto: (motivo ? motivo + ' ' : '') + unidades + (unidades === 1 ? ' mobi por ' : ' mobis por ') + total.toLocaleString('pt-BR') + ' moedas (preço de lista).' + (fora.length ? ' Sem oferta em moedas: ' + fora.slice(0, 8).join(', ') + (fora.length > 8 ? '…' : '') + '.' : ''),
           itens: plano.map((c) => ({ nome: c.nome, icone: c.icone, quantidade: c.quantidade, preco: c.moedas * c.quantidade })),
           botoes: [{ rotulo: 'Cancelar', valor: false, foco: true }, { rotulo: 'Comprar', valor: true, destaque: true }],
         });

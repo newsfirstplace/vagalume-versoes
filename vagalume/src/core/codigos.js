@@ -786,16 +786,17 @@
     }
     const ids = itens.filter((i) => i.chao && i.classe === classe).map((i) => i.id);
     const colocar = [];
-    let faltam = 0;
+    const pendentes = []; // pisos sem item no inventário (para a prévia e a compra)
     for (let camada = 0; camada < n; camada++) {
       for (let y = area.y1; y <= area.y2; y++) {
         for (let x = area.x1; x <= area.x2; x++) {
-          if (ids.length) colocar.push({ itemId: ids.shift(), x, y, direcao: direcao || 0, altura: topos.get(x + ',' + y) || 0, camada });
-          else faltam++;
+          const m = { x, y, direcao: direcao || 0, altura: topos.get(x + ',' + y) || 0, camada };
+          if (ids.length) colocar.push(Object.assign({ itemId: ids.shift() }, m));
+          else pendentes.push(m);
         }
       }
     }
-    return { colocar, faltam };
+    return { colocar, pendentes, faltam: pendentes.length };
   }
   // Repetidos: mesma classe, piso, direção e altura. Fica o de id menor; devolve os ids que sobram.
   function repetidos(lista) {
