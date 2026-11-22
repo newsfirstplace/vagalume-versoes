@@ -483,26 +483,39 @@
       // Colocar em cima do que já está em cada piso (o que o jogo faz sozinho sem altura fixa): só o
       // pacote de colocar, e o próximo sai quando o servidor confirma o anterior (no máximo 700 ms),
       // com 110 ms entre envios. Altura fixa e modos automáticos da ferramenta ficam desligados no lote.
+      // Cada piso só conta quando chega o 1534 de um mobi naquele piso. O servidor recusa alguns pedidos
+      // seguidos rápido demais: os que faltam voltam (o mesmo item, que continua no inventário) em
+      // rodadas com mais folga entre envios.
+      const FOLGAS_COLOCAR = [110, 350, 700];
       async function colocarNoTopo(colocar) {
-        let confirmados = 0;
+        const pendentes = new Map(colocar.map((m) => [m.x + ',' + m.y, m]));
         let acordar = null;
-        const parar = conexao.ouvir('entrada', ENTRADA.MOBI_COLOCADO, function () { confirmados++; if (acordar) acordar(); });
+        const parar = conexao.ouvir('entrada', ENTRADA.MOBI_COLOCADO, function (l) {
+          let m = null;
+          try { m = codigos.lerMobi(l); } catch (e) { return; }
+          if (pendentes.delete(m.x + ',' + m.y) && acordar) acordar();
+        });
         try {
           await comAlturasFixas(async function () {
-            for (const m of colocar) {
-              if (!ctx.ativo('construcao')) break;
-              const antes = confirmados;
-              const inicio = Date.now();
-              if (!(await mandar(SAIDA.COLOCAR_MOBI, [['s', m.itemId + ' ' + m.x + ' ' + m.y + ' ' + m.direcao]]))) break;
-              await new Promise(function (r) { acordar = r; setTimeout(r, 700); if (confirmados > antes) r(); });
-              acordar = null;
-              const resto = 110 - (Date.now() - inicio);
-              if (resto > 0) await esperar(resto);
+            for (const folga of FOLGAS_COLOCAR) {
+              const rodada = [...pendentes.values()];
+              if (!rodada.length) break;
+              for (const m of rodada) {
+                if (!ctx.ativo('construcao')) return;
+                const chave = m.x + ',' + m.y;
+                if (!pendentes.has(chave)) continue;
+                const inicio = Date.now();
+                if (!(await mandar(SAIDA.COLOCAR_MOBI, [['s', m.itemId + ' ' + m.x + ' ' + m.y + ' ' + m.direcao]]))) return;
+                await new Promise(function (r) { acordar = r; setTimeout(r, 700); if (!pendentes.has(chave)) r(); });
+                acordar = null;
+                const resto = folga - (Date.now() - inicio);
+                if (resto > 0) await esperar(resto);
+              }
+              await esperar(500); // confirmações atrasadas antes de decidir quem repete
             }
-            await esperar(300); // últimas confirmações
           }, { semAltura: true });
         } finally { parar(); }
-        return Math.min(confirmados, colocar.length);
+        return colocar.length - pendentes.size;
       }
       async function colocarLista(colocar) {
         let feitos = 0;
