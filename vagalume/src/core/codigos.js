@@ -668,10 +668,16 @@
     let grade = linhas.map((l) => l.padEnd(largura, 'x').split(''));
     while (grade.length && !grade[grade.length - 1].some(valido)) grade.pop();
     while (largura && !grade.some((l) => valido(l[largura - 1]))) { largura--; grade.forEach((l) => l.pop()); }
+    // Bordas vazias do começo também saem (o hotel conta o tamanho do mapa inteiro); quem cola desloca
+    // os mobis por { x: dx, y: dy } (devolvido em "deslocar").
+    let dy = 0, dx = 0;
+    while (grade.length && !grade[0].some(valido)) { grade.shift(); dy++; }
+    while (largura && !grade.some((l) => valido(l[0]))) { largura--; dx++; grade.forEach((l) => l.shift()); }
     const altura = grade.length;
     if (!altura || !largura) return null;
+    const deslocar = { x: dx, y: dy };
     const texto = () => grade.map((l) => l.join('')).join('\r');
-    const mobis = (ocupados || []).filter((p) => Array.isArray(p) && Number.isInteger(p[0]) && Number.isInteger(p[1]));
+    const mobis = (ocupados || []).filter((p) => Array.isArray(p) && Number.isInteger(p[0]) && Number.isInteger(p[1])).map((p) => [p[0] - dx, p[1] - dy]);
     const ocupado = new Set(mobis.map((p) => p[0] + ',' + p[1]));
     const longe = (x, y) => mobis.reduce((m, p) => Math.min(m, Math.max(Math.abs(p[0] - x), Math.abs(p[1] - y))), 99);
     // Vizinhos na ordem oeste, leste, norte, sul; a direção é para onde quem entra olha (para o quarto).
@@ -691,9 +697,9 @@
     }
     if (buraco && buraco.dist >= 2) {
       grade[buraco.y][buraco.x] = buraco.h;
-      return { mapa: texto(), porta: { x: buraco.x, y: buraco.y, direcao: buraco.direcao } };
+      return { mapa: texto(), porta: { x: buraco.x, y: buraco.y, direcao: buraco.direcao }, deslocar, largura, altura };
     }
-    if (livre && livre.dist >= 3) return { mapa: texto(), porta: { x: livre.x, y: livre.y, direcao: livre.direcao } };
+    if (livre && livre.dist >= 3) return { mapa: texto(), porta: { x: livre.x, y: livre.y, direcao: livre.direcao }, deslocar, largura, altura };
     // Corredor para fora, no lado que deixa o quarto menos comprido.
     let dir = null, baixo = null;
     for (let y = 0; y < altura; y++) {
@@ -707,12 +713,20 @@
       const y = meio(dir.lista), h = grade[y][dir.max], portaX = largura + d - 1;
       for (const linha of grade) while (linha.length <= portaX) linha.push('x');
       for (let x = dir.max + 1; x <= portaX; x++) grade[y][x] = h;
-      return { mapa: texto(), porta: { x: portaX, y, direcao: 6 } };
+      return { mapa: texto(), porta: { x: portaX, y, direcao: 6 }, deslocar, largura: portaX + 1, altura };
     }
     const x = meio(baixo.lista), h = grade[baixo.max][x], portaY = altura + d - 1;
     while (grade.length <= portaY) grade.push(new Array(largura).fill('x'));
     for (let y = baixo.max + 1; y <= portaY; y++) grade[y][x] = h;
-    return { mapa: texto(), porta: { x, y: portaY, direcao: 0 } };
+    return { mapa: texto(), porta: { x, y: portaY, direcao: 0 }, deslocar, largura, altura: portaY + 1 };
+  }
+  // A cópia levada para o floor recortado: chão por x e y, parede pelo ":w=x,y" (o "l=" é dentro da parede).
+  function deslocarCopia(copia, d) {
+    if (!d || (!d.x && !d.y)) return copia;
+    return copia.map(function (m) {
+      if (!m.parede) return Object.assign({}, m, { x: m.x - d.x, y: m.y - d.y });
+      return Object.assign({}, m, { local: m.local.replace(/^:w=(\d+),(\d+)/, (t, x, y) => ':w=' + (Number(x) - d.x) + ',' + (Number(y) - d.y)) });
+    }).filter((m) => m.parede ? LOCAL_PAREDE.test(m.local) : m.x >= 0 && m.y >= 0);
   }
   // Raro, LTD e afins (o arquivo de mobis do Habblet não marca raridade: vai pelo nome técnico e pelo nome).
   // Não ficam à venda em moedas, então a compra para completar uma cópia os deixa de fora.
@@ -1040,7 +1054,7 @@
     return { id, nome, visual, genero };
   }
 
-  const api = { plantaComPorta, lerPlanta, lerEspessura, lerPorta, lerDecoracao, lerMobiParede, lerMobisParede, lerRegulador, reguladorLigado, LOCAL_PAREDE, CLASSE_DECORACAO, validarExtrasQuarto, mobiRaro, estadoNumero, origemDaAmostra, pisoNaTela, telaNoPiso, origemMediana, cantosDaArea, planoGirarArea, planoEspelharArea, planoEscada, caminhoPaginaLoja, semAcento, acharPaginasLoja, MAX_PISOS_PREENCHER, MAX_CAMADAS, planoPreencher, lerCompra, resumoCarrinho, areaDe, mobisNaArea, planoMoverArea, planoDuplicar, planoSubstituir, repetidos, lerMeusDados, FEIRA_ESTADO, lerConfigFeira, lerOfertaFeira, lerOfertasFeira, lerMinhasOfertas, ofertasParaRepor, copiaDoQuarto, validarCopiaQuarto, planoDeColagem, SALVAR_WIRED, lerVisuais, visualValido, lerIndiceLoja, lerPaginaLoja, lerItemInventario, lerInventario, planoDeCompra, EXPRESSAO_INATIVO, lerAmigos, lerAmigo, lerAtualizacaoAmigos, lerMensagemRecebida, mencaoNaFala, referenciasDeQuarto, MAX_ALTURA, alturaValida, alturaDoMobi, SAIDA, ENTRADA, EXPRESSOES, MAX_DANCA, DANCAS_EXTRAS, MAX_PLACA, lerUmaOferta, lerFala, lerUsuarios, filtrarUsuarios, trocarPosicao, lerEstados, destinoDoMovimento, passo, PASSOS, EIXOS_SETAS, passoSetas, LADOS, NOMES_LADOS, linhasAoEntrar,
+  const api = { deslocarCopia, plantaComPorta, lerPlanta, lerEspessura, lerPorta, lerDecoracao, lerMobiParede, lerMobisParede, lerRegulador, reguladorLigado, LOCAL_PAREDE, CLASSE_DECORACAO, validarExtrasQuarto, mobiRaro, estadoNumero, origemDaAmostra, pisoNaTela, telaNoPiso, origemMediana, cantosDaArea, planoGirarArea, planoEspelharArea, planoEscada, caminhoPaginaLoja, semAcento, acharPaginasLoja, MAX_PISOS_PREENCHER, MAX_CAMADAS, planoPreencher, lerCompra, resumoCarrinho, areaDe, mobisNaArea, planoMoverArea, planoDuplicar, planoSubstituir, repetidos, lerMeusDados, FEIRA_ESTADO, lerConfigFeira, lerOfertaFeira, lerOfertasFeira, lerMinhasOfertas, ofertasParaRepor, copiaDoQuarto, validarCopiaQuarto, planoDeColagem, SALVAR_WIRED, lerVisuais, visualValido, lerIndiceLoja, lerPaginaLoja, lerItemInventario, lerInventario, planoDeCompra, EXPRESSAO_INATIVO, lerAmigos, lerAmigo, lerAtualizacaoAmigos, lerMensagemRecebida, mencaoNaFala, referenciasDeQuarto, MAX_ALTURA, alturaValida, alturaDoMobi, SAIDA, ENTRADA, EXPRESSOES, MAX_DANCA, DANCAS_EXTRAS, MAX_PLACA, lerUmaOferta, lerFala, lerUsuarios, filtrarUsuarios, trocarPosicao, lerEstados, destinoDoMovimento, passo, PASSOS, EIXOS_SETAS, passoSetas, LADOS, NOMES_LADOS, linhasAoEntrar,
     lerDadosExtras, lerMobi, lerMobisDoQuarto, mexer, EIXOS, mobisIguaisNaArea, encaixeSobreMobis };
   raiz.VL = raiz.VL || {};
   raiz.VL.codigos = api;

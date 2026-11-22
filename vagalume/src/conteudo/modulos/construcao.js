@@ -669,11 +669,13 @@
       async function aplicarPlanta(p) {
         const pronto = esperarMensagem(ENTRADA.QUARTO_PRONTO, 15000);
         const comPorta = codigos.plantaComPorta(p.mapa, (copiaQuarto || []).filter((m) => !m.parede).map((m) => [m.x, m.y]));
-        if (!comPorta) return false;
-        if (!(await mandar(SAIDA.SALVAR_PLANTA, [['s', comPorta.mapa], ['i', comPorta.porta.x], ['i', comPorta.porta.y], ['i', comPorta.porta.direcao], ['i', p.parede], ['i', p.piso], ['i', p.alturaParede]]))) return false;
-        if (!(await pronto)) return false;
+        if (!comPorta) return null;
+        const r = { ok: false, largura: comPorta.largura, altura: comPorta.altura, deslocar: comPorta.deslocar };
+        if (!(await mandar(SAIDA.SALVAR_PLANTA, [['s', comPorta.mapa], ['i', comPorta.porta.x], ['i', comPorta.porta.y], ['i', comPorta.porta.direcao], ['i', p.parede], ['i', p.piso], ['i', p.alturaParede]]))) return r;
+        if (!(await pronto)) return r;
         await esperar(2500); // mobis do quarto recarregado
-        return true;
+        r.ok = true;
+        return r;
       }
       // Papel de parede, piso e paisagem: usa um item do inventário com a mesma estampa (compra se faltar).
       async function aplicarDecoracao(d) {
@@ -732,9 +734,13 @@
           }
           const quer = (id) => !marcas[id] || marcas[id].checked;
           const resumo = [];
+          let copia = copiaQuarto; // com o floor aplicado, as posições seguem o mapa recortado
           if (extrasCopia.planta && quer('planta')) {
             camada.aviso('Aplicando o floor do quarto…');
-            resumo.push((await aplicarPlanta(extrasCopia.planta)) ? 'floor aplicado' : 'o floor não foi aplicado (o hotel recusou: quarto que não é seu ou floor grande demais)');
+            const r = await aplicarPlanta(extrasCopia.planta);
+            const tam = r ? ' (' + r.largura + ' × ' + r.altura + ' pisos)' : '';
+            if (r && r.ok) { copia = codigos.deslocarCopia(copiaQuarto, r.deslocar); resumo.push('floor aplicado' + tam); }
+            else resumo.push('o floor' + tam + ' não foi aplicado (o hotel recusou: quarto que não é seu ou floor maior do que a sua conta pode criar)');
           }
           if (extrasCopia.decoracao && quer('decoracao')) {
             const r = await aplicarDecoracao(extrasCopia.decoracao);
@@ -746,12 +752,12 @@
             camada.aviso('Pronto: ' + resumo.join('; ') + '.', { duracaoMs: 10000 });
             return;
           }
-          const comprou = await comprarFaltasDaCopia(copiaQuarto, 'Faltam {n} mobis no seu inventário para colar o quarto inteiro.');
+          const comprou = await comprarFaltasDaCopia(copia, 'Faltam {n} mobis no seu inventário para colar o quarto inteiro.');
           let itens = null, plano = null;
           // Depois da compra, o inventário pode demorar a mostrar os novos: lê de novo até 3 vezes.
           for (let i = 0; i < (comprou ? 3 : 1); i++) {
             itens = await pedirInventario();
-            if (itens) plano = codigos.planoDeColagem(copiaQuarto, itens);
+            if (itens) plano = codigos.planoDeColagem(copia, itens);
             if (!comprou || (plano && !plano.faltam.size)) break;
             await esperar(400);
           }
