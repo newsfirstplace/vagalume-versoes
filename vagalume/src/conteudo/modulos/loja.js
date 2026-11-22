@@ -250,7 +250,22 @@
           { tipo: feitas === unidades ? 'ok' : 'erro', duracaoMs: notas.length ? 15000 : undefined });
         return { feitas, unidades };
       }
-      VL.loja = { comprarTipos };
+      // Papel de parede, piso e paisagem: a estampa é a oferta (cada estampa tem a sua na loja). Procura nas
+      // páginas da loja de nome parecido a oferta com essa classe e esse extra, e compra uma. Não conferido ao vivo.
+      async function comprarDecoracao(classe, valor) {
+        if (!conexao.disponivel()) return false;
+        const paginas = await pedirIndice();
+        if (!paginas) return false;
+        const candidatas = paginas.filter((p) => /papel|parede|piso|paisag|espaco|ambiente|wallpaper|floor|landscape/.test(codigos.semAcento(p.rotulo + ' ' + p.nome))).slice(0, 30);
+        for (const p of candidatas) {
+          const pagina = await pedirPagina(p.id);
+          if (!pagina) continue;
+          const of = pagina.ofertas.find((o) => o.produtos.length === 1 && o.produtos[0].classe === classe && String(o.produtos[0].extra) === String(valor) && !(o.pontos > 0));
+          if (of) return comprar({ pagina: pagina.id, oferta: of.id, extra: String(valor), quantidade: 1 });
+        }
+        return false;
+      }
+      VL.loja = { comprarTipos, comprarDecoracao };
       ctx.aoParar(function () { if (VL.loja && VL.loja.comprarTipos === comprarTipos) VL.loja = null; });
 
       // ---------- atalhos de páginas da loja ----------

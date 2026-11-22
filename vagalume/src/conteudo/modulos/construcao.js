@@ -18,6 +18,8 @@
       document.documentElement?.setAttribute('data-vl-construcao-alturas', 'nativa-397');
       ctx.aoParar(() => document.documentElement?.removeAttribute('data-vl-construcao-alturas'));
       const mobis = new Map(); // id -> mobi
+      const mobisParede = new Map(); // id -> mobi de parede do quarto atual
+      let planta = null, espessura = null, decoracao = {}; // do quarto atual (planta, paredes/piso, estampas)
       const MAX_DESFAZER = 50;
       const desfazer = []; // posições anteriores: { id, x, y, direcao, altura }
       const refazer = [];
@@ -53,7 +55,15 @@
         conexao.ouvir('saida', SAIDA.FERRAMENTA_CONSTRUCAO, function (l) {
           ajustesFerramenta = tiposFerramenta.map((tipo) => tipo === 'b' ? l.booleano() : l.inteiro());
         }),
-        conexao.ouvir('entrada', ENTRADA.QUARTO_PRONTO, function () { mobis.clear(); selecionado = null; incompleto = false; pickitem = null; geracaoQuarto++; }),
+        conexao.ouvir('entrada', ENTRADA.QUARTO_PRONTO, function () { mobis.clear(); mobisParede.clear(); decoracao = {}; selecionado = null; incompleto = false; pickitem = null; geracaoQuarto++; }),
+        // Planta, espessuras, decoração e mobis de parede do quarto atual (para copiar o quarto inteiro).
+        conexao.ouvir('entrada', ENTRADA.PLANTA, function (l) { planta = codigos.lerPlanta(l); }),
+        conexao.ouvir('entrada', ENTRADA.ESPESSURA, function (l) { espessura = codigos.lerEspessura(l); }),
+        conexao.ouvir('entrada', ENTRADA.DECORACAO, function (l) { const d = codigos.lerDecoracao(l); if (codigos.CLASSE_DECORACAO[d.tipo]) decoracao[d.tipo] = d.valor; }),
+        conexao.ouvir('entrada', ENTRADA.MOBIS_PAREDE, function (l) { for (const m of codigos.lerMobisParede(l)) mobisParede.set(m.id, m); }),
+        conexao.ouvir('entrada', ENTRADA.MOBI_PAREDE_COLOCADO, function (l) { const m = codigos.lerMobiParede(l); mobisParede.set(m.id, m); }),
+        conexao.ouvir('entrada', ENTRADA.MOBI_PAREDE_ATUALIZADO, function (l) { const m = codigos.lerMobiParede(l); mobisParede.set(m.id, m); }),
+        conexao.ouvir('entrada', ENTRADA.MOBI_PAREDE_RETIRADO, function (l) { mobisParede.delete(parseInt(l.texto(), 10)); }),
         conexao.ouvir('entrada', ENTRADA.MOBIS_DO_QUARTO, function (l) {
           // Quartos grandes chegam em várias partes: junta todas (o quarto novo limpa a lista).
           const r = codigos.lerMobisDoQuarto(l);
@@ -452,14 +462,42 @@
       // ---------- copiar e colar quarto ----------
       // Copiar: guarda tipo, posição, direção e altura de cada mobi do chão. Colar: em outro quarto
       // seu, coloca mobis do seu inventário nas mesmas posições (o id no quarto é o mesmo do
-      // inventário, conferido ao vivo) e acerta a altura pelo :UP. Mobis de parede ficam de fora.
+      // inventário, conferido ao vivo) com altura e estado fixos. Também mobis de parede, planta, papel de
+      // parede/piso/paisagem e regulador de luz (2026-11-22; não conferidos ao vivo).
       let copiaQuarto = null;
+      let extrasCopia = {}; // { planta, decoracao, regulador } da cópia (pedido do usuário em 2026-11-22)
       let colando = false;
-      function copiarQuarto() {
+      // Espera uma mensagem que chega com o código; devolve o leitor ou null no tempo.
+      function esperarMensagem(codigo, ms, pedir) {
+        return new Promise(function (resolver) {
+          let parar = null;
+          const relogio = setTimeout(function () { if (parar) parar(); resolver(null); }, ms);
+          parar = conexao.ouvir('entrada', codigo, function (l) { clearTimeout(relogio); parar(); resolver(l); });
+          if (pedir) pedir();
+        });
+      }
+      async function copiarQuarto() {
         if (!conexao.disponivel()) { exigir(); return; }
-        if (!mobis.size) { camada.aviso('Nenhum mobi no chão deste quarto para copiar.', { tipo: 'erro' }); return; }
-        copiaQuarto = codigos.copiaDoQuarto([...mobis.values()]);
-        camada.aviso('Cópia guardada: ' + copiaQuarto.length + ' mobis' + (incompleto ? ' (a lista do quarto pode estar incompleta)' : '') + '. Exporte para ter um backup em arquivo.', { tipo: 'ok' });
+        if (!mobis.size && !mobisParede.size) { camada.aviso('Nenhum mobi neste quarto para copiar.', { tipo: 'erro' }); return; }
+        copiaQuarto = codigos.copiaDoQuarto([...mobis.values()], [...mobisParede.values()]);
+        extrasCopia = {};
+        const lPorta = await esperarMensagem(ENTRADA.PORTA, 2500, () => mandar(SAIDA.PEDIR_PORTA, []));
+        if (planta && espessura && lPorta) {
+          const porta = codigos.lerPorta(lPorta);
+          extrasCopia.planta = { mapa: planta.mapa, alturaParede: planta.alturaParede, porta, parede: espessura.parede, piso: espessura.piso };
+        }
+        if (Object.keys(decoracao).length) extrasCopia.decoracao = Object.assign({}, decoracao);
+        const dimmer = [...mobisParede.values()].find((m) => codigos.reguladorLigado(m.estado) != null);
+        if (dimmer) {
+          const lReg = await esperarMensagem(ENTRADA.REGULADOR, 2500, () => mandar(SAIDA.PEDIR_REGULADOR, []));
+          if (lReg) extrasCopia.regulador = Object.assign(codigos.lerRegulador(lReg), { ligado: codigos.reguladorLigado(dimmer.estado) });
+        }
+        extrasCopia = codigos.validarExtrasQuarto(extrasCopia);
+        const partes = [copiaQuarto.length + ' mobis'];
+        if (extrasCopia.planta) partes.push('planta');
+        if (extrasCopia.decoracao) partes.push('papel de parede, piso e paisagem');
+        if (extrasCopia.regulador) partes.push('regulador de luz');
+        camada.aviso('Cópia guardada: ' + partes.join(', ') + (incompleto ? ' (a lista do quarto pode estar incompleta)' : '') + '. Exporte para ter um backup em arquivo.', { tipo: 'ok' });
         // Já oferece comprar o que falta no inventário para montar a cópia (pedido do usuário em 2026-11-22).
         comprarFaltasDaCopia(copiaQuarto, 'Para montar esta cópia, faltam {n} mobis no seu inventário (os que estão no quarto não contam).');
       }
@@ -476,7 +514,7 @@
       }
       function exportarQuarto() {
         if (!copiaQuarto) { camada.aviso('Copie um quarto primeiro.', { tipo: 'erro' }); return; }
-        camada.baixar('vagalume-quarto-' + camada.carimbo(true) + '.json', JSON.stringify({ app: 'vagalume', tipo: 'quarto', mobis: copiaQuarto }, null, 1), 'application/json;charset=utf-8');
+        camada.baixar('vagalume-quarto-' + camada.carimbo(true) + '.json', JSON.stringify({ app: 'vagalume', tipo: 'quarto', mobis: copiaQuarto, extras: extrasCopia }, null, 1), 'application/json;charset=utf-8');
       }
       function importarQuarto(texto) {
         let obj;
@@ -484,6 +522,7 @@
         const lista = obj && obj.app === 'vagalume' && obj.tipo === 'quarto' ? codigos.validarCopiaQuarto(obj.mobis) : null;
         if (!lista) { camada.aviso('Este arquivo não é uma cópia de quarto do Vagalume.', { tipo: 'erro' }); return; }
         copiaQuarto = lista;
+        extrasCopia = codigos.validarExtrasQuarto(obj.extras);
         camada.aviso('Cópia importada: ' + lista.length + ' mobis. Entre num quarto seu e cole.', { tipo: 'ok' });
       }
       function pedirInventario() {
@@ -539,7 +578,9 @@
       // Com altura fixa: cada mobi só conta quando o servidor mostra o mesmo id no piso e na altura certos
       // (pelo 1534 ao colocar ou pelo 3776 ao mover). O que falhar volta em mais duas rodadas, mais lentas.
       let estadosDiferentes = 0; // da última colocarLista: mobis no lugar certo mas com outro estado
-      async function colocarLista(colocar) {
+      async function colocarLista(todos) {
+        const paredes = todos.filter((m) => m.parede);
+        const colocar = todos.filter((m) => !m.parede);
         const certo = (m, lido) => lido.x === m.x && lido.y === m.y && Math.abs(lido.altura - (m.altura || 0)) < 0.01;
         const colocados = new Set();
         const prontos = new Set();
@@ -598,7 +639,74 @@
           });
         } finally { pararA(); pararB(); pararC(); }
         estadosDiferentes = [...prontos].filter((id) => !estadoCerto.has(id)).length;
-        return prontos.size;
+        return prontos.size + (paredes.length && ctx.ativo('construcao') ? await colocarParede(paredes) : 0);
+      }
+      // Mobis de parede: "id :w=x,y l=a,b r" no mesmo pacote de colocar; confere pelo 2187 e repete os que faltaram.
+      async function colocarParede(lista) {
+        const feitos = new Set();
+        let acordar = null;
+        const parar = conexao.ouvir('entrada', ENTRADA.MOBI_PAREDE_COLOCADO, function (l) {
+          try { feitos.add(codigos.lerMobiParede(l).id); } catch (e) { return; }
+          if (acordar) acordar();
+        });
+        try {
+          for (const folga of FOLGAS_COLOCAR) {
+            const rodada = lista.filter((m) => !feitos.has(m.itemId));
+            if (!rodada.length) break;
+            for (const m of rodada) {
+              if (!ctx.ativo('construcao')) return feitos.size;
+              const inicio = Date.now();
+              if (!(await mandar(SAIDA.COLOCAR_MOBI, [['s', m.itemId + ' ' + m.local]]))) return feitos.size;
+              await new Promise(function (r) { if (feitos.has(m.itemId)) { r(); return; } acordar = () => { if (feitos.has(m.itemId)) r(); }; setTimeout(r, 700); });
+              acordar = null;
+              const resto = folga - (Date.now() - inicio);
+              if (resto > 0) await esperar(resto);
+            }
+            await esperar(500);
+          }
+        } finally { parar(); }
+        return feitos.size;
+      }
+      // Planta: o editor de chão do jogo salva com uma mensagem só; o quarto recarrega depois.
+      async function aplicarPlanta(p) {
+        const pronto = esperarMensagem(ENTRADA.QUARTO_PRONTO, 15000);
+        if (!(await mandar(SAIDA.SALVAR_PLANTA, [['s', p.mapa], ['i', p.porta.x], ['i', p.porta.y], ['i', p.porta.direcao], ['i', p.parede], ['i', p.piso], ['i', p.alturaParede]]))) return false;
+        if (!(await pronto)) return false;
+        await esperar(2500); // mobis do quarto recarregado
+        return true;
+      }
+      // Papel de parede, piso e paisagem: usa um item do inventário com a mesma estampa (compra se faltar).
+      async function aplicarDecoracao(d) {
+        const feitos = [], faltaram = [];
+        const NOMES = { wallpaper: 'papel de parede', floor: 'piso', landscape: 'paisagem' };
+        for (const tipo of Object.keys(d)) {
+          if (decoracao[tipo] === d[tipo]) { feitos.push(NOMES[tipo]); continue; }
+          const classe = codigos.CLASSE_DECORACAO[tipo];
+          const achar = (itens) => (itens || []).find((i) => !i.chao && i.classe === classe && String(i.estado) === d[tipo]);
+          let item = achar(await pedirInventario());
+          if (!item && VL.loja && VL.loja.comprarDecoracao && (await VL.loja.comprarDecoracao(classe, d[tipo]))) {
+            for (let i = 0; i < 3 && !item; i++) { await esperar(400); item = achar(await pedirInventario()); }
+          }
+          if (!item) { faltaram.push(NOMES[tipo] + ' ' + d[tipo]); continue; }
+          const aplicado = esperarMensagem(ENTRADA.DECORACAO, 3000);
+          await mandar(SAIDA.APLICAR_DECORACAO, [['i', item.id]]);
+          if (await aplicado) feitos.push(NOMES[tipo]); else faltaram.push(NOMES[tipo] + ' ' + d[tipo]);
+        }
+        return { feitos, faltaram };
+      }
+      // Regulador de luz: grava os efeitos da cópia (o selecionado por último, aplicando) e liga ou desliga.
+      async function aplicarRegulador(r) {
+        const achar = () => [...mobisParede.values()].find((m) => codigos.reguladorLigado(m.estado) != null);
+        if (!achar()) return false;
+        const efeitos = r.efeitos.slice().sort((a, b) => (a.id === r.selecionado) - (b.id === r.selecionado));
+        for (const e of efeitos) {
+          await mandar(SAIDA.SALVAR_REGULADOR, [['i', e.id], ['i', e.tipo], ['s', e.cor], ['i', e.brilho], ['b', e.id === r.selecionado]]);
+          await esperar(400);
+        }
+        await esperar(800);
+        const dimmer = achar();
+        if (dimmer && codigos.reguladorLigado(dimmer.estado) !== r.ligado) await mandar(SAIDA.LIGAR_REGULADOR, []);
+        return true;
       }
       async function colarQuarto() {
         if (!conexao.disponivel()) { exigir(); return; }
@@ -606,6 +714,38 @@
         if (colando || trabalhando) { camada.aviso('Espere a tarefa anterior terminar.'); return; }
         colando = true;
         try {
+          // O que colar (só aparecem as partes que a cópia tem).
+          const partes = [['mobis', 'Mobis do chão e da parede', true]];
+          if (extrasCopia.planta) partes.unshift(['planta', 'Planta do quarto (o quarto recarrega)', true]);
+          if (extrasCopia.decoracao) partes.push(['decoracao', 'Papel de parede, piso e paisagem', true]);
+          if (extrasCopia.regulador) partes.push(['regulador', 'Configuração do regulador de luz', true]);
+          const marcas = {};
+          if (partes.length > 1) {
+            const caixas = partes.map(function ([id, rotulo, ligado]) {
+              const c = el('input', { type: 'checkbox', checked: ligado });
+              marcas[id] = c;
+              return el('label', { style: 'display:flex;gap:8px;align-items:center;margin:6px 0' }, [c, rotulo]);
+            });
+            const ok = await camada.dialogo({ titulo: 'Colar quarto', texto: 'O que colar neste quarto? Funciona em quarto seu.', conteudo: el('div', null, caixas),
+              botoes: [{ rotulo: 'Cancelar', valor: false }, { rotulo: 'Colar', valor: true, destaque: true, foco: true }] });
+            if (!ok) return;
+          }
+          const quer = (id) => !marcas[id] || marcas[id].checked;
+          const resumo = [];
+          if (extrasCopia.planta && quer('planta')) {
+            camada.aviso('Aplicando a planta do quarto…');
+            resumo.push((await aplicarPlanta(extrasCopia.planta)) ? 'planta aplicada' : 'a planta não foi aplicada (precisa ser dono do quarto)');
+          }
+          if (extrasCopia.decoracao && quer('decoracao')) {
+            const r = await aplicarDecoracao(extrasCopia.decoracao);
+            if (r.feitos.length) resumo.push(r.feitos.join(', ') + ' ok');
+            if (r.faltaram.length) resumo.push('sem ' + r.faltaram.join(', ') + ' (não achei no inventário nem na loja)');
+          }
+          if (!quer('mobis')) {
+            if (extrasCopia.regulador && quer('regulador')) resumo.push((await aplicarRegulador(extrasCopia.regulador)) ? 'regulador configurado' : 'sem regulador de luz no quarto');
+            camada.aviso('Pronto: ' + resumo.join('; ') + '.', { duracaoMs: 10000 });
+            return;
+          }
           const comprou = await comprarFaltasDaCopia(copiaQuarto, 'Faltam {n} mobis no seu inventário para colar o quarto inteiro.');
           let itens = null, plano = null;
           // Depois da compra, o inventário pode demorar a mostrar os novos: lê de novo até 3 vezes.
@@ -622,7 +762,8 @@
             { titulo: 'Colar quarto', sim: 'Colocar' });
           if (!ok) return;
           const feitos = await colocarLista(plano.colocar);
-          camada.aviso('Pronto: ' + feitos + ' mobis colocados.' + (estadosDiferentes ? ' ' + estadosDiferentes + ' ficaram com o estado diferente da cópia (o hotel não aceitou fixar).' : ''), { tipo: estadosDiferentes ? 'erro' : 'ok', duracaoMs: estadosDiferentes ? 10000 : undefined });
+          if (extrasCopia.regulador && quer('regulador')) { await esperar(500); resumo.push((await aplicarRegulador(extrasCopia.regulador)) ? 'regulador configurado' : 'sem regulador de luz no quarto'); }
+          camada.aviso('Pronto: ' + feitos + ' mobis colocados' + (resumo.length ? '; ' + resumo.join('; ') : '') + '.' + (estadosDiferentes ? ' ' + estadosDiferentes + ' ficaram com o estado diferente da cópia (o hotel não aceitou fixar).' : ''), { tipo: estadosDiferentes ? 'erro' : 'ok', duracaoMs: 10000 });
         } finally {
           colando = false;
         }

@@ -5,6 +5,13 @@
   'use strict';
 
   const SAIDA = Object.freeze({
+    // Quarto (lidos na tabela do cliente, 2026-11-22; não conferidos ao vivo):
+    PEDIR_PORTA: 3559,        // GET_ROOM_ENTRY_TILE -> 1664
+    SALVAR_PLANTA: 875,       // ROOM_MODEL_SAVE: s mapa, i porta x, i porta y, i direção, i parede, i piso, i altura da parede
+    APLICAR_DECORACAO: 711,   // ITEM_PAINT: i id do papel de parede/piso/paisagem do inventário
+    PEDIR_REGULADOR: 2813,    // ITEM_DIMMER_SETTINGS -> 2710
+    SALVAR_REGULADOR: 1648,   // ITEM_DIMMER_SAVE: i efeito, i tipo, s cor "#RRGGBB", i claridade, b aplicar
+    LIGAR_REGULADOR: 2296,    // ITEM_DIMMER_TOGGLE (liga/desliga)
     ANDAR: 3320,          // i x, i y
     FALAR: 1314,          // s texto, i estilo
     ENTRAR_GRUPO: 998,    // i grupo (GROUP_REQUEST do cliente)
@@ -66,6 +73,15 @@
   const MAX_PLACA = 17;  // 0 a 10 conferidos no menu; 11 a 17 são os ícones, ordem não conferida
 
   const ENTRADA = Object.freeze({
+    PLANTA: 1301,             // ROOM_MODEL: b escala, i altura da parede, s mapa (linhas separadas por \r)
+    PORTA: 1664,              // ROOM_MODEL_DOOR: i x, i y, i direção
+    ESPESSURA: 3547,          // ROOM_THICKNESS: b esconder paredes, i parede (-2 a 1), i piso (-2 a 1)
+    DECORACAO: 2454,          // ROOM_PAINT: s tipo (wallpaper, floor, landscape), s valor
+    MOBIS_PAREDE: 1369,       // ITEM_WALL: donos e mobis de parede do quarto
+    MOBI_PAREDE_COLOCADO: 2187, // ITEM_WALL_ADD: um mobi de parede + s dono
+    MOBI_PAREDE_ATUALIZADO: 2009, // ITEM_WALL_UPDATE
+    MOBI_PAREDE_RETIRADO: 3208,   // ITEM_WALL_REMOVE: s id, i dono
+    REGULADOR: 2710,          // ITEM_DIMMER_SETTINGS: i nº, i selecionado, por efeito: i id, i tipo, s cor, i claridade
     FALA: 1446,           // i índice, s texto, i gesto, i estilo, links, i controle
     GRITO: 1036,          // igual à fala
     SUSSURRO: 2704,       // igual à fala (UNIT_CHAT_WHISPER); também a cópia do que você sussurra
@@ -170,10 +186,10 @@
         const tipo = l.texto();
         if (tipo === 'b') { oferta.produtos.push({ tipo, codigo: l.texto(), quantidade: 1 }); continue; }
         const classe = l.inteiro();
-        l.texto();
+        const extra = l.texto();
         const quantidade = l.inteiro();
         if (l.booleano()) { l.inteiro(); l.inteiro(); }
-        oferta.produtos.push({ tipo, classe, quantidade });
+        oferta.produtos.push({ tipo, classe, extra, quantidade });
       }
       l.inteiro();
       oferta.pacote = l.booleano();
@@ -581,6 +597,62 @@
 
   // Cópia dos mobis do chão: tipo, posição, direção e altura, ordenada pela altura (os do chão
   // primeiro, e cada altura de uma vez, para ligar o :UP o mínimo de vezes).
+  // ---------- planta, decoração, mobis de parede e regulador de luz (formatos lidos no cliente) ----------
+  function lerPlanta(l) { const escala = l.booleano(); const alturaParede = l.inteiro(); const mapa = l.texto(); return { escala, alturaParede, mapa }; }
+  function lerEspessura(l) { return { esconderParedes: l.booleano(), parede: l.inteiro(), piso: l.inteiro() }; }
+  function lerPorta(l) { return { x: l.inteiro(), y: l.inteiro(), direcao: l.inteiro() }; }
+  function lerDecoracao(l) { return { tipo: l.texto(), valor: l.texto() }; }
+  // Mobi de parede: s id, i tipo, s local (":w=x,y l=a,b r"), s dados, i validade, i uso, i dono.
+  function lerMobiParede(l) {
+    const id = parseInt(l.texto(), 10);
+    const tipo = l.inteiro();
+    const local = l.texto();
+    const estado = l.texto();
+    l.inteiro(); l.inteiro();
+    const dono = l.inteiro();
+    return { id, tipo, local, estado, dono, parede: true };
+  }
+  function lerMobisParede(l) {
+    const nDonos = l.inteiro();
+    for (let i = 0; i < nDonos && i < 1000; i++) { l.inteiro(); l.texto(); }
+    const n = l.inteiro();
+    const lista = [];
+    for (let i = 0; i < n && i < 5000; i++) lista.push(lerMobiParede(l));
+    return lista;
+  }
+  function lerRegulador(l) {
+    const n = l.inteiro();
+    const selecionado = l.inteiro();
+    const efeitos = [];
+    for (let i = 0; i < n && i < 10; i++) efeitos.push({ id: l.inteiro(), tipo: l.inteiro(), cor: l.texto(), brilho: l.inteiro() });
+    return { selecionado, efeitos };
+  }
+  // Estado do regulador no mobi: "2,efeito,tipo,#cor,claridade" (2 ligado, 1 desligado).
+  function reguladorLigado(estado) { const m = /^([12]),\d+,\d+,#/.exec(String(estado || '')); return m ? m[1] === '2' : null; }
+  const LOCAL_PAREDE = /^:w=\d{1,3},\d{1,3} l=-?\d{1,4},-?\d{1,4} [lr]$/;
+  const CLASSE_DECORACAO = Object.freeze({ wallpaper: 3001, floor: 3002, landscape: 4057 }); // classes do cliente (getProductCategory)
+  // O que a cópia guarda além dos mobis; devolve só o que for válido (vindo de arquivo, por exemplo).
+  function validarExtrasQuarto(o) {
+    const saida = {};
+    if (!o || typeof o !== 'object') return saida;
+    const p = o.planta;
+    const inteiro = (v, min, max) => Number.isInteger(v) && v >= min && v <= max;
+    if (p && typeof p.mapa === 'string' && p.mapa.length <= 20000 && /^[0-9a-zA-Z\r]+$/.test(p.mapa) && inteiro(p.alturaParede, -1, 64)
+      && p.porta && inteiro(p.porta.x, 0, 200) && inteiro(p.porta.y, 0, 200) && inteiro(p.porta.direcao, 0, 7) && inteiro(p.parede, -2, 1) && inteiro(p.piso, -2, 1)) {
+      saida.planta = { mapa: p.mapa, alturaParede: p.alturaParede, porta: { x: p.porta.x, y: p.porta.y, direcao: p.porta.direcao }, parede: p.parede, piso: p.piso };
+    }
+    if (o.decoracao && typeof o.decoracao === 'object') {
+      const d = {};
+      for (const k of Object.keys(CLASSE_DECORACAO)) if (typeof o.decoracao[k] === 'string' && /^[0-9.]{1,12}$/.test(o.decoracao[k])) d[k] = o.decoracao[k];
+      if (Object.keys(d).length) saida.decoracao = d;
+    }
+    const r = o.regulador;
+    if (r && Array.isArray(r.efeitos) && r.efeitos.length && r.efeitos.length <= 10 && inteiro(r.selecionado, 0, 99)
+      && r.efeitos.every((e) => e && inteiro(e.id, 0, 99) && inteiro(e.tipo, 0, 9) && /^#[0-9a-fA-F]{6}$/.test(e.cor) && inteiro(e.brilho, 0, 255))) {
+      saida.regulador = { selecionado: r.selecionado, ligado: r.ligado !== false, efeitos: r.efeitos.map((e) => ({ id: e.id, tipo: e.tipo, cor: e.cor, brilho: e.brilho })) };
+    }
+    return saida;
+  }
   // Raro, LTD e afins (o arquivo de mobis do Habblet não marca raridade: vai pelo nome técnico e pelo nome).
   // Não ficam à venda em moedas, então a compra para completar uma cópia os deixa de fora.
   const RARO_CLASSE = /(^|_)(rare|minirare|ltd|raresrubi)|ltd\d*(_|$)|^nft_|_r\d+_/i;
@@ -591,13 +663,14 @@
     if (typeof v === 'number') return Number.isInteger(v) && v >= 0 && v <= 999999 ? v : null;
     return typeof v === 'string' && /^\d{1,6}$/.test(v) ? Number(v) : null;
   }
-  function copiaDoQuarto(lista) {
+  function copiaDoQuarto(lista, paredes) {
+    const deParede = (paredes || []).filter((m) => Number.isInteger(m.tipo) && LOCAL_PAREDE.test(m.local)).map((m) => ({ parede: true, tipo: m.tipo, local: m.local }));
     return lista.map(function (m) {
       const c = { tipo: m.tipo, x: m.x, y: m.y, direcao: m.direcao, altura: alturaDoMobi(m.altura) || 0 };
       const e = estadoNumero(m.estado);
       if (e != null) c.estado = e;
       return c;
-    })
+    }).concat(deParede)
       .sort((a, b) => a.altura - b.altura || a.y - b.y || a.x - b.x);
   }
 
@@ -605,31 +678,38 @@
   function validarCopiaQuarto(lista) {
     if (!Array.isArray(lista) || !lista.length || lista.length > 5000) return null;
     const saida = [];
+    const paredes = [];
     for (const m of lista) {
       if (!m || typeof m !== 'object') return null;
+      if (m.parede) {
+        if (!Number.isInteger(m.tipo) || typeof m.local !== 'string' || !LOCAL_PAREDE.test(m.local)) return null;
+        paredes.push({ tipo: m.tipo, local: m.local });
+        continue;
+      }
       const ok = [m.tipo, m.x, m.y, m.direcao].every(Number.isInteger) && m.x >= 0 && m.y >= 0 && m.x <= 200 && m.y <= 200 && m.direcao >= 0 && m.direcao <= 7;
       const altura = alturaDoMobi(m.altura == null ? 0 : m.altura);
       if (!ok || altura == null) return null;
       if (m.estado != null && estadoNumero(m.estado) == null) return null;
       saida.push({ tipo: m.tipo, x: m.x, y: m.y, direcao: m.direcao, altura, estado: m.estado });
     }
-    return copiaDoQuarto(saida);
+    return copiaDoQuarto(saida, paredes);
   }
 
   // Plano de colagem: para cada mobi da cópia, um item de chão do inventário com a mesma classe.
   function planoDeColagem(copia, itensInventario) {
     const porClasse = new Map();
     for (const item of itensInventario) {
-      if (!item.chao) continue;
-      if (!porClasse.has(item.classe)) porClasse.set(item.classe, []);
-      porClasse.get(item.classe).push(item.id);
+      const k = (item.chao ? 'c' : 'p') + item.classe;
+      if (!porClasse.has(k)) porClasse.set(k, []);
+      porClasse.get(k).push(item.id);
     }
     const colocar = [];
     const faltam = new Map();
     const pendentes = [];
     for (const m of copia) {
-      const ids = porClasse.get(m.tipo);
-      if (ids && ids.length) {
+      const ids = porClasse.get((m.parede ? 'p' : 'c') + m.tipo);
+      if (ids && ids.length && m.parede) colocar.push({ itemId: ids.shift(), parede: true, local: m.local });
+      else if (ids && ids.length) {
         const c = { itemId: ids.shift(), x: m.x, y: m.y, direcao: m.direcao, altura: m.altura };
         const e = estadoNumero(m.estado);
         if (e != null) c.estado = e;
@@ -899,7 +979,7 @@
     return { id, nome, visual, genero };
   }
 
-  const api = { mobiRaro, estadoNumero, origemDaAmostra, pisoNaTela, telaNoPiso, origemMediana, cantosDaArea, planoGirarArea, planoEspelharArea, planoEscada, caminhoPaginaLoja, semAcento, acharPaginasLoja, MAX_PISOS_PREENCHER, MAX_CAMADAS, planoPreencher, lerCompra, resumoCarrinho, areaDe, mobisNaArea, planoMoverArea, planoDuplicar, planoSubstituir, repetidos, lerMeusDados, FEIRA_ESTADO, lerConfigFeira, lerOfertaFeira, lerOfertasFeira, lerMinhasOfertas, ofertasParaRepor, copiaDoQuarto, validarCopiaQuarto, planoDeColagem, SALVAR_WIRED, lerVisuais, visualValido, lerIndiceLoja, lerPaginaLoja, lerItemInventario, lerInventario, planoDeCompra, EXPRESSAO_INATIVO, lerAmigos, lerAmigo, lerAtualizacaoAmigos, lerMensagemRecebida, mencaoNaFala, referenciasDeQuarto, MAX_ALTURA, alturaValida, alturaDoMobi, SAIDA, ENTRADA, EXPRESSOES, MAX_DANCA, DANCAS_EXTRAS, MAX_PLACA, lerUmaOferta, lerFala, lerUsuarios, filtrarUsuarios, trocarPosicao, lerEstados, destinoDoMovimento, passo, PASSOS, EIXOS_SETAS, passoSetas, LADOS, NOMES_LADOS, linhasAoEntrar,
+  const api = { lerPlanta, lerEspessura, lerPorta, lerDecoracao, lerMobiParede, lerMobisParede, lerRegulador, reguladorLigado, LOCAL_PAREDE, CLASSE_DECORACAO, validarExtrasQuarto, mobiRaro, estadoNumero, origemDaAmostra, pisoNaTela, telaNoPiso, origemMediana, cantosDaArea, planoGirarArea, planoEspelharArea, planoEscada, caminhoPaginaLoja, semAcento, acharPaginasLoja, MAX_PISOS_PREENCHER, MAX_CAMADAS, planoPreencher, lerCompra, resumoCarrinho, areaDe, mobisNaArea, planoMoverArea, planoDuplicar, planoSubstituir, repetidos, lerMeusDados, FEIRA_ESTADO, lerConfigFeira, lerOfertaFeira, lerOfertasFeira, lerMinhasOfertas, ofertasParaRepor, copiaDoQuarto, validarCopiaQuarto, planoDeColagem, SALVAR_WIRED, lerVisuais, visualValido, lerIndiceLoja, lerPaginaLoja, lerItemInventario, lerInventario, planoDeCompra, EXPRESSAO_INATIVO, lerAmigos, lerAmigo, lerAtualizacaoAmigos, lerMensagemRecebida, mencaoNaFala, referenciasDeQuarto, MAX_ALTURA, alturaValida, alturaDoMobi, SAIDA, ENTRADA, EXPRESSOES, MAX_DANCA, DANCAS_EXTRAS, MAX_PLACA, lerUmaOferta, lerFala, lerUsuarios, filtrarUsuarios, trocarPosicao, lerEstados, destinoDoMovimento, passo, PASSOS, EIXOS_SETAS, passoSetas, LADOS, NOMES_LADOS, linhasAoEntrar,
     lerDadosExtras, lerMobi, lerMobisDoQuarto, mexer, EIXOS, mobisIguaisNaArea, encaixeSobreMobis };
   raiz.VL = raiz.VL || {};
   raiz.VL.codigos = api;
