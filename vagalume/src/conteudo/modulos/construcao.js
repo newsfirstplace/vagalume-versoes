@@ -455,6 +455,19 @@
         if (!mobis.size) { camada.aviso('Nenhum mobi no chão deste quarto para copiar.', { tipo: 'erro' }); return; }
         copiaQuarto = codigos.copiaDoQuarto([...mobis.values()]);
         camada.aviso('Cópia guardada: ' + copiaQuarto.length + ' mobis' + (incompleto ? ' (a lista do quarto pode estar incompleta)' : '') + '. Exporte para ter um backup em arquivo.', { tipo: 'ok' });
+        // Já oferece comprar o que falta no inventário para montar a cópia (pedido do usuário em 2026-11-22).
+        comprarFaltasDaCopia(copiaQuarto, 'Para montar esta cópia, faltam {n} mobis no seu inventário (os que estão no quarto não contam).');
+      }
+      // Compra (uma confirmação, com preços) os mobis da cópia que não estão no inventário. Devolve true se comprou algo.
+      async function comprarFaltasDaCopia(copia, motivo) {
+        if (!VL.loja || !VL.loja.comprarTipos) return false;
+        const itens = await pedirInventario();
+        if (!itens) return false;
+        const faltam = codigos.planoDeColagem(copia, itens).faltam;
+        const n = [...faltam.values()].reduce((s, q) => s + q, 0);
+        if (!n) return false;
+        const compra = await VL.loja.comprarTipos([...faltam].map(([tipo, quantidade]) => ({ tipo, quantidade })), motivo.replace('{n}', n));
+        return !!(compra && compra.feitas);
       }
       function exportarQuarto() {
         if (!copiaQuarto) { camada.aviso('Copie um quarto primeiro.', { tipo: 'erro' }); return; }
@@ -574,9 +587,16 @@
         if (colando || trabalhando) { camada.aviso('Espere a tarefa anterior terminar.'); return; }
         colando = true;
         try {
-          const itens = await pedirInventario();
+          const comprou = await comprarFaltasDaCopia(copiaQuarto, 'Faltam {n} mobis no seu inventário para colar o quarto inteiro.');
+          let itens = null, plano = null;
+          // Depois da compra, o inventário pode demorar a mostrar os novos: lê de novo até 3 vezes.
+          for (let i = 0; i < (comprou ? 3 : 1); i++) {
+            itens = await pedirInventario();
+            if (itens) plano = codigos.planoDeColagem(copiaQuarto, itens);
+            if (!comprou || (plano && !plano.faltam.size)) break;
+            await esperar(400);
+          }
           if (!itens) { camada.aviso('O inventário não respondeu.', { tipo: 'erro' }); return; }
-          const plano = codigos.planoDeColagem(copiaQuarto, itens);
           const faltam = [...plano.faltam.values()].reduce((s, n) => s + n, 0);
           if (!plano.colocar.length) { camada.aviso('Nenhum dos mobis da cópia está no seu inventário.', { tipo: 'erro' }); return; }
           const ok = await camada.confirmar('Colocar ' + plano.colocar.length + ' mobis do seu inventário neste quarto, nas posições da cópia?' + (faltam ? ' Faltam ' + faltam + ' no inventário; esses ficam de fora.' : ''),
