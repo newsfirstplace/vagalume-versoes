@@ -163,9 +163,33 @@
   }
   // Vetor (posição/direção) e dados "legados" do mobi, achados entre os módulos do cliente pelas
   // marcas próprias de cada classe (os nomes vêm minificados).
+  // Dados "legados" (texto vazio), no mesmo formato que o cliente grava no modelo do mobi.
+  class DadosLocal {
+    writeRoomObjectModel(m) { if (m) { m.setValue('furniture_data_format', 0); m.setValue('furniture_data', ''); } }
+    getLegacyString() { return ''; }
+    setString() {}
+    compare() { return false; }
+    get state() { return 0; }
+    get flags() { return 0; }
+    get uniqueNumber() { return 0; }
+    get uniqueSeries() { return 0; }
+    get rarityLevel() { return -1; }
+    get isUnique() { return false; }
+  }
   function acharClasses() {
     if (classes) return classes;
     let Vetor = null, Dados = null;
+    // O cliente vem empacotado num módulo só (as classes nem sempre são exportadas): o vetor sai da
+    // posição de um objeto do quarto (o próprio avatar sempre está lá).
+    for (const categoria of [10, 100, 20]) {
+      let lista = [];
+      try { lista = motor.getRoomObjects(motor.activeRoomId, categoria) || []; } catch (e) { /* segue */ }
+      const o = lista.find((x) => x && typeof x.getLocation === 'function' && x.getLocation());
+      const C = o && o.getLocation().constructor;
+      let teste = null;
+      try { teste = C && new C(1, 2, 3); } catch (e) { /* não é o vetor */ }
+      if (teste && teste.x === 1 && teste.y === 2 && teste.z === 3) { Vetor = C; break; }
+    }
     for (const m of Object.values(requisitar && requisitar.c || {})) {
       const e = m && m.exports;
       if (!e || typeof e !== 'object') continue;
@@ -176,7 +200,7 @@
       }
       if (Vetor && Dados) break;
     }
-    if (Vetor && Dados) classes = { Vetor, Dados };
+    if (Vetor) classes = { Vetor, Dados: Dados || DadosLocal };
     return classes;
   }
   function pararColocacao() {
@@ -202,7 +226,8 @@
     }
     for (const [chave, p] of querem) {
       const id = -2000000 - (proximoLocal = (proximoLocal + 1) % 1000000);
-      motor.addFurnitureFloor(colocacao.quarto, id, d.tipo, new k.Vetor(p.x, p.y, p.z), new k.Vetor((d.direcao || 0) * 45), 0, new k.Dados());
+      // sincronizado = falso: não entra no mapa de pisos (não bloqueia o andar); objeto não real.
+      motor.addFurnitureFloor(colocacao.quarto, id, d.tipo, new k.Vetor(p.x, p.y, p.z), new k.Vetor((d.direcao || 0) * 45), 0, new k.Dados(), NaN, -1, 0, 0, '', false, false);
       colocacao.objetos.set(chave, id);
       colocacao.novos.push(id);
     }
@@ -257,7 +282,8 @@
           ok = !!previa && Number.isInteger(d.dx) && Number.isInteger(d.dy) && Math.abs(d.dx) <= 200 && Math.abs(d.dy) <= 200;
           if (ok) { previa.dx = d.dx; previa.dy = d.dy; previa.dz = d.dz && typeof d.dz === 'object' ? d.dz : null; desenharPrevia(); }
           break;
-        case 'colocacao': ok = mostrarColocacao(d); break;
+        // Falha na prévia não pode derrubar a seleção de área em andamento.
+        case 'colocacao': try { ok = mostrarColocacao(d); } catch (e) { ok = false; try { pararColocacao(); } catch (e2) { colocacao = null; } } break;
         case 'cancelar': pararSelecao(); pararPrevia(); break;
         case 'desativar':
           ativo = false; pararSelecao(); pararPrevia(); pararColocacao();

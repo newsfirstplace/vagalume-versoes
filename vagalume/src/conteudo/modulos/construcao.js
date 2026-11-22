@@ -480,6 +480,30 @@
         });
       }
       // Coloca itens do inventário com a altura fixa da ferramenta nativa.
+      // Colocar em cima do que já está em cada piso (o que o jogo faz sozinho sem altura fixa): só o
+      // pacote de colocar, e o próximo sai quando o servidor confirma o anterior (no máximo 700 ms),
+      // com 110 ms entre envios. Altura fixa e modos automáticos da ferramenta ficam desligados no lote.
+      async function colocarNoTopo(colocar) {
+        let confirmados = 0;
+        let acordar = null;
+        const parar = conexao.ouvir('entrada', ENTRADA.MOBI_COLOCADO, function () { confirmados++; if (acordar) acordar(); });
+        try {
+          await comAlturasFixas(async function () {
+            for (const m of colocar) {
+              if (!ctx.ativo('construcao')) break;
+              const antes = confirmados;
+              const inicio = Date.now();
+              if (!(await mandar(SAIDA.COLOCAR_MOBI, [['s', m.itemId + ' ' + m.x + ' ' + m.y + ' ' + m.direcao]]))) break;
+              await new Promise(function (r) { acordar = r; setTimeout(r, 700); if (confirmados > antes) r(); });
+              acordar = null;
+              const resto = 110 - (Date.now() - inicio);
+              if (resto > 0) await esperar(resto);
+            }
+            await esperar(300); // últimas confirmações
+          }, { semAltura: true });
+        } finally { parar(); }
+        return Math.min(confirmados, colocar.length);
+      }
       async function colocarLista(colocar) {
         let feitos = 0;
         await comAlturasFixas(async function (fixar) {
@@ -804,7 +828,7 @@
       // Move a lista na ordem do plano. Se um mobi chega a um piso onde ainda está outro da mesma lista,
       // o jogo o empilha por cima (visto ao vivo em 2026-11-15: ficou a 0,65); no fim, ele é movido de
       // novo para o mesmo piso, já livre, e o jogo recalcula a altura.
-      async function comAlturasFixas(fn) {
+      async function comAlturasFixas(fn, opcoes) {
         clearTimeout(relogioAltura);
         await enviarAlturas();
         clearTimeout(relogioDesligarUp);
@@ -821,6 +845,11 @@
         const enviarAjustes = (valores) => mandar(SAIDA.FERRAMENTA_CONSTRUCAO, tiposFerramenta.map((tipo, i) => [tipo, valores[i]]));
         let alturaAtual = null;
         try {
+          if (opcoes && opcoes.semAltura) {
+            // Sem altura fixa: o jogo empilha no topo do piso. Desliga também os modos automáticos.
+            const livres = fixos.slice(); livres[0] = false;
+            if (!(await enviarAjustes(livres))) return;
+          }
           await fn(async function (altura) {
             const z = codigos.alturaValida(altura);
             if (z == null) throw new Error('Altura do mobi fora do limite aceito pelo hotel.');
@@ -1099,8 +1128,8 @@
             const ok = await camada.confirmar('Colocar ' + plano.colocar.length + ' ' + nome + ' na área ' + textoArea(alvo) + ', um por piso livre, em cima do que já estiver no piso?' + (plano.faltam ? ' Faltam ' + plano.faltam + ' no inventário; esses pisos ficam vazios.' : ''), { titulo: 'Colocar vários', sim: 'Colocar' });
             previa(null);
             if (!ok) return;
-            const feitos = await colocarLista(plano.colocar);
-            camada.aviso('Pronto: ' + feitos + ' mobis colocados.', { tipo: 'ok' });
+            const feitos = await colocarNoTopo(plano.colocar);
+            camada.aviso('Pronto: ' + feitos + ' de ' + plano.colocar.length + ' mobis colocados.', { tipo: feitos === plano.colocar.length ? 'ok' : 'erro' });
           } finally { previa(null); }
         }).finally(() => previa(null)); // também quando outra tarefa ainda está rodando
       }
@@ -1147,10 +1176,15 @@
         b.className = nativo.className.replace('btn-success', 'btn-primary') + ' vl-colocar-varios';
         b.textContent = 'Colocar Vários';
         b.title = 'Marque uma área no chão e o Vagalume põe um destes mobis em cada piso livre';
-        b.style.marginTop = '6px';
         b.addEventListener('click', function (ev) { ev.stopPropagation(); colocarVarios(); });
+        // Um embaixo do outro, cada um com a largura toda (só um atributo no pai: o React continua dono dos nós).
+        if (nativo.parentElement) nativo.parentElement.setAttribute('data-vl-pilha-botoes', '');
         nativo.after(b);
       }
+      if (camada.estiloPagina) ctx.aoParar(camada.estiloPagina('colocar-varios',
+        '[data-vl-pilha-botoes] { flex-wrap: wrap !important; row-gap: 6px !important; }'
+        + ' [data-vl-pilha-botoes] > .btn-success, [data-vl-pilha-botoes] > .vl-colocar-varios { flex: 1 0 100% !important; width: 100% !important; max-width: none !important; margin-left: 0 !important; margin-right: 0 !important; white-space: nowrap; }'));
+      ctx.aoParar(function () { document.querySelectorAll('[data-vl-pilha-botoes]').forEach((e) => e.removeAttribute('data-vl-pilha-botoes')); });
       if (typeof MutationObserver === 'function' && document.body) {
         const observaInventario = new MutationObserver(function () { if (!vigiaInventario) vigiaInventario = requestAnimationFrame(botaoColocarVarios); });
         observaInventario.observe(document.body, { childList: true, subtree: true });
@@ -1492,7 +1526,7 @@
         esperar,
         recolherIds,
         pedirInventario,
-        colocarLista,
+        colocarLista, colocarNoTopo,
         desfazer() { return voltar('desfazer', 'Nada para desfazer neste quarto.'); },
         refazer() { return voltar('refazer', 'Nada para refazer.'); },
         alternarCongelar,
