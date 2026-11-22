@@ -96,6 +96,7 @@
     INDICE_LOJA: 1032,    // CATALOG_PAGE_LIST
     PAGINA_LOJA: 804,     // CATALOG_PAGE
     COMPRA_OK: 869,       // CATALOG_PURCHASE_OK
+    SALDO_MOEDAS: 3475,   // USER_CREDITS: saldo de moedas (o jogo toca o som das moedas quando muda)
     COMPRA_ERRO: 1404,    // CATALOG_PURCHASE_ERROR
     COMPRA_NEGADA: 3770,  // CATALOG_PURCHASE_NOT_ALLOWED
     INVENTARIO: 994,      // USER_FURNITURE (fragmentos)

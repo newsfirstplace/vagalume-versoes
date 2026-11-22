@@ -153,70 +153,91 @@
         mandarCompra(compra);
         return comTempo(p, 8000, false);
       }
-      // Compra por tipo de mobi (lista da Construção): oferta pelo arquivo de mobis do jogo, preço conferido
-      // antes (2594 -> 3388), só em moedas, com confirmação do total. lista: [{ tipo, quantidade }].
-      // Quarto inteiro copiado pode ter centenas de tipos (pedido do usuário em 2026-11-22: 1.123 mobis).
+      // Compra por tipo de mobi (lista da Construção). Uma confirmação logo de cara, sem esperar preços
+      // (pedido do usuário em 2026-11-22: "ao invés de conferir o preço, ir comprando"); depois, para cada
+      // tipo, a oferta é pedida (2594 -> 3388, casada pelo tipo do mobi, com novas tentativas) e comprada na
+      // hora, só se for paga em moedas e não for pacote. Durante o lote, o aviso de compra (869) e o saldo
+      // (3475) não chegam ao jogo: sem som de moedas e sem um balão por compra; a última compra passa.
+      // lista: [{ tipo, quantidade }].
       const MAX_TIPOS_COMPRA = 1000, MAX_UNIDADES_COMPRA = 5000;
+      let comprandoLote = false;
       async function comprarTipos(lista, motivo) {
         if (!conexao.disponivel()) { camada.aviso('Ligue o módulo "Conexão do jogo" e recarregue o hotel.', { tipo: 'erro' }); return; }
         if (!VL.dadosJogo) return;
+        if (comprandoLote) { camada.aviso('Já há uma compra em andamento.', { tipo: 'erro' }); return; }
         if (lista.length > MAX_TIPOS_COMPRA) { camada.aviso('Há mais de ' + MAX_TIPOS_COMPRA + ' tipos de mobi; divida a compra em grupos menores.', { tipo: 'erro' }); return; }
         let d;
         try { d = await VL.dadosJogo.mobis(); } catch (e) { camada.aviso('Não consegui ler os mobis do jogo.', { tipo: 'erro' }); return; }
-        // Pergunta todos os preços de uma vez (um pedido a cada 60 ms) e casa cada resposta pelo tipo do
-        // mobi que vem dentro dela; antes era um por vez, com até 5 s de espera cada (68 tipos ≈ 6 min).
         const pedidos = new Map(); // tipo -> { f, quantidade }
         for (const item of lista) {
           const f = d.chao.get(item.tipo) || d.parede.get(item.tipo);
-          if (f && f.oferta && !pedidos.has(item.tipo)) pedidos.set(item.tipo, { f, quantidade: item.quantidade || 1 });
+          const q = Math.max(1, Math.floor(item.quantidade || 1));
+          if (pedidos.has(item.tipo)) pedidos.get(item.tipo).quantidade += q;
+          else pedidos.set(item.tipo, { f, quantidade: q });
         }
-        const fora = lista.filter((i) => !pedidos.has(i.tipo)).map((i) => { const f = d.chao.get(i.tipo) || d.parede.get(i.tipo); return (f && f.nome) || 'tipo ' + i.tipo; });
-        const respostas = new Map(); // tipo -> oferta
-        const pararDeOuvir = conexao.ouvir('entrada', ENTRADA.OFERTA, function (l) {
-          let of = null;
-          try { of = codigos.lerUmaOferta(l, -12345678); } catch (erro) { return; }
-          // Só ofertas de um mobi só (não pacotes): comprar o pacote levaria outras coisas junto.
-          if (!of || of.produtos.length !== 1 || of.produtos[0].quantidade !== 1) return;
-          const tipo = of.produtos[0].classe;
-          if (pedidos.has(tipo) && !respostas.has(tipo)) respostas.set(tipo, of);
-        });
-        const avisoProgresso = (n) => camada.aviso('Conferindo os preços na loja: ' + n + ' de ' + pedidos.size + '…', { duracaoMs: 1500 });
-        avisoProgresso(0);
-        let enviados = 0;
-        for (const { f } of pedidos.values()) {
-          conexao.enviar(SAIDA.PEDIR_OFERTA, [['i', f.oferta]]);
-          if (++enviados % 20 === 0) avisoProgresso(respostas.size);
-          await esperar(60);
-        }
-        for (let i = 0; i < 30 && respostas.size < pedidos.size; i++) await esperar(100); // até 3 s pelas últimas
-        pararDeOuvir();
-        const plano = [];
-        for (const [tipo, p] of pedidos) {
-          const of = respostas.get(tipo);
-          if (!of || of.pontos > 0 || !(of.moedas > 0)) { fora.push(p.f.nome || 'tipo ' + tipo); continue; }
-          plano.push({ nome: p.f.nome, icone: VL.dadosJogo.iconeDe(p.f.classe), oferta: of.id, moedas: of.moedas, quantidade: Math.max(1, Math.floor(p.quantidade)) });
-        }
-        if (!plano.length) { camada.aviso('Nada disso pode ser comprado com moedas na loja.' + (fora.length ? ' (' + fora.slice(0, 5).join(', ') + ')' : ''), { tipo: 'erro' }); return; }
-        const unidades = plano.reduce((s, c) => s + c.quantidade, 0);
+        const unidades = [...pedidos.values()].reduce((s, p) => s + p.quantidade, 0);
         if (unidades > MAX_UNIDADES_COMPRA) { camada.aviso('São ' + unidades + ' unidades; o máximo por vez é ' + MAX_UNIDADES_COMPRA + '.', { tipo: 'erro' }); return; }
-        const total = plano.reduce((s, c) => s + c.moedas * c.quantidade, 0);
+        const nomeDe = (tipo, p) => (p.f && p.f.nome) || 'tipo ' + tipo;
         const ok = await camada.dialogoMobis({
-          titulo: 'Confirmar compra de mobis',
-          texto: (motivo ? motivo + ' ' : '') + unidades + (unidades === 1 ? ' mobi por ' : ' mobis por ') + total.toLocaleString('pt-BR') + ' moedas (preço de lista).' + (fora.length ? ' Sem oferta em moedas: ' + fora.slice(0, 8).join(', ') + (fora.length > 8 ? '…' : '') + '.' : ''),
-          itens: plano.map((c) => ({ nome: c.nome, icone: c.icone, quantidade: c.quantidade, preco: c.moedas * c.quantidade })),
+          titulo: 'Comprar mobis',
+          texto: (motivo ? motivo + ' ' : '') + unidades + (unidades === 1 ? ' mobi' : ' mobis') + ' de ' + pedidos.size + (pedidos.size === 1 ? ' tipo' : ' tipos') + '. O Vagalume compra um tipo depois do outro, só os vendidos em moedas.',
+          itens: [...pedidos].map(([tipo, p]) => ({ nome: nomeDe(tipo, p), icone: p.f ? VL.dadosJogo.iconeDe(p.f.classe) : null, quantidade: p.quantidade })),
           botoes: [{ rotulo: 'Cancelar', valor: false, foco: true }, { rotulo: 'Comprar', valor: true, destaque: true }],
         });
         if (!ok) return;
-        let feitas = 0, pacotes = 0;
-        for (const c of plano) {
-          for (let restante = c.quantidade; restante > 0; restante -= 100) {
-            const quantidade = Math.min(100, restante);
-            if (await comprar({ pagina: -12345678, oferta: c.oferta, quantidade })) feitas += quantidade;
-            if (++pacotes % 10 === 0) camada.aviso('Comprando: ' + feitas + ' de ' + unidades + '…', { duracaoMs: 2000 });
-            await esperar(250);
+        comprandoLote = true;
+        // Ofertas casadas pelo tipo do mobi (uma resposta atrasada não vai para o tipo errado).
+        const ofertas = new Map(); // tipo -> oferta
+        let acordar = null;
+        const pararOfertas = conexao.ouvir('entrada', ENTRADA.OFERTA, function (l) {
+          let of = null;
+          try { of = codigos.lerUmaOferta(l, -12345678); } catch (erro) { return; }
+          if (!of) return;
+          for (const p of of.produtos) if (pedidos.has(p.classe) && !ofertas.has(p.classe)) ofertas.set(p.classe, of);
+          if (acordar) acordar();
+        });
+        const bloqueios = [conexao.bloquear('entrada', ENTRADA.COMPRA_OK), conexao.bloquear('entrada', ENTRADA.SALDO_MOEDAS)];
+        const soltar = () => { while (bloqueios.length) bloqueios.pop()(); };
+        const falhas = { semOferta: [], outraMoeda: [], pacote: [], recusada: [] };
+        let feitas = 0, gasto = 0, tiposFeitos = 0;
+        try {
+          const comOferta = [...pedidos].filter(([tipo, p]) => { if (p.f && p.f.oferta) return true; falhas.semOferta.push(nomeDe(tipo, p)); return false; });
+          for (let i = 0; i < comOferta.length; i++) {
+            const [tipo, p] = comOferta[i];
+            if (!ctx.ativo('loja')) break;
+            for (let tentativa = 0; tentativa < 3 && !ofertas.has(tipo); tentativa++) {
+              conexao.enviar(SAIDA.PEDIR_OFERTA, [['i', p.f.oferta]]);
+              await new Promise(function (r) { if (ofertas.has(tipo)) { r(); return; } acordar = () => { if (ofertas.has(tipo)) r(); }; setTimeout(r, 1500 + tentativa * 1000); });
+              acordar = null;
+            }
+            const of = ofertas.get(tipo);
+            if (!of) { falhas.semOferta.push(nomeDe(tipo, p)); continue; }
+            if (of.produtos.length !== 1 || of.produtos[0].quantidade !== 1) { falhas.pacote.push(nomeDe(tipo, p)); continue; }
+            if (of.pontos > 0) { falhas.outraMoeda.push(nomeDe(tipo, p)); continue; }
+            for (let restante = p.quantidade; restante > 0; restante -= 100) {
+              const quantidade = Math.min(100, restante);
+              if (i === comOferta.length - 1 && restante <= 100) soltar(); // a última compra chega ao jogo: um som só
+              if (await comprar({ pagina: -12345678, oferta: of.id, quantidade })) { feitas += quantidade; gasto += (of.moedas || 0) * quantidade; }
+              else falhas.recusada.push(nomeDe(tipo, p));
+              await esperar(150);
+            }
+            tiposFeitos++;
+            if (tiposFeitos % 5 === 0) camada.aviso('Comprando: ' + feitas + ' de ' + unidades + ' mobis (' + (i + 1) + ' de ' + comOferta.length + ' tipos)…', { duracaoMs: 2500 });
           }
+        } finally {
+          soltar();
+          pararOfertas();
+          comprandoLote = false;
         }
-        camada.aviso(feitas + ' de ' + unidades + ' mobis comprados.', { tipo: feitas === unidades ? 'ok' : 'erro' });
+        const lista5 = (nomes) => nomes.slice(0, 5).join(', ') + (nomes.length > 5 ? ' e mais ' + (nomes.length - 5) : '');
+        const notas = [
+          falhas.semOferta.length ? 'sem oferta na loja: ' + lista5(falhas.semOferta) : '',
+          falhas.outraMoeda.length ? 'pagos com outra moeda: ' + lista5(falhas.outraMoeda) : '',
+          falhas.pacote.length ? 'só vendidos em pacote: ' + lista5(falhas.pacote) : '',
+          falhas.recusada.length ? 'recusados pela loja: ' + lista5(falhas.recusada) : '',
+        ].filter(Boolean);
+        camada.aviso(feitas + ' de ' + unidades + ' mobis comprados (' + gasto.toLocaleString('pt-BR') + ' moedas).' + (notas.length ? ' Ficaram de fora — ' + notas.join('; ') + '.' : ''),
+          { tipo: feitas === unidades ? 'ok' : 'erro', duracaoMs: notas.length ? 15000 : undefined });
         return { feitas, unidades };
       }
       VL.loja = { comprarTipos };

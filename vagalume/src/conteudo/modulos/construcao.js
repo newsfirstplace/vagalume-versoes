@@ -416,6 +416,11 @@
             acao('☷', 'Lista de mobis', 'Todos os mobis do chão deste quarto.', function () { listar(); }),
             acao('⧉', 'Copiar quarto', 'Guarda onde está cada mobi.', function () { copiarQuarto(); }),
             acao('⎘', 'Colar quarto', 'Monta de novo com mobis do seu inventário.', function () { colarQuarto(); }),
+            acao('🛒', 'Comprar o que falta', 'Compra os mobis da cópia que não estão no seu inventário.', function () {
+              if (!copiaQuarto) { camada.aviso('Copie ou importe um quarto primeiro.', { tipo: 'erro' }); return; }
+              if (!VL.loja || !VL.loja.comprarTipos) { camada.aviso('Ligue o módulo "Loja e inventário" para comprar.', { tipo: 'erro' }); return; }
+              comprarFaltasDaCopia(copiaQuarto, 'Faltam {n} mobis da cópia no seu inventário.').then(function (comprou) { if (comprou === null) camada.aviso('Nada a comprar: o inventário já tem tudo da cópia (ou não respondeu).'); });
+            }),
             acao('⇩', 'Exportar', 'Salva a cópia num arquivo.', function () { exportarQuarto(); }),
             acao('⇧', 'Importar', 'Traz uma cópia de um arquivo.', function () { arquivo.click(); }),
           ]), arquivo]);
@@ -462,10 +467,10 @@
       async function comprarFaltasDaCopia(copia, motivo) {
         if (!VL.loja || !VL.loja.comprarTipos) return false;
         const itens = await pedirInventario();
-        if (!itens) return false;
+        if (!itens) return null; // null = nada a comprar ou sem resposta; false = não comprou
         const faltam = codigos.planoDeColagem(copia, itens).faltam;
         const n = [...faltam.values()].reduce((s, q) => s + q, 0);
-        if (!n) return false;
+        if (!n) return null;
         const compra = await VL.loja.comprarTipos([...faltam].map(([tipo, quantidade]) => ({ tipo, quantidade })), motivo.replace('{n}', n));
         return !!(compra && compra.feitas);
       }
