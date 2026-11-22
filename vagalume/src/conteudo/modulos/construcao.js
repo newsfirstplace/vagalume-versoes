@@ -494,7 +494,7 @@
         }
         extrasCopia = codigos.validarExtrasQuarto(extrasCopia);
         const partes = [copiaQuarto.length + ' mobis'];
-        if (extrasCopia.planta) partes.push('planta');
+        if (extrasCopia.planta) partes.push('floor');
         if (extrasCopia.decoracao) partes.push('papel de parede, piso e paisagem');
         if (extrasCopia.regulador) partes.push('regulador de luz');
         camada.aviso('Cópia guardada: ' + partes.join(', ') + (incompleto ? ' (a lista do quarto pode estar incompleta)' : '') + '. Exporte para ter um backup em arquivo.', { tipo: 'ok' });
@@ -716,7 +716,7 @@
         try {
           // O que colar (só aparecem as partes que a cópia tem).
           const partes = [['mobis', 'Mobis do chão e da parede', true]];
-          if (extrasCopia.planta) partes.unshift(['planta', 'Planta do quarto (o quarto recarrega)', true]);
+          if (extrasCopia.planta) partes.unshift(['planta', 'Floor (planta do quarto; o quarto recarrega)', true]);
           if (extrasCopia.decoracao) partes.push(['decoracao', 'Papel de parede, piso e paisagem', true]);
           if (extrasCopia.regulador) partes.push(['regulador', 'Configuração do regulador de luz', true]);
           const marcas = {};
@@ -733,8 +733,8 @@
           const quer = (id) => !marcas[id] || marcas[id].checked;
           const resumo = [];
           if (extrasCopia.planta && quer('planta')) {
-            camada.aviso('Aplicando a planta do quarto…');
-            resumo.push((await aplicarPlanta(extrasCopia.planta)) ? 'planta aplicada' : 'a planta não foi aplicada (precisa ser dono do quarto)');
+            camada.aviso('Aplicando o floor do quarto…');
+            resumo.push((await aplicarPlanta(extrasCopia.planta)) ? 'floor aplicado' : 'o floor não foi aplicado (precisa ser dono do quarto)');
           }
           if (extrasCopia.decoracao && quer('decoracao')) {
             const r = await aplicarDecoracao(extrasCopia.decoracao);
