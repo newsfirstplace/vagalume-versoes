@@ -1142,25 +1142,69 @@
           return Object.assign({}, m, { altura: z });
         });
       }
-      // Escolha antes de colocar: empilhar, no chão ou numa altura; a prévia no quarto acompanha.
-      async function escolherAltura(plano, texto, previa) {
+      // Escolha antes de colocar: empilhar, no chão ou numa altura. O painel fica de lado, sem escurecer,
+      // e a prévia no quarto acompanha cada mudança.
+      const ICONES_ALTURA = {
+        pilha: 'M4 18h16M6 14h12M8 10h8M12 3v4M9.5 5.5 12 3l2.5 2.5',
+        chao: 'M3 19h18M12 4v10M8.5 10.5 12 14l3.5-3.5',
+        altura: 'M12 3v18M8.5 6.5 12 3l3.5 3.5M8.5 17.5 12 21l3.5-3.5M4 12h3M17 12h3',
+      };
+      function iconeAltura(modo) {
+        const ns = 'http://www.w3.org/2000/svg';
+        const svg = document.createElementNS(ns, 'svg');
+        svg.setAttribute('viewBox', '0 0 24 24'); svg.setAttribute('fill', 'none'); svg.setAttribute('stroke', 'currentColor');
+        svg.setAttribute('stroke-width', '2'); svg.setAttribute('stroke-linecap', 'round'); svg.setAttribute('stroke-linejoin', 'round');
+        const p = document.createElementNS(ns, 'path'); p.setAttribute('d', ICONES_ALTURA[modo]); svg.appendChild(p);
+        return camada.el('span', { class: 'vl-alt-icone', 'aria-hidden': 'true' }, [svg]);
+      }
+      async function escolherAltura(plano, info, previa) {
+        const el = camada.el;
         let modo = 'pilha';
         const pilha = comAltura(plano.colocar, 'pilha');
-        const campo = camada.el('input', { type: 'number', min: 0, max: codigos.MAX_ALTURA, step: 0.05, class: 'vl-campo', 'aria-label': 'Altura', value: String(Math.max(0, ...pilha.map((m) => m.altura))), style: 'width:90px' });
-        const linhaAltura = camada.el('label', { style: 'display:none;align-items:center;gap:8px;margin-top:10px' }, ['Altura (0 a ' + codigos.MAX_ALTURA + '):', campo]);
-        const opcoes = [['pilha', 'Empilhar por cima'], ['chao', 'Colocar no chão'], ['altura', 'Escolher altura']];
-        const botoes = opcoes.map(([valor, rotulo]) => camada.el('button', { type: 'button', class: 'vl-botao', texto: rotulo, onclick() { modo = valor; atualizar(); } }));
+        const inicial = Math.max(0, ...pilha.map((m) => m.altura));
+        const campo = el('input', { type: 'number', min: 0, max: codigos.MAX_ALTURA, step: 0.05, class: 'vl-campo', 'aria-label': 'Altura', value: String(inicial) });
+        const regua = el('input', { type: 'range', min: 0, max: codigos.MAX_ALTURA, step: 0.05, value: String(inicial), 'aria-label': 'Altura (régua)' });
+        const passo = (d) => () => { const h = codigos.alturaValida(Math.min(codigos.MAX_ALTURA, Math.max(0, (Number(campo.value) || 0) + d))); campo.value = String(h); regua.value = String(h); atualizar(); };
+        const caixaValor = el('div', { class: 'vl-alt-valor', hidden: true }, [
+          el('div', { class: 'vl-alt-passos' }, [
+            el('button', { type: 'button', class: 'vl-botao', texto: '−', 'aria-label': 'Descer 0,5', onclick: passo(-0.5) }),
+            campo,
+            el('button', { type: 'button', class: 'vl-botao', texto: '+', 'aria-label': 'Subir 0,5', onclick: passo(0.5) }),
+          ]),
+          regua,
+        ]);
+        const opcoes = [
+          ['pilha', 'Empilhar por cima', 'No topo do que já está em cada piso'],
+          ['chao', 'Colocar no chão', 'Na altura do chão do quarto'],
+          ['altura', 'Escolher altura', 'A mesma altura para todos'],
+        ];
+        const botoes = opcoes.map(([valor, titulo, resumo]) => el('button', { type: 'button', class: 'vl-alt-opcao', 'aria-pressed': 'false', onclick() { modo = valor; atualizar(); if (valor === 'altura') campo.focus(); } },
+          [iconeAltura(valor), el('span', null, [el('b', { texto: titulo }), el('small', { texto: resumo })])]));
         function atualizar() {
-          botoes.forEach((b, i) => { const sim = opcoes[i][0] === modo; b.classList.toggle('primario', sim); b.setAttribute('aria-pressed', String(sim)); });
-          linhaAltura.style.display = modo === 'altura' ? 'flex' : 'none';
+          botoes.forEach((b, i) => b.setAttribute('aria-pressed', String(opcoes[i][0] === modo)));
+          caixaValor.hidden = modo !== 'altura';
           const h = codigos.alturaValida(campo.value);
           previa(modo === 'pilha' ? pilha : comAltura(plano.colocar, modo, h == null ? 0 : h));
         }
-        campo.addEventListener('input', atualizar);
-        const conteudo = camada.el('div', { style: 'margin-top:10px' }, [camada.el('div', { role: 'group', 'aria-label': 'Altura dos mobis', style: 'display:flex;flex-wrap:wrap;gap:8px' }, botoes), linhaAltura]);
+        campo.addEventListener('input', () => { regua.value = campo.value; atualizar(); });
+        regua.addEventListener('input', () => { campo.value = regua.value; atualizar(); });
+        const cabeca = el('div', { class: 'vl-alt-mobi' }, [
+          info.icone ? el('img', { src: info.icone, alt: '' }) : null,
+          el('div', null, [
+            el('b', null, [el('span', { class: 'vl-alt-qtd', style: 'display:inline;font-size:inherit;margin:0', texto: plano.colocar.length + '× ' }), info.nome]),
+            el('span', { texto: 'Área ' + info.area + ' · um por piso livre' }),
+          ]),
+        ]);
+        const conteudo = el('div', null, [
+          cabeca,
+          plano.faltam ? el('p', { class: 'vl-alt-aviso', texto: 'Faltam ' + plano.faltam + ' no inventário; esses pisos ficam vazios.' }) : null,
+          el('p', { class: 'vl-alt-rotulo', texto: 'Altura' }),
+          el('div', { class: 'vl-alt-opcoes', role: 'group', 'aria-label': 'Altura dos mobis' }, botoes),
+          caixaValor,
+        ]);
         atualizar();
-        const ok = await camada.dialogo({ titulo: 'Colocar vários', texto, conteudo, largo: true,
-          botoes: [{ rotulo: 'Cancelar', valor: null }, { rotulo: 'Colocar', valor: 'ok', destaque: true, foco: true }] });
+        const ok = await camada.dialogo({ titulo: 'Colocar vários', conteudo, lateral: true,
+          botoes: [{ rotulo: 'Cancelar', valor: null }, { rotulo: 'Colocar ' + plano.colocar.length + ' mobis', valor: 'ok', destaque: true, foco: true }] });
         if (!ok) return null;
         if (modo !== 'altura') return { modo, lista: modo === 'pilha' ? plano.colocar : comAltura(plano.colocar, 'chao') };
         const h = codigos.alturaValida(campo.value);
@@ -1175,7 +1219,9 @@
             if (!itens) { camada.aviso('O inventário não respondeu.', { tipo: 'erro' }); return; }
             const plano = codigos.planoPreencher(alvo, classe, [...mobis.values()], itens, direcao);
             if (!plano.colocar.length) { camada.aviso(plano.faltam ? 'Não há ' + nome + ' no seu inventário.' : 'Todos os pisos da área já têm esse mobi.', { tipo: 'erro' }); return; }
-            const escolha = await escolherAltura(plano, 'Colocar ' + plano.colocar.length + ' ' + nome + ' na área ' + textoArea(alvo) + ', um por piso livre.' + (plano.faltam ? ' Faltam ' + plano.faltam + ' no inventário; esses pisos ficam vazios.' : '') + ' Em que altura?', previa);
+            let ficha = null;
+            try { const dados = await VL.dadosJogo.mobis(); ficha = dados && dados.chao && dados.chao.get(classe); } catch (e) { /* sem ícone */ }
+            const escolha = await escolherAltura(plano, { nome: ficha && ficha.nome ? ficha.nome : nome.replace(/^"|"$/g, ''), area: textoArea(alvo), icone: ficha ? VL.dadosJogo.iconeDe(ficha.classe) : null }, previa);
             previa(null);
             if (!escolha) return;
             // Empilhar: o jogo pousa cada um no topo (rápido). Chão ou altura: fixa a altura de cada um.

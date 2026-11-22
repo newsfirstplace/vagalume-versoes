@@ -60,6 +60,41 @@
   overflow-wrap: anywhere; max-height: 180px; overflow: auto; }
 .vl-acoes { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
 .vl-dialogo.largo { width: min(560px, 100%); }
+/* Diálogo de lado: sem escurecer, preso à esquerda, o quarto continua à vista e clicável. */
+.vl-veu.lateral { background: transparent; pointer-events: none; justify-content: flex-start; }
+.vl-dialogo.lateral { pointer-events: auto; width: 268px; max-height: calc(100% - 32px); padding: 16px;
+  background: linear-gradient(180deg, rgba(31, 38, 52, .97), rgba(18, 22, 31, .97)); border-color: rgba(214, 242, 74, .35);
+  box-shadow: 0 0 0 1px rgba(214, 242, 74, .08), 0 18px 44px rgba(0, 0, 0, .55), 0 0 28px rgba(214, 242, 74, .08); }
+.vl-dialogo.lateral h2 { color: var(--brilho); letter-spacing: .02em; }
+.vl-dialogo.lateral > .vl-acoes { display: flex; flex-direction: column-reverse; gap: 8px; margin-top: 14px; }
+.vl-dialogo.lateral > .vl-acoes > .vl-botao { width: 100%; padding: 9px 12px; border-radius: 9px; }
+.vl-alt-mobi { display: flex; align-items: center; gap: 10px; padding: 10px; margin: 2px 0 12px; border-radius: 10px;
+  background: rgba(255, 255, 255, .04); border: 1px solid var(--borda); }
+.vl-alt-mobi img { width: 40px; height: 40px; object-fit: contain; image-rendering: pixelated; flex: none; }
+.vl-alt-mobi b { display: block; font-size: 13px; color: var(--texto); }
+.vl-alt-mobi span { display: block; font-size: 11.5px; color: var(--suave); margin-top: 2px; }
+.vl-alt-mobi .vl-alt-qtd { color: var(--brilho); font-weight: 700; }
+.vl-alt-aviso { font-size: 11.5px; color: #ffcf7a; margin: -4px 0 10px; }
+.vl-alt-rotulo { font-size: 10.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--suave); margin: 0 0 6px; }
+.vl-alt-opcoes { display: flex; flex-direction: column; gap: 6px; }
+.vl-alt-opcao { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; font: inherit; color: var(--texto);
+  background: rgba(255, 255, 255, .03); border: 1px solid var(--borda); border-radius: 10px; padding: 9px 10px; cursor: pointer;
+  transition: border-color .15s, background .15s; }
+.vl-alt-opcao:hover { border-color: rgba(214, 242, 74, .55); }
+.vl-alt-opcao[aria-pressed="true"] { border-color: var(--brilho); background: rgba(214, 242, 74, .1); box-shadow: inset 3px 0 0 var(--brilho); }
+.vl-alt-icone { flex: none; width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center;
+  background: rgba(214, 242, 74, .12); color: var(--brilho); }
+.vl-alt-opcao[aria-pressed="true"] .vl-alt-icone { background: var(--brilho); color: #12161f; }
+.vl-alt-icone svg { width: 18px; height: 18px; }
+.vl-alt-opcao b { display: block; font-size: 13px; }
+.vl-alt-opcao small { display: block; font-size: 11px; color: var(--suave); margin-top: 1px; }
+.vl-alt-valor { display: flex; flex-direction: column; gap: 8px; padding: 10px; margin-top: 2px; border-radius: 10px;
+  background: rgba(214, 242, 74, .06); border: 1px dashed rgba(214, 242, 74, .35); }
+.vl-alt-valor[hidden] { display: none; }
+.vl-alt-passos { display: flex; align-items: center; gap: 6px; }
+.vl-alt-passos .vl-botao { width: 34px; padding: 5px 0; font-weight: 700; }
+.vl-alt-passos input { flex: 1; min-width: 0; text-align: center; font: 600 14px var(--mono, monospace); }
+.vl-alt-valor input[type="range"] { width: 100%; accent-color: var(--brilho); margin: 0; }
 .vl-compra-lista { display: grid; gap: 8px; max-height: 250px; overflow: auto; margin: 0 0 14px; padding: 2px; }
 .vl-compra-item { display: flex; align-items: center; gap: 12px; min-width: 0; padding: 9px 11px;
   background: var(--fundo); border: 1px solid var(--borda); border-radius: 9px; }
@@ -766,14 +801,14 @@
       const idTitulo = 'vl-dialogo-' + (++contador);
       const botoes = o.botoes && o.botoes.length ? o.botoes : [{ rotulo: 'Fechar', valor: null, foco: true }];
       const acoes = el('div', { class: 'vl-acoes' });
-      const caixa = el('div', { class: 'vl-dialogo' + (o.largo ? ' largo' : ''), role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': idTitulo }, [
+      const caixa = el('div', { class: 'vl-dialogo' + (o.largo ? ' largo' : '') + (o.lateral ? ' lateral' : ''), role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': idTitulo }, [
         el('h2', { id: idTitulo, texto: o.titulo || 'Vagalume' }),
         o.texto ? el('p', { texto: o.texto }) : null,
         o.detalhe ? el('pre', { class: 'vl-detalhe', texto: o.detalhe }) : null,
         o.conteudo || null,
         acoes,
       ]);
-      const veu = el('div', { class: 'vl-veu' }, [caixa]);
+      const veu = el('div', { class: 'vl-veu' + (o.lateral ? ' lateral' : '') }, [caixa]);
       let fechado = false;
       let inicial = null;
 
