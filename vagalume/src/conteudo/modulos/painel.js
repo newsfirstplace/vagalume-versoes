@@ -607,7 +607,7 @@
           ]), marca]),
           controles,
         ]);
-        alvo.prepend(secao);
+        if (id === 'construcao') alvo.append(secao); else alvo.prepend(secao); // construção: configurações no fim da página
         function sincronizar() {
           chave.checked = ctx.config().modulos[id] === true;
           for (const campo of campos) campo.atualizar();

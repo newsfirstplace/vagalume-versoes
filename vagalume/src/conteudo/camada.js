@@ -372,6 +372,7 @@
 .vl-modulo.aberto { border-color: rgba(214, 242, 74, .55); box-shadow: 0 0 0 1px rgba(214, 242, 74, .15); }
 .vl-modulo-topo { display: flex; align-items: center; gap: 10px; padding: 10px 12px; }
 .vl-config-pagina { margin-bottom: 14px; }
+.vl-ferramentas-pagina + .vl-config-pagina { margin-top: 14px; }
 .vl-corpo > .vl-config-pagina { flex-shrink: 0; }
 .vl-config-pagina > .vl-acoes-titulo { margin: 12px 12px 0; }
 .vl-config-pagina .vl-modulo-texto { flex-direction: column; align-items: flex-start; gap: 2px; }
