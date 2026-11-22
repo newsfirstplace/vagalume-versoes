@@ -9,7 +9,7 @@
 
   const MAX_QUADRO = 4 * 1024 * 1024; // acima disso o quadro é tratado como inválido
   const MAX_CAMPOS = 64;
-  const MAX_TEXTO = 4000; // caracteres por campo de texto que o Vagalume aceita mandar
+  const MAX_TEXTO = 30000; // caracteres por campo de texto (o floor de um quarto grande passa de 4000; o limite do protocolo é 65535 bytes)
   const MAX_CRU = 200000; // bytes crus por campo 'r' (a lista de pessoas de um quarto cheio passa de 8 KB)
   const codificador = new TextEncoder();
   const decodificador = new TextDecoder('utf-8');

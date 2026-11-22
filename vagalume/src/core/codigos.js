@@ -638,7 +638,7 @@
     const p = o.planta;
     const inteiro = (v, min, max) => Number.isInteger(v) && v >= min && v <= max;
     const mapa = p && typeof p.mapa === 'string' ? p.mapa.replace(/\r\n|\n/g, '\r').replace(/\r+$/, '') : '';
-    if (mapa && mapa.length <= 20000 && /^[0-9a-zA-Z\r]+$/.test(mapa) && inteiro(p.alturaParede, -1, 64)) {
+    if (mapa && mapa.length <= 28000 && /^[0-9a-zA-Z\r]+$/.test(mapa) && inteiro(p.alturaParede, -1, 64)) {
       // Espessuras de -2 a 1 (como o jogo manda); sem elas, a normal (0).
       saida.planta = { mapa, alturaParede: p.alturaParede, parede: inteiro(p.parede, -2, 1) ? p.parede : 0, piso: inteiro(p.piso, -2, 1) ? p.piso : 0 };
     }
