@@ -155,10 +155,12 @@
       }
       // Compra por tipo de mobi (lista da Construção): oferta pelo arquivo de mobis do jogo, preço conferido
       // antes (2594 -> 3388), só em moedas, com confirmação do total. lista: [{ tipo, quantidade }].
+      // Quarto inteiro copiado pode ter centenas de tipos (pedido do usuário em 2026-11-22: 1.123 mobis).
+      const MAX_TIPOS_COMPRA = 1000, MAX_UNIDADES_COMPRA = 5000;
       async function comprarTipos(lista, motivo) {
         if (!conexao.disponivel()) { camada.aviso('Ligue o módulo "Conexão do jogo" e recarregue o hotel.', { tipo: 'erro' }); return; }
         if (!VL.dadosJogo) return;
-        if (lista.length > 150) { camada.aviso('Há mais de 150 tipos de mobi; divida a compra em grupos menores.', { tipo: 'erro' }); return; }
+        if (lista.length > MAX_TIPOS_COMPRA) { camada.aviso('Há mais de ' + MAX_TIPOS_COMPRA + ' tipos de mobi; divida a compra em grupos menores.', { tipo: 'erro' }); return; }
         let d;
         try { d = await VL.dadosJogo.mobis(); } catch (e) { camada.aviso('Não consegui ler os mobis do jogo.', { tipo: 'erro' }); return; }
         // Pergunta todos os preços de uma vez (um pedido a cada 60 ms) e casa cada resposta pelo tipo do
@@ -196,7 +198,7 @@
         }
         if (!plano.length) { camada.aviso('Nada disso pode ser comprado com moedas na loja.' + (fora.length ? ' (' + fora.slice(0, 5).join(', ') + ')' : ''), { tipo: 'erro' }); return; }
         const unidades = plano.reduce((s, c) => s + c.quantidade, 0);
-        if (unidades > 300) { camada.aviso('São ' + unidades + ' unidades; o máximo por vez é 300.', { tipo: 'erro' }); return; }
+        if (unidades > MAX_UNIDADES_COMPRA) { camada.aviso('São ' + unidades + ' unidades; o máximo por vez é ' + MAX_UNIDADES_COMPRA + '.', { tipo: 'erro' }); return; }
         const total = plano.reduce((s, c) => s + c.moedas * c.quantidade, 0);
         const ok = await camada.dialogoMobis({
           titulo: 'Confirmar compra de mobis',
@@ -205,11 +207,12 @@
           botoes: [{ rotulo: 'Cancelar', valor: false, foco: true }, { rotulo: 'Comprar', valor: true, destaque: true }],
         });
         if (!ok) return;
-        let feitas = 0;
+        let feitas = 0, pacotes = 0;
         for (const c of plano) {
           for (let restante = c.quantidade; restante > 0; restante -= 100) {
             const quantidade = Math.min(100, restante);
             if (await comprar({ pagina: -12345678, oferta: c.oferta, quantidade })) feitas += quantidade;
+            if (++pacotes % 10 === 0) camada.aviso('Comprando: ' + feitas + ' de ' + unidades + '…', { duracaoMs: 2000 });
             await esperar(250);
           }
         }
