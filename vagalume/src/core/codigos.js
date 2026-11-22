@@ -574,8 +574,18 @@
 
   // Cópia dos mobis do chão: tipo, posição, direção e altura, ordenada pela altura (os do chão
   // primeiro, e cada altura de uma vez, para ligar o :UP o mínimo de vezes).
+  // Estado do mobi como número (o que a ferramenta do jogo aceita fixar); null quando não é um número simples.
+  function estadoNumero(v) {
+    if (typeof v === 'number') return Number.isInteger(v) && v >= 0 && v <= 999999 ? v : null;
+    return typeof v === 'string' && /^\d{1,6}$/.test(v) ? Number(v) : null;
+  }
   function copiaDoQuarto(lista) {
-    return lista.map((m) => ({ tipo: m.tipo, x: m.x, y: m.y, direcao: m.direcao, altura: alturaValida(m.altura) || 0 }))
+    return lista.map(function (m) {
+      const c = { tipo: m.tipo, x: m.x, y: m.y, direcao: m.direcao, altura: alturaValida(m.altura) || 0 };
+      const e = estadoNumero(m.estado);
+      if (e != null) c.estado = e;
+      return c;
+    })
       .sort((a, b) => a.altura - b.altura || a.y - b.y || a.x - b.x);
   }
 
@@ -588,7 +598,8 @@
       const ok = [m.tipo, m.x, m.y, m.direcao].every(Number.isInteger) && m.x >= 0 && m.y >= 0 && m.x <= 200 && m.y <= 200 && m.direcao >= 0 && m.direcao <= 7;
       const altura = alturaValida(m.altura == null ? 0 : m.altura);
       if (!ok || altura == null) return null;
-      saida.push({ tipo: m.tipo, x: m.x, y: m.y, direcao: m.direcao, altura });
+      if (m.estado != null && estadoNumero(m.estado) == null) return null;
+      saida.push({ tipo: m.tipo, x: m.x, y: m.y, direcao: m.direcao, altura, estado: m.estado });
     }
     return copiaDoQuarto(saida);
   }
@@ -606,7 +617,12 @@
     const pendentes = [];
     for (const m of copia) {
       const ids = porClasse.get(m.tipo);
-      if (ids && ids.length) colocar.push({ itemId: ids.shift(), x: m.x, y: m.y, direcao: m.direcao, altura: m.altura });
+      if (ids && ids.length) {
+        const c = { itemId: ids.shift(), x: m.x, y: m.y, direcao: m.direcao, altura: m.altura };
+        const e = estadoNumero(m.estado);
+        if (e != null) c.estado = e;
+        colocar.push(c);
+      }
       else {
         faltam.set(m.tipo, (faltam.get(m.tipo) || 0) + 1);
         pendentes.push(m);
@@ -760,7 +776,7 @@
   // Duplicar: os mesmos mobis, deslocados, com itens do inventário da mesma classe.
   function planoDuplicar(lista, dx, dy, itens) {
     const copia = lista.slice().sort((a, b) => a.altura - b.altura)
-      .map((m) => ({ tipo: m.tipo, x: m.x + dx, y: m.y + dy, direcao: m.direcao, altura: m.altura }));
+      .map((m) => ({ tipo: m.tipo, x: m.x + dx, y: m.y + dy, direcao: m.direcao, altura: m.altura, estado: m.estado }));
     return planoDeColagem(copia, itens);
   }
   // Substituir: cada mobi da lista dá lugar a um item de chão da classe nova, no mesmo piso, direção e altura.
@@ -871,7 +887,7 @@
     return { id, nome, visual, genero };
   }
 
-  const api = { origemDaAmostra, pisoNaTela, telaNoPiso, origemMediana, cantosDaArea, planoGirarArea, planoEspelharArea, planoEscada, caminhoPaginaLoja, semAcento, acharPaginasLoja, MAX_PISOS_PREENCHER, MAX_CAMADAS, planoPreencher, lerCompra, resumoCarrinho, areaDe, mobisNaArea, planoMoverArea, planoDuplicar, planoSubstituir, repetidos, lerMeusDados, FEIRA_ESTADO, lerConfigFeira, lerOfertaFeira, lerOfertasFeira, lerMinhasOfertas, ofertasParaRepor, copiaDoQuarto, validarCopiaQuarto, planoDeColagem, SALVAR_WIRED, lerVisuais, visualValido, lerIndiceLoja, lerPaginaLoja, lerItemInventario, lerInventario, planoDeCompra, EXPRESSAO_INATIVO, lerAmigos, lerAmigo, lerAtualizacaoAmigos, lerMensagemRecebida, mencaoNaFala, referenciasDeQuarto, MAX_ALTURA, alturaValida, SAIDA, ENTRADA, EXPRESSOES, MAX_DANCA, DANCAS_EXTRAS, MAX_PLACA, lerUmaOferta, lerFala, lerUsuarios, filtrarUsuarios, trocarPosicao, lerEstados, destinoDoMovimento, passo, PASSOS, EIXOS_SETAS, passoSetas, LADOS, NOMES_LADOS, linhasAoEntrar,
+  const api = { estadoNumero, origemDaAmostra, pisoNaTela, telaNoPiso, origemMediana, cantosDaArea, planoGirarArea, planoEspelharArea, planoEscada, caminhoPaginaLoja, semAcento, acharPaginasLoja, MAX_PISOS_PREENCHER, MAX_CAMADAS, planoPreencher, lerCompra, resumoCarrinho, areaDe, mobisNaArea, planoMoverArea, planoDuplicar, planoSubstituir, repetidos, lerMeusDados, FEIRA_ESTADO, lerConfigFeira, lerOfertaFeira, lerOfertasFeira, lerMinhasOfertas, ofertasParaRepor, copiaDoQuarto, validarCopiaQuarto, planoDeColagem, SALVAR_WIRED, lerVisuais, visualValido, lerIndiceLoja, lerPaginaLoja, lerItemInventario, lerInventario, planoDeCompra, EXPRESSAO_INATIVO, lerAmigos, lerAmigo, lerAtualizacaoAmigos, lerMensagemRecebida, mencaoNaFala, referenciasDeQuarto, MAX_ALTURA, alturaValida, SAIDA, ENTRADA, EXPRESSOES, MAX_DANCA, DANCAS_EXTRAS, MAX_PLACA, lerUmaOferta, lerFala, lerUsuarios, filtrarUsuarios, trocarPosicao, lerEstados, destinoDoMovimento, passo, PASSOS, EIXOS_SETAS, passoSetas, LADOS, NOMES_LADOS, linhasAoEntrar,
     lerDadosExtras, lerMobi, lerMobisDoQuarto, mexer, EIXOS, mobisIguaisNaArea, encaixeSobreMobis };
   raiz.VL = raiz.VL || {};
   raiz.VL.codigos = api;

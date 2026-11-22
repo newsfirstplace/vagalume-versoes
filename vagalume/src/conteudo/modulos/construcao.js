@@ -538,10 +538,17 @@
       }
       // Com altura fixa: cada mobi só conta quando o servidor mostra o mesmo id no piso e na altura certos
       // (pelo 1534 ao colocar ou pelo 3776 ao mover). O que falhar volta em mais duas rodadas, mais lentas.
+      let estadosDiferentes = 0; // da última colocarLista: mobis no lugar certo mas com outro estado
       async function colocarLista(colocar) {
         const certo = (m, lido) => lido.x === m.x && lido.y === m.y && Math.abs(lido.altura - (m.altura || 0)) < 0.01;
         const colocados = new Set();
         const prontos = new Set();
+        const estadoCerto = new Set(); // ids com o estado da referência (ou sem estado para conferir)
+        for (const m of colocar) if (codigos.estadoNumero(m.estado) == null) estadoCerto.add(m.itemId);
+        // Se o hotel não fixar o estado em nenhum dos 5 primeiros, para de esperar por ele (não atrasa o resto).
+        let tentouEstado = 0, acertouEstado = 0;
+        const estadoOk = (id) => estadoCerto.has(id) || (tentouEstado >= 5 && !acertouEstado);
+        const conferirEstado = (id, estado) => { const m = alvos.get(id); if (m && codigos.estadoNumero(estado) === codigos.estadoNumero(m.estado)) estadoCerto.add(id); };
         let acordar = null;
         function ouvir(l, colocado) {
           let lido = null;
@@ -550,11 +557,16 @@
           if (!m) return;
           if (colocado) colocados.add(lido.id);
           if (certo(m, lido)) prontos.add(lido.id);
+          conferirEstado(lido.id, lido.estado);
           if (acordar) acordar();
         }
         const alvos = new Map(colocar.map((m) => [m.itemId, m]));
         const pararA = conexao.ouvir('entrada', ENTRADA.MOBI_COLOCADO, (l) => ouvir(l, true));
         const pararB = conexao.ouvir('entrada', ENTRADA.MOBI_ATUALIZADO, (l) => ouvir(l, false));
+        const pararC = conexao.ouvir('entrada', ENTRADA.ESTADO_MOBI, function (l) {
+          try { const id = Number(l.texto()); l.inteiro(); conferirEstado(id, l.texto()); } catch (e) { return; }
+          if (acordar) acordar();
+        });
         const aguardar = (feito) => new Promise(function (r) { if (feito()) { r(); return; } acordar = () => { if (feito()) r(); }; setTimeout(r, 700); }).then(() => { acordar = null; });
         try {
           await comAlturasFixas(async function (fixar) {
@@ -565,17 +577,18 @@
                 if (!ctx.ativo('construcao')) return;
                 if (prontos.has(m.itemId)) continue;
                 const inicio = Date.now();
-                if (!(await fixar(m.altura || 0))) return;
+                if (!(await fixar(m.altura || 0, m.estado))) return;
                 if (!colocados.has(m.itemId)) {
                   if (!(await mandar(SAIDA.COLOCAR_MOBI, [['s', m.itemId + ' ' + m.x + ' ' + m.y + ' ' + m.direcao]]))) return;
                   await aguardar(() => colocados.has(m.itemId));
                   if (!colocados.has(m.itemId)) continue; // recusado: volta na próxima rodada
                 }
-                // Já pousou na altura certa? Senão move no lugar com a altura fixa (inclusive zero).
-                if (!prontos.has(m.itemId)) {
+                // Já pousou na altura e no estado certos? Senão move no lugar com a altura e o estado fixos.
+                if (!prontos.has(m.itemId) || !estadoOk(m.itemId)) {
                   if (!(await mandar(SAIDA.MOVER_MOBI, [['i', m.itemId], ['i', m.x], ['i', m.y], ['i', m.direcao]]))) return;
-                  await aguardar(() => prontos.has(m.itemId));
+                  await aguardar(() => prontos.has(m.itemId) && estadoOk(m.itemId));
                 }
+                if (codigos.estadoNumero(m.estado) != null && prontos.has(m.itemId)) { tentouEstado++; if (estadoCerto.has(m.itemId)) acertouEstado++; }
                 const resto = folga - (Date.now() - inicio);
                 if (resto > 0) await esperar(resto);
                 if (prontos.size && prontos.size % 20 === 0) camada.aviso(prontos.size + ' de ' + colocar.length + ' colocados…');
@@ -583,7 +596,8 @@
               await esperar(500); // confirmações atrasadas antes de decidir quem repete
             }
           });
-        } finally { pararA(); pararB(); }
+        } finally { pararA(); pararB(); pararC(); }
+        estadosDiferentes = [...prontos].filter((id) => !estadoCerto.has(id)).length;
         return prontos.size;
       }
       async function colarQuarto() {
@@ -608,7 +622,7 @@
             { titulo: 'Colar quarto', sim: 'Colocar' });
           if (!ok) return;
           const feitos = await colocarLista(plano.colocar);
-          camada.aviso('Pronto: ' + feitos + ' mobis colocados.', { tipo: 'ok' });
+          camada.aviso('Pronto: ' + feitos + ' mobis colocados.' + (estadosDiferentes ? ' ' + estadosDiferentes + ' ficaram com o estado diferente da cópia (o hotel não aceitou fixar).' : ''), { tipo: estadosDiferentes ? 'erro' : 'ok', duracaoMs: estadosDiferentes ? 10000 : undefined });
         } finally {
           colando = false;
         }
@@ -916,19 +930,25 @@
         fixos[0] = true;
         const enviarAjustes = (valores) => mandar(SAIDA.FERRAMENTA_CONSTRUCAO, tiposFerramenta.map((tipo, i) => [tipo, valores[i]]));
         let alturaAtual = null;
+        let estadoAtual = null;
         try {
           if (opcoes && opcoes.semAltura) {
             // Sem altura fixa: o jogo empilha no topo do piso. Desliga também os modos automáticos.
             const livres = fixos.slice(); livres[0] = false;
             if (!(await enviarAjustes(livres))) return;
           }
-          await fn(async function (altura) {
+          await fn(async function (altura, estado) {
             const z = codigos.alturaValida(altura);
             if (z == null) throw new Error('Altura do mobi fora do limite aceito pelo hotel.');
-            if (alturaAtual === z) return true;
+            // Estado fixo (campos 4 e 5 da ferramenta do jogo, como o "Estado" do pincel): vale ao colocar e mover.
+            const e = codigos.estadoNumero(estado);
+            if (alturaAtual === z && estadoAtual === e) return true;
             fixos[1] = Math.round(z * 100);
+            fixos[4] = e != null;
+            fixos[5] = e != null ? e : anteriores[5];
             if (!(await enviarAjustes(fixos))) return false;
             alturaAtual = z;
+            estadoAtual = e;
             await esperar(90);
             return true;
           });
