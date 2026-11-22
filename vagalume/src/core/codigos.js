@@ -637,9 +637,10 @@
     if (!o || typeof o !== 'object') return saida;
     const p = o.planta;
     const inteiro = (v, min, max) => Number.isInteger(v) && v >= min && v <= max;
-    if (p && typeof p.mapa === 'string' && p.mapa.length <= 20000 && /^[0-9a-zA-Z\r]+$/.test(p.mapa) && inteiro(p.alturaParede, -1, 64)
-      && p.porta && inteiro(p.porta.x, 0, 200) && inteiro(p.porta.y, 0, 200) && inteiro(p.porta.direcao, 0, 7) && inteiro(p.parede, -2, 1) && inteiro(p.piso, -2, 1)) {
-      saida.planta = { mapa: p.mapa, alturaParede: p.alturaParede, porta: { x: p.porta.x, y: p.porta.y, direcao: p.porta.direcao }, parede: p.parede, piso: p.piso };
+    const mapa = p && typeof p.mapa === 'string' ? p.mapa.replace(/\r\n|\n/g, '\r').replace(/\r+$/, '') : '';
+    if (mapa && mapa.length <= 20000 && /^[0-9a-zA-Z\r]+$/.test(mapa) && inteiro(p.alturaParede, -1, 64)) {
+      // Espessuras de -2 a 1 (como o jogo manda); sem elas, a normal (0).
+      saida.planta = { mapa, alturaParede: p.alturaParede, parede: inteiro(p.parede, -2, 1) ? p.parede : 0, piso: inteiro(p.piso, -2, 1) ? p.piso : 0 };
     }
     if (o.decoracao && typeof o.decoracao === 'object') {
       const d = {};
@@ -652,6 +653,40 @@
       saida.regulador = { selecionado: r.selecionado, ligado: r.ligado !== false, efeitos: r.efeitos.map((e) => ({ id: e.id, tipo: e.tipo, cor: e.cor, brilho: e.brilho })) };
     }
     return saida;
+  }
+  // Planta para colar: o mapa da cópia mais uma porta separada, a alguns pisos de distância, ligada ao
+  // quarto por um corredor fora da área (pedido do usuário em 2026-11-22: quem entra não fica em cima
+  // de onde os mobis vão). Só acrescenta colunas à direita ou linhas embaixo, então nenhuma posição
+  // da cópia muda. Devolve { mapa, porta: { x, y, direcao } } ou null sem piso nenhum.
+  function plantaComPorta(mapaTexto, distancia) {
+    const d = Math.max(2, Math.floor(distancia || 4));
+    const linhas = String(mapaTexto || '').split(/\r\n|\r|\n/);
+    while (linhas.length && linhas[linhas.length - 1] === '') linhas.pop();
+    const largura = Math.max(0, ...linhas.map((l) => l.length));
+    const valido = (c) => !!c && c !== 'x' && c !== 'X';
+    const grade = linhas.map((l) => l.padEnd(largura, 'x').split(''));
+    const altura = grade.length;
+    // Lado direito: as linhas cujo piso vai mais longe; fica a do meio. Embaixo: o mesmo com as colunas.
+    let dir = null, baixo = null;
+    for (let y = 0; y < altura; y++) {
+      for (let x = largura - 1; x >= 0; x--) if (valido(grade[y][x])) { if (!dir || x > dir.max) dir = { max: x, lista: [] }; if (x === dir.max) dir.lista.push(y); break; }
+    }
+    for (let x = 0; x < largura; x++) {
+      for (let y = altura - 1; y >= 0; y--) if (valido(grade[y][x])) { if (!baixo || y > baixo.max) baixo = { max: y, lista: [] }; if (y === baixo.max) baixo.lista.push(x); break; }
+    }
+    if (!dir || !baixo) return null;
+    const meio = (lista) => lista[Math.floor((lista.length - 1) / 2)];
+    // O lado que deixa o quarto menos comprido.
+    if (Math.max(largura + d, altura) <= Math.max(largura, altura + d)) {
+      const y = meio(dir.lista), h = grade[y][dir.max], portaX = largura + d - 1;
+      for (const linha of grade) while (linha.length <= portaX) linha.push('x');
+      for (let x = dir.max + 1; x <= portaX; x++) grade[y][x] = h;
+      return { mapa: grade.map((l) => l.join('')).join('\r'), porta: { x: portaX, y, direcao: 6 } };
+    }
+    const x = meio(baixo.lista), h = grade[baixo.max][x], portaY = altura + d - 1;
+    while (grade.length <= portaY) grade.push(new Array(largura).fill('x'));
+    for (let y = baixo.max + 1; y <= portaY; y++) grade[y][x] = h;
+    return { mapa: grade.map((l) => l.join('')).join('\r'), porta: { x, y: portaY, direcao: 0 } };
   }
   // Raro, LTD e afins (o arquivo de mobis do Habblet não marca raridade: vai pelo nome técnico e pelo nome).
   // Não ficam à venda em moedas, então a compra para completar uma cópia os deixa de fora.
@@ -979,7 +1014,7 @@
     return { id, nome, visual, genero };
   }
 
-  const api = { lerPlanta, lerEspessura, lerPorta, lerDecoracao, lerMobiParede, lerMobisParede, lerRegulador, reguladorLigado, LOCAL_PAREDE, CLASSE_DECORACAO, validarExtrasQuarto, mobiRaro, estadoNumero, origemDaAmostra, pisoNaTela, telaNoPiso, origemMediana, cantosDaArea, planoGirarArea, planoEspelharArea, planoEscada, caminhoPaginaLoja, semAcento, acharPaginasLoja, MAX_PISOS_PREENCHER, MAX_CAMADAS, planoPreencher, lerCompra, resumoCarrinho, areaDe, mobisNaArea, planoMoverArea, planoDuplicar, planoSubstituir, repetidos, lerMeusDados, FEIRA_ESTADO, lerConfigFeira, lerOfertaFeira, lerOfertasFeira, lerMinhasOfertas, ofertasParaRepor, copiaDoQuarto, validarCopiaQuarto, planoDeColagem, SALVAR_WIRED, lerVisuais, visualValido, lerIndiceLoja, lerPaginaLoja, lerItemInventario, lerInventario, planoDeCompra, EXPRESSAO_INATIVO, lerAmigos, lerAmigo, lerAtualizacaoAmigos, lerMensagemRecebida, mencaoNaFala, referenciasDeQuarto, MAX_ALTURA, alturaValida, alturaDoMobi, SAIDA, ENTRADA, EXPRESSOES, MAX_DANCA, DANCAS_EXTRAS, MAX_PLACA, lerUmaOferta, lerFala, lerUsuarios, filtrarUsuarios, trocarPosicao, lerEstados, destinoDoMovimento, passo, PASSOS, EIXOS_SETAS, passoSetas, LADOS, NOMES_LADOS, linhasAoEntrar,
+  const api = { plantaComPorta, lerPlanta, lerEspessura, lerPorta, lerDecoracao, lerMobiParede, lerMobisParede, lerRegulador, reguladorLigado, LOCAL_PAREDE, CLASSE_DECORACAO, validarExtrasQuarto, mobiRaro, estadoNumero, origemDaAmostra, pisoNaTela, telaNoPiso, origemMediana, cantosDaArea, planoGirarArea, planoEspelharArea, planoEscada, caminhoPaginaLoja, semAcento, acharPaginasLoja, MAX_PISOS_PREENCHER, MAX_CAMADAS, planoPreencher, lerCompra, resumoCarrinho, areaDe, mobisNaArea, planoMoverArea, planoDuplicar, planoSubstituir, repetidos, lerMeusDados, FEIRA_ESTADO, lerConfigFeira, lerOfertaFeira, lerOfertasFeira, lerMinhasOfertas, ofertasParaRepor, copiaDoQuarto, validarCopiaQuarto, planoDeColagem, SALVAR_WIRED, lerVisuais, visualValido, lerIndiceLoja, lerPaginaLoja, lerItemInventario, lerInventario, planoDeCompra, EXPRESSAO_INATIVO, lerAmigos, lerAmigo, lerAtualizacaoAmigos, lerMensagemRecebida, mencaoNaFala, referenciasDeQuarto, MAX_ALTURA, alturaValida, alturaDoMobi, SAIDA, ENTRADA, EXPRESSOES, MAX_DANCA, DANCAS_EXTRAS, MAX_PLACA, lerUmaOferta, lerFala, lerUsuarios, filtrarUsuarios, trocarPosicao, lerEstados, destinoDoMovimento, passo, PASSOS, EIXOS_SETAS, passoSetas, LADOS, NOMES_LADOS, linhasAoEntrar,
     lerDadosExtras, lerMobi, lerMobisDoQuarto, mexer, EIXOS, mobisIguaisNaArea, encaixeSobreMobis };
   raiz.VL = raiz.VL || {};
   raiz.VL.codigos = api;

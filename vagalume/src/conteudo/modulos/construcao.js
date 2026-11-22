@@ -481,11 +481,8 @@
         if (!mobis.size && !mobisParede.size) { camada.aviso('Nenhum mobi neste quarto para copiar.', { tipo: 'erro' }); return; }
         copiaQuarto = codigos.copiaDoQuarto([...mobis.values()], [...mobisParede.values()]);
         extrasCopia = {};
-        const lPorta = await esperarMensagem(ENTRADA.PORTA, 2500, () => mandar(SAIDA.PEDIR_PORTA, []));
-        if (planta && espessura && lPorta) {
-          const porta = codigos.lerPorta(lPorta);
-          extrasCopia.planta = { mapa: planta.mapa, alturaParede: planta.alturaParede, porta, parede: espessura.parede, piso: espessura.piso };
-        }
+        // Floor: o mapa vem ao entrar no quarto; a porta é criada ao colar (separada da área).
+        if (planta) extrasCopia.planta = { mapa: planta.mapa, alturaParede: planta.alturaParede, parede: espessura ? espessura.parede : 0, piso: espessura ? espessura.piso : 0 };
         if (Object.keys(decoracao).length) extrasCopia.decoracao = Object.assign({}, decoracao);
         const dimmer = [...mobisParede.values()].find((m) => codigos.reguladorLigado(m.estado) != null);
         if (dimmer) {
@@ -497,7 +494,8 @@
         if (extrasCopia.planta) partes.push('floor');
         if (extrasCopia.decoracao) partes.push('papel de parede, piso e paisagem');
         if (extrasCopia.regulador) partes.push('regulador de luz');
-        camada.aviso('Cópia guardada: ' + partes.join(', ') + (incompleto ? ' (a lista do quarto pode estar incompleta)' : '') + '. Exporte para ter um backup em arquivo.', { tipo: 'ok' });
+        camada.aviso('Cópia guardada: ' + partes.join(', ') + (incompleto ? ' (a lista do quarto pode estar incompleta)' : '') + '.'
+          + (extrasCopia.planta ? '' : ' O floor não veio: saia e entre de novo no quarto e copie outra vez.') + ' Exporte para ter um backup em arquivo.', { tipo: extrasCopia.planta ? 'ok' : 'erro', duracaoMs: 9000 });
         // Já oferece comprar o que falta no inventário para montar a cópia (pedido do usuário em 2026-11-22).
         comprarFaltasDaCopia(copiaQuarto, 'Para montar esta cópia, faltam {n} mobis no seu inventário (os que estão no quarto não contam).');
       }
@@ -670,7 +668,9 @@
       // Planta: o editor de chão do jogo salva com uma mensagem só; o quarto recarrega depois.
       async function aplicarPlanta(p) {
         const pronto = esperarMensagem(ENTRADA.QUARTO_PRONTO, 15000);
-        if (!(await mandar(SAIDA.SALVAR_PLANTA, [['s', p.mapa], ['i', p.porta.x], ['i', p.porta.y], ['i', p.porta.direcao], ['i', p.parede], ['i', p.piso], ['i', p.alturaParede]]))) return false;
+        const comPorta = codigos.plantaComPorta(p.mapa);
+        if (!comPorta) return false;
+        if (!(await mandar(SAIDA.SALVAR_PLANTA, [['s', comPorta.mapa], ['i', comPorta.porta.x], ['i', comPorta.porta.y], ['i', comPorta.porta.direcao], ['i', p.parede], ['i', p.piso], ['i', p.alturaParede]]))) return false;
         if (!(await pronto)) return false;
         await esperar(2500); // mobis do quarto recarregado
         return true;
@@ -716,7 +716,7 @@
         try {
           // O que colar (só aparecem as partes que a cópia tem).
           const partes = [['mobis', 'Mobis do chão e da parede', true]];
-          if (extrasCopia.planta) partes.unshift(['planta', 'Floor (planta do quarto; o quarto recarrega)', true]);
+          if (extrasCopia.planta) partes.unshift(['planta', 'Floor (primeiro; a porta fica separada da área e o quarto recarrega)', true]);
           if (extrasCopia.decoracao) partes.push(['decoracao', 'Papel de parede, piso e paisagem', true]);
           if (extrasCopia.regulador) partes.push(['regulador', 'Configuração do regulador de luz', true]);
           const marcas = {};
