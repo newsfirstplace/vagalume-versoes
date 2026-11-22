@@ -43,6 +43,7 @@
         const tipo = selecionandoIguais;
         selecionandoMotor = false; areaMotor = null;
         ignorarCliqueAte = Date.now() + 500;
+        if (entregarArea(d.area)) return;
         definirArea(d.area, tipo); pararSelecao();
         if (!idsDaSelecao().length) camada.aviso('Nenhum mobi nesta área. Selecione outra região.');
       }
@@ -152,16 +153,29 @@
       atualizarJanela();
       desenhar();
     }
+    // Seleção pedida por outra função (ex.: "Colocar Vários" do inventário): a área vai para ela e
+    // não vira seleção de mobis.
+    let aoArea = null;
+    function entregarArea(a) {
+      if (!aoArea) return false;
+      const f = aoArea;
+      aoArea = null;
+      limparSelecao();
+      f({ x1: Math.min(a.x1, a.x2), y1: Math.min(a.y1, a.y2), x2: Math.max(a.x1, a.x2), y2: Math.max(a.y1, a.y2) });
+      return true;
+    }
     function limparSelecao() {
+      aoArea = null;
       pedirMotor('cancelar'); selecionandoMotor = false; areaMotor = null;
       selecao = null; arrastandoSelecao = null; modoDestino = null; destinoPreview = null; escolhendo = false;
       selecionando = false; selecionandoIguais = null;
       document.documentElement.removeAttribute('data-vl-selecionando');
       api.definirArea(null); atualizarJanela(); desenhar();
     }
-    function comecarSelecao(iguais) {
+    function comecarSelecao(iguais, aoTerminar) {
       if (executando) return;
       if (!conexao.disponivel()) { camada.aviso('Ligue o módulo "Conexão do jogo" e recarregue o hotel.', { tipo: 'erro' }); return; }
+      aoArea = typeof aoTerminar === 'function' ? aoTerminar : null;
       const mobi = iguais ? api.mobis.get(api.selecionado()) : null;
       if (iguais && !mobi) { camada.aviso('Clique primeiro no mobi que servirá de modelo.', { tipo: 'erro' }); return; }
       selecionando = true;
@@ -180,7 +194,7 @@
         : 'Clique no centro de um piso livre para calibrar e depois arraste a área. Descongele o personagem para calibrar.', { duracaoMs: 7000 });
       atualizarJanela();
     }
-    function pararSelecao() { if (selecionandoMotor) pedirMotor('cancelar'); selecionandoMotor = false; areaMotor = null; selecionando = false; selecionandoIguais = null; arrastandoSelecao = null; document.documentElement.removeAttribute('data-vl-selecionando'); atualizarJanela(); desenhar(); }
+    function pararSelecao() { aoArea = null; if (selecionandoMotor) pedirMotor('cancelar'); selecionandoMotor = false; areaMotor = null; selecionando = false; selecionandoIguais = null; arrastandoSelecao = null; document.documentElement.removeAttribute('data-vl-selecionando'); atualizarJanela(); desenhar(); }
     function selecionarIguais() {
       const m = api.mobis.get(api.selecionado());
       if (!m) { camada.aviso('Clique antes num mobi do chão.', { tipo: 'erro' }); return; }
@@ -298,6 +312,7 @@
         // fecha com o primeiro que chegar (pointerup ou mouseup) e segura o clique que vem depois,
         // senão o jogo faria o avatar andar até o piso
         ignorarCliqueAte = Date.now() + 500;
+        if (entregarArea({ x1: a.inicio.x, y1: a.inicio.y, x2: a.fim.x, y2: a.fim.y })) return;
         definirArea({ x1: a.inicio.x, y1: a.inicio.y, x2: a.fim.x, y2: a.fim.y }, selecionandoIguais);
         pararSelecao();
         const n = idsDaSelecao().length;

@@ -1084,18 +1084,67 @@
             direcao = m.direcao;
           }
           if (!Number.isInteger(classe) || classe <= 0) { camada.aviso('Uso: /preencher [tipo] (o número do tipo, como na aba Inventário).', { tipo: 'erro' }); return; }
-          return emLote(async function () {
-            const itens = await pedirInventario();
-            if (!itens) { camada.aviso('O inventário não respondeu.', { tipo: 'erro' }); return; }
-            const plano = codigos.planoPreencher(area, classe, [...mobis.values()], itens, direcao);
-            if (!plano.colocar.length) { camada.aviso(plano.faltam ? 'Não há mobis do tipo ' + classe + ' no chão do seu inventário.' : 'Todos os pisos da área já têm esse mobi.', { tipo: 'erro' }); return; }
-            const ok = await camada.confirmar('Colocar ' + plano.colocar.length + ' mobis do tipo ' + classe + ' na área ' + textoArea(area) + ', um por piso livre?' + (plano.faltam ? ' Faltam ' + plano.faltam + ' no inventário; esses pisos ficam vazios.' : ''), { titulo: 'Preencher área', sim: 'Colocar' });
-            if (!ok) return;
-            const feitos = await colocarLista(plano.colocar);
-            camada.aviso('Pronto: ' + feitos + ' mobis colocados.', { tipo: 'ok' });
-          });
+          return preencherArea(area, classe, direcao, 'mobis do tipo ' + classe);
         },
       });
+      function preencherArea(alvo, classe, direcao, nome) {
+        return emLote(async function () {
+          const itens = await pedirInventario();
+          if (!itens) { camada.aviso('O inventário não respondeu.', { tipo: 'erro' }); return; }
+          const plano = codigos.planoPreencher(alvo, classe, [...mobis.values()], itens, direcao);
+          if (!plano.colocar.length) { camada.aviso(plano.faltam ? 'Não há ' + nome + ' no seu inventário.' : 'Todos os pisos da área já têm esse mobi.', { tipo: 'erro' }); return; }
+          const ok = await camada.confirmar('Colocar ' + plano.colocar.length + ' ' + nome + ' na área ' + textoArea(alvo) + ', um por piso livre?' + (plano.faltam ? ' Faltam ' + plano.faltam + ' no inventário; esses pisos ficam vazios.' : ''), { titulo: 'Colocar vários', sim: 'Colocar' });
+          if (!ok) return;
+          const feitos = await colocarLista(plano.colocar);
+          camada.aviso('Pronto: ' + feitos + ' mobis colocados.', { tipo: 'ok' });
+        });
+      }
+
+      // "Colocar Vários" no inventário do jogo: pega o mobi escolhido (pelo ícone do cartão), fecha o
+      // inventário, deixa marcar a área no chão e põe um por piso livre.
+      async function colocarVarios() {
+        if (!conexao.disponivel()) { exigir(); return; }
+        if (!ferramenta) { camada.aviso('A ferramenta de construção não está pronta.', { tipo: 'erro' }); return; }
+        const inv = document.querySelector('.nitro-inventory');
+        const cartao = inv && inv.querySelector('.layout-grid-item.active');
+        const url = cartao && /url\(["']?([^"')]+)/.exec(cartao.style.backgroundImage || '');
+        if (!url) { camada.aviso('Escolha antes um mobi de chão no inventário.', { tipo: 'erro' }); return; }
+        let tipo = 0, ficha = null;
+        try {
+          const dados = await VL.dadosJogo.mobis();
+          for (const [id, f] of dados.chao) if (VL.dadosJogo.iconeDe(f.classe) === url[1]) { tipo = id; ficha = f; break; }
+        } catch (e) { /* sem os dados do jogo não dá para saber o tipo */ }
+        if (!tipo) { camada.aviso('Só dá para colocar vários mobis de chão (não achei o tipo deste).', { tipo: 'erro' }); return; }
+        const fechar = inv.querySelector('.nitro-card-header-close');
+        if (fechar) fechar.click();
+        camada.aviso('Arraste no chão para marcar onde colocar ' + (ficha.nome || 'o mobi') + '. Esc cancela.', { duracaoMs: 7000 });
+        ferramenta.comecarSelecao(false, function (alvo) {
+          const pisos = (alvo.x2 - alvo.x1 + 1) * (alvo.y2 - alvo.y1 + 1);
+          if (pisos > codigos.MAX_PISOS_PREENCHER) { camada.aviso('Área grande demais: ' + pisos + ' pisos (o máximo é ' + codigos.MAX_PISOS_PREENCHER + ').', { tipo: 'erro' }); return; }
+          preencherArea(alvo, tipo, 0, '"' + (ficha.nome || 'Tipo ' + tipo) + '"');
+        });
+      }
+      let vigiaInventario = 0;
+      function botaoColocarVarios() {
+        vigiaInventario = 0;
+        const inv = document.querySelector('.nitro-inventory');
+        if (!inv || inv.querySelector('.vl-colocar-varios')) return;
+        const nativo = [...inv.querySelectorAll('.btn-success')].find((b) => b.textContent.trim() === 'Colocar no Quarto');
+        if (!nativo) return;
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = nativo.className.replace('btn-success', 'btn-primary') + ' vl-colocar-varios';
+        b.textContent = 'Colocar Vários';
+        b.title = 'Marque uma área no chão e o Vagalume põe um destes mobis em cada piso livre';
+        b.style.marginTop = '6px';
+        b.addEventListener('click', function (ev) { ev.stopPropagation(); colocarVarios(); });
+        nativo.after(b);
+      }
+      if (typeof MutationObserver === 'function' && document.body) {
+        const observaInventario = new MutationObserver(function () { if (!vigiaInventario) vigiaInventario = requestAnimationFrame(botaoColocarVarios); });
+        observaInventario.observe(document.body, { childList: true, subtree: true });
+        ctx.aoParar(function () { observaInventario.disconnect(); cancelAnimationFrame(vigiaInventario); document.querySelectorAll('.vl-colocar-varios').forEach((e) => e.remove()); });
+      }
 
       ctx.comando({
         nome: 'limparrepetidos',
