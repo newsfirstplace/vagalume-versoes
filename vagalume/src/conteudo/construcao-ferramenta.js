@@ -38,7 +38,7 @@
       if (d.tipo === 'mapa') { mapaMotor = d; desenhar(); return; }
       if (d.tipo === 'quarto') { mapaMotor = null; limparSelecao(); return; }
       if (!selecionandoMotor) return;
-      if (d.tipo === 'area') { areaMotor = d.area; desenhar(); }
+      if (d.tipo === 'area') { areaMotor = d.area; desenhar(); avisarArea(d.area); }
       if (d.tipo === 'selecionada') {
         const tipo = selecionandoIguais;
         selecionandoMotor = false; areaMotor = null;
@@ -156,15 +156,22 @@
     // Seleção pedida por outra função (ex.: "Colocar Vários" do inventário): a área vai para ela e
     // não vira seleção de mobis.
     let aoArea = null;
+    let aoMudarArea = null; // recebe a área enquanto a pessoa arrasta (prévia dos mobis)
+    const normalizar = (a) => ({ x1: Math.min(a.x1, a.x2), y1: Math.min(a.y1, a.y2), x2: Math.max(a.x1, a.x2), y2: Math.max(a.y1, a.y2) });
+    function avisarArea(a) { if (aoMudarArea) aoMudarArea(normalizar(a)); }
     function entregarArea(a) {
       if (!aoArea) return false;
       const f = aoArea;
-      aoArea = null;
+      aoArea = null; aoMudarArea = null; // a prévia fica até quem pediu terminar
       limparSelecao();
-      f({ x1: Math.min(a.x1, a.x2), y1: Math.min(a.y1, a.y2), x2: Math.max(a.x1, a.x2), y2: Math.max(a.y1, a.y2) });
+      f(normalizar(a));
       return true;
     }
+    // Mobis só de prévia (desenhados pelo motor, sem ir ao servidor). Lista vazia tira todos.
+    function previaColocacao(tipo, direcao, pontos) { return pedirMotor('colocacao', { tipo, direcao: direcao || 0, pontos: pontos || [] }); }
+    function largarPreviaArea() { if (aoMudarArea) { aoMudarArea = null; previaColocacao(0, 0, []); } }
     function limparSelecao() {
+      largarPreviaArea();
       aoArea = null;
       pedirMotor('cancelar'); selecionandoMotor = false; areaMotor = null;
       selecao = null; arrastandoSelecao = null; modoDestino = null; destinoPreview = null; escolhendo = false;
@@ -172,10 +179,11 @@
       document.documentElement.removeAttribute('data-vl-selecionando');
       api.definirArea(null); atualizarJanela(); desenhar();
     }
-    function comecarSelecao(iguais, aoTerminar) {
+    function comecarSelecao(iguais, aoTerminar, aoMudar) {
       if (executando) return;
       if (!conexao.disponivel()) { camada.aviso('Ligue o módulo "Conexão do jogo" e recarregue o hotel.', { tipo: 'erro' }); return; }
       aoArea = typeof aoTerminar === 'function' ? aoTerminar : null;
+      aoMudarArea = aoArea && typeof aoMudar === 'function' ? aoMudar : null;
       const mobi = iguais ? api.mobis.get(api.selecionado()) : null;
       if (iguais && !mobi) { camada.aviso('Clique primeiro no mobi que servirá de modelo.', { tipo: 'erro' }); return; }
       selecionando = true;
@@ -194,7 +202,7 @@
         : 'Clique no centro de um piso livre para calibrar e depois arraste a área. Descongele o personagem para calibrar.', { duracaoMs: 7000 });
       atualizarJanela();
     }
-    function pararSelecao() { aoArea = null; if (selecionandoMotor) pedirMotor('cancelar'); selecionandoMotor = false; areaMotor = null; selecionando = false; selecionandoIguais = null; arrastandoSelecao = null; document.documentElement.removeAttribute('data-vl-selecionando'); atualizarJanela(); desenhar(); }
+    function pararSelecao() { largarPreviaArea(); aoArea = null; if (selecionandoMotor) pedirMotor('cancelar'); selecionandoMotor = false; areaMotor = null; selecionando = false; selecionandoIguais = null; arrastandoSelecao = null; document.documentElement.removeAttribute('data-vl-selecionando'); atualizarJanela(); desenhar(); }
     function selecionarIguais() {
       const m = api.mobis.get(api.selecionado());
       if (!m) { camada.aviso('Clique antes num mobi do chão.', { tipo: 'erro' }); return; }
@@ -286,7 +294,7 @@
         ev.stopImmediatePropagation();
         const local = paraLocal(c, ev.clientX, ev.clientY);
         const p = pisoDoLocal(local);
-        if (p.x !== arrastandoSelecao.fim.x || p.y !== arrastandoSelecao.fim.y) { arrastandoSelecao.fim = p; desenhar(); }
+        if (p.x !== arrastandoSelecao.fim.x || p.y !== arrastandoSelecao.fim.y) { arrastandoSelecao.fim = p; desenhar(); avisarArea({ x1: arrastandoSelecao.inicio.x, y1: arrastandoSelecao.inicio.y, x2: p.x, y2: p.y }); }
         return;
       }
       if (modoDestino && calibrado()) {
@@ -295,7 +303,10 @@
         const a = areaDaSelecao();
         if (a && (!destinoPreview || destinoPreview.x1 !== p.x || destinoPreview.y1 !== p.y)) {
           destinoPreview = { x1: p.x, y1: p.y, x2: p.x + a.x2 - a.x1, y2: p.y + a.y2 - a.y1 };
-          pedirMotor('destino', { dx: p.x - a.x1, dy: p.y - a.y1 });
+          // A prévia já mostra cada coluna apoiada no topo da pilha do piso de destino (como fica com "Empilhar por cima").
+          const lista = listaDaSelecao();
+          const encaixe = codigos.encaixeSobreMobis(lista, p.x - a.x1, p.y - a.y1, [...api.mobis.values()], modoDestino === 'mover' ? new Set(lista.map((m) => m.id)) : null);
+          pedirMotor('destino', { dx: p.x - a.x1, dy: p.y - a.y1, dz: Object.fromEntries(encaixe.deslocamentos) });
           desenhar();
         }
         return;
@@ -743,6 +754,6 @@
     ctx.aoParar(function () { pedirMotor('desativar'); });
     ctx.aoParar(function () { document.documentElement.removeAttribute('data-vl-ferramenta-integrada'); });
 
-    return { abrirJanela, comecarSelecao, selecionarIguais, selecionarPilha, limparSelecao, montarPainel };
+    return { abrirJanela, comecarSelecao, selecionarIguais, selecionarPilha, limparSelecao, montarPainel, previaColocacao };
   };
 })(typeof globalThis !== 'undefined' ? globalThis : this);

@@ -19,6 +19,10 @@
   let quarto = null;
   let ultimaGeometria = '';
   let ultimaSonda = 0;
+  let requisitar = null;
+  let classes = null;
+  let colocacao = null; // mobis só de prévia, criados localmente no quarto (ids negativos)
+  let proximoLocal = 0;
   const responder = (dado) => document.dispatchEvent(new CustomEvent('vl:construcao:pagina', { detail: JSON.stringify(dado) }));
 
   function preparar() {
@@ -29,6 +33,7 @@
     let req;
     const id = 'vl-construcao-' + Math.random().toString(36).slice(2);
     fila.push([[id], { [id]: (m, e, r) => { req = r; } }, [[id]]]);
+    requisitar = req;
     for (const m of Object.values(req && req.c || {})) {
       const e = m && m.exports;
       if (e && e.Ticker && e.Container && e.Sprite) { pixi = e; break; }
@@ -156,11 +161,69 @@
     desenharPrevia();
     return true;
   }
+  // Vetor (posição/direção) e dados "legados" do mobi, achados entre os módulos do cliente pelas
+  // marcas próprias de cada classe (os nomes vêm minificados).
+  function acharClasses() {
+    if (classes) return classes;
+    let Vetor = null, Dados = null;
+    for (const m of Object.values(requisitar && requisitar.c || {})) {
+      const e = m && m.exports;
+      if (!e || typeof e !== 'object') continue;
+      for (const v of Object.values(e)) {
+        if (typeof v !== 'function' || !v.prototype) continue;
+        if (!Vetor && typeof v.dotProduct === 'function' && typeof v.sum === 'function' && typeof v.dif === 'function') Vetor = v;
+        if (!Dados && 'FORMAT_KEY' in v && typeof v.prototype.getLegacyString === 'function' && typeof v.prototype.setString === 'function') Dados = v;
+      }
+      if (Vetor && Dados) break;
+    }
+    if (Vetor && Dados) classes = { Vetor, Dados };
+    return classes;
+  }
+  function pararColocacao() {
+    if (!colocacao) return;
+    const c = colocacao;
+    colocacao = null;
+    if (motor && motor.activeRoomId === c.quarto) for (const id of c.objetos.values()) { try { motor.removeRoomObjectFloor(c.quarto, id); } catch (e) { /* já saiu */ } }
+  }
+  // Mostra o mobi "tipo" em cada ponto {x,y,z}; os que já existem ficam, os que saíram são tirados.
+  function mostrarColocacao(d) {
+    const pontos = Array.isArray(d.pontos) ? d.pontos.slice(0, 400) : [];
+    if (!pontos.length) { pararColocacao(); return true; }
+    const k = acharClasses();
+    if (!motor || !k || !Number.isInteger(d.tipo) || d.tipo <= 0) return false;
+    if (colocacao && (colocacao.quarto !== motor.activeRoomId || colocacao.tipo !== d.tipo || colocacao.direcao !== d.direcao)) pararColocacao();
+    if (!colocacao) colocacao = { quarto: motor.activeRoomId, tipo: d.tipo, direcao: d.direcao, objetos: new Map(), novos: [] };
+    const querem = new Map();
+    for (const p of pontos) if (Number.isInteger(p.x) && Number.isInteger(p.y) && Number.isFinite(p.z)) querem.set(p.x + ',' + p.y + ',' + p.z, p);
+    for (const [chave, id] of colocacao.objetos) {
+      if (querem.has(chave)) { querem.delete(chave); continue; }
+      try { motor.removeRoomObjectFloor(colocacao.quarto, id); } catch (e) { /* já saiu */ }
+      colocacao.objetos.delete(chave);
+    }
+    for (const [chave, p] of querem) {
+      const id = -2000000 - (proximoLocal = (proximoLocal + 1) % 1000000);
+      motor.addFurnitureFloor(colocacao.quarto, id, d.tipo, new k.Vetor(p.x, p.y, p.z), new k.Vetor((d.direcao || 0) * 45), 0, new k.Dados());
+      colocacao.objetos.set(chave, id);
+      colocacao.novos.push(id);
+    }
+    return true;
+  }
+  // Os objetos entram no quarto no quadro seguinte: só então dá para deixá-los translúcidos.
+  function clarearColocacao() {
+    if (!colocacao || !colocacao.novos.length) return;
+    colocacao.novos = colocacao.novos.filter(function (id) {
+      const o = motor.getRoomObject(colocacao.quarto, id, 10);
+      if (!o) return true;
+      motor.objectEventHandler.setFurnitureAlphaMultiplier(o, .55);
+      return false;
+    });
+  }
   function desenharPrevia() {
     const c = cena();
     if (!previa || !c) return;
     for (const it of previa.itens) {
-      const p = projetar(c, it.x + previa.dx, it.y + previa.dy, it.z);
+      const destino = (it.x + previa.dx) + ',' + (it.y + previa.dy);
+      const p = projetar(c, it.x + previa.dx, it.y + previa.dy, it.z + (previa.dz && Number(previa.dz[destino]) || 0));
       if (!p) continue;
       it.sprite.position.set(p.x + it.caixa.x * c.scale, p.y + it.caixa.y * c.scale);
       it.sprite.scale.set(c.scale);
@@ -172,11 +235,11 @@
     // O renderer pode terminar de carregar depois do document_idle da extensão.
     if (!motor && !desfazerSonda && Date.now() - ultimaSonda > 2500) preparar();
     if (motor && motor.activeRoomId !== quarto) {
-      pararSelecao(); pararPrevia();
+      pararSelecao(); pararPrevia(); colocacao = null;
       quarto = motor.activeRoomId; ultimaGeometria = '';
       responder({ tipo: 'quarto', quarto });
     }
-    try { informarMapa(); desenharPrevia(); } catch (e) { pararSelecao(); pararPrevia(); }
+    try { informarMapa(); desenharPrevia(); clarearColocacao(); } catch (e) { pararSelecao(); pararPrevia(); }
     quadro = requestAnimationFrame(ciclo);
   }
 
@@ -192,11 +255,12 @@
         case 'previa': ok = prepararPrevia(d.ids, d.modo === 'mover'); break;
         case 'destino':
           ok = !!previa && Number.isInteger(d.dx) && Number.isInteger(d.dy) && Math.abs(d.dx) <= 200 && Math.abs(d.dy) <= 200;
-          if (ok) { previa.dx = d.dx; previa.dy = d.dy; desenharPrevia(); }
+          if (ok) { previa.dx = d.dx; previa.dy = d.dy; previa.dz = d.dz && typeof d.dz === 'object' ? d.dz : null; desenharPrevia(); }
           break;
+        case 'colocacao': ok = mostrarColocacao(d); break;
         case 'cancelar': pararSelecao(); pararPrevia(); break;
         case 'desativar':
-          ativo = false; pararSelecao(); pararPrevia();
+          ativo = false; pararSelecao(); pararPrevia(); pararColocacao();
           if (desfazerSonda) desfazerSonda();
           cancelAnimationFrame(quadro); quadro = 0; ultimaGeometria = '';
           document.documentElement.removeAttribute('data-vl-motor-construcao');

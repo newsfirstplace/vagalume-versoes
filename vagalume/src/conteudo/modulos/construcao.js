@@ -1087,17 +1087,22 @@
           return preencherArea(area, classe, direcao, 'mobis do tipo ' + classe);
         },
       });
-      function preencherArea(alvo, classe, direcao, nome) {
+      function preencherArea(alvo, classe, direcao, nome, itensProntos) {
+        const previa = (plano) => { if (ferramenta) ferramenta.previaColocacao(classe, direcao, plano ? plano.colocar.map((m) => ({ x: m.x, y: m.y, z: m.altura })) : []); };
         return emLote(async function () {
-          const itens = await pedirInventario();
-          if (!itens) { camada.aviso('O inventário não respondeu.', { tipo: 'erro' }); return; }
-          const plano = codigos.planoPreencher(alvo, classe, [...mobis.values()], itens, direcao);
-          if (!plano.colocar.length) { camada.aviso(plano.faltam ? 'Não há ' + nome + ' no seu inventário.' : 'Todos os pisos da área já têm esse mobi.', { tipo: 'erro' }); return; }
-          const ok = await camada.confirmar('Colocar ' + plano.colocar.length + ' ' + nome + ' na área ' + textoArea(alvo) + ', um por piso livre?' + (plano.faltam ? ' Faltam ' + plano.faltam + ' no inventário; esses pisos ficam vazios.' : ''), { titulo: 'Colocar vários', sim: 'Colocar' });
-          if (!ok) return;
-          const feitos = await colocarLista(plano.colocar);
-          camada.aviso('Pronto: ' + feitos + ' mobis colocados.', { tipo: 'ok' });
-        });
+          try {
+            const itens = itensProntos || await pedirInventario();
+            if (!itens) { camada.aviso('O inventário não respondeu.', { tipo: 'erro' }); return; }
+            const plano = codigos.planoPreencher(alvo, classe, [...mobis.values()], itens, direcao);
+            if (!plano.colocar.length) { camada.aviso(plano.faltam ? 'Não há ' + nome + ' no seu inventário.' : 'Todos os pisos da área já têm esse mobi.', { tipo: 'erro' }); return; }
+            previa(plano); // a prévia fica no quarto enquanto a confirmação está aberta
+            const ok = await camada.confirmar('Colocar ' + plano.colocar.length + ' ' + nome + ' na área ' + textoArea(alvo) + ', um por piso livre, em cima do que já estiver no piso?' + (plano.faltam ? ' Faltam ' + plano.faltam + ' no inventário; esses pisos ficam vazios.' : ''), { titulo: 'Colocar vários', sim: 'Colocar' });
+            previa(null);
+            if (!ok) return;
+            const feitos = await colocarLista(plano.colocar);
+            camada.aviso('Pronto: ' + feitos + ' mobis colocados.', { tipo: 'ok' });
+          } finally { previa(null); }
+        }).finally(() => previa(null)); // também quando outra tarefa ainda está rodando
       }
 
       // "Colocar Vários" no inventário do jogo: pega o mobi escolhido (pelo ícone do cartão), fecha o
@@ -1115,13 +1120,19 @@
           for (const [id, f] of dados.chao) if (VL.dadosJogo.iconeDe(f.classe) === url[1]) { tipo = id; ficha = f; break; }
         } catch (e) { /* sem os dados do jogo não dá para saber o tipo */ }
         if (!tipo) { camada.aviso('Só dá para colocar vários mobis de chão (não achei o tipo deste).', { tipo: 'erro' }); return; }
+        const itens = await pedirInventario();
+        if (!itens) { camada.aviso('O inventário não respondeu.', { tipo: 'erro' }); return; }
         const fechar = inv.querySelector('.nitro-card-header-close');
         if (fechar) fechar.click();
         camada.aviso('Arraste no chão para marcar onde colocar ' + (ficha.nome || 'o mobi') + '. Esc cancela.', { duracaoMs: 7000 });
+        const grande = (a) => (a.x2 - a.x1 + 1) * (a.y2 - a.y1 + 1) > codigos.MAX_PISOS_PREENCHER;
         ferramenta.comecarSelecao(false, function (alvo) {
-          const pisos = (alvo.x2 - alvo.x1 + 1) * (alvo.y2 - alvo.y1 + 1);
-          if (pisos > codigos.MAX_PISOS_PREENCHER) { camada.aviso('Área grande demais: ' + pisos + ' pisos (o máximo é ' + codigos.MAX_PISOS_PREENCHER + ').', { tipo: 'erro' }); return; }
-          preencherArea(alvo, tipo, 0, '"' + (ficha.nome || 'Tipo ' + tipo) + '"');
+          if (grande(alvo)) { ferramenta.previaColocacao(tipo, 0, []); camada.aviso('Área grande demais (o máximo é ' + codigos.MAX_PISOS_PREENCHER + ' pisos).', { tipo: 'erro' }); return; }
+          preencherArea(alvo, tipo, 0, '"' + (ficha.nome || 'Tipo ' + tipo) + '"', itens);
+        }, function (alvo) {
+          // Prévia ao vivo enquanto arrasta: os mobis aparecem em cada piso livre, em cima das pilhas.
+          const plano = grande(alvo) ? { colocar: [] } : codigos.planoPreencher(alvo, tipo, [...mobis.values()], itens, 0);
+          ferramenta.previaColocacao(tipo, 0, plano.colocar.map((m) => ({ x: m.x, y: m.y, z: m.altura })));
         });
       }
       let vigiaInventario = 0;

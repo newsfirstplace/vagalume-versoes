@@ -776,13 +776,20 @@
   const MAX_PISOS_PREENCHER = 400;
   function planoPreencher(area, classe, noQuarto, itens, direcao) {
     const ocupados = new Set(noQuarto.filter((m) => m.tipo === classe).map((m) => m.x + ',' + m.y));
+    // Em cima da pilha que já está no piso (topo = altura + altura do próprio mobi).
+    const topos = new Map();
+    for (const m of noQuarto) {
+      if (!Number.isFinite(m.altura) || !Number.isFinite(m.alturaMobi)) continue;
+      const k = m.x + ',' + m.y;
+      topos.set(k, Math.max(topos.get(k) || 0, Math.round((m.altura + m.alturaMobi) * 100) / 100));
+    }
     const ids = itens.filter((i) => i.chao && i.classe === classe).map((i) => i.id);
     const colocar = [];
     let faltam = 0;
     for (let y = area.y1; y <= area.y2; y++) {
       for (let x = area.x1; x <= area.x2; x++) {
         if (ocupados.has(x + ',' + y)) continue;
-        if (ids.length) colocar.push({ itemId: ids.shift(), x, y, direcao: direcao || 0, altura: 0 });
+        if (ids.length) colocar.push({ itemId: ids.shift(), x, y, direcao: direcao || 0, altura: topos.get(x + ',' + y) || 0 });
         else faltam++;
       }
     }
