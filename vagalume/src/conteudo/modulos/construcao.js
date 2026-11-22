@@ -500,14 +500,17 @@
         comprarFaltasDaCopia(copiaQuarto, 'Para montar esta cópia, faltam {n} mobis no seu inventário (os que estão no quarto não contam).');
       }
       // Compra (uma confirmação, com preços) os mobis da cópia que não estão no inventário. Devolve true se comprou algo.
-      async function comprarFaltasDaCopia(copia, motivo) {
+      // Devolve null (nada a comprar ou sem resposta), false (não comprou), true (comprou) ou 'cancelado'.
+      // itensProntos evita ler o inventário de novo; opcoes vai para a loja (botão "Continuar sem esses mobis").
+      async function comprarFaltasDaCopia(copia, motivo, itensProntos, opcoes) {
         if (!VL.loja || !VL.loja.comprarTipos) return false;
-        const itens = await pedirInventario();
-        if (!itens) return null; // null = nada a comprar ou sem resposta; false = não comprou
+        const itens = itensProntos || await pedirInventario();
+        if (!itens) return null;
         const faltam = codigos.planoDeColagem(copia, itens).faltam;
         const n = [...faltam.values()].reduce((s, q) => s + q, 0);
         if (!n) return null;
-        const compra = await VL.loja.comprarTipos([...faltam].map(([tipo, quantidade]) => ({ tipo, quantidade })), motivo.replace('{n}', n));
+        const compra = await VL.loja.comprarTipos([...faltam].map(([tipo, quantidade]) => ({ tipo, quantidade })), motivo.replace('{n}', n), opcoes);
+        if (compra && compra.cancelado) return 'cancelado';
         return !!(compra && compra.feitas);
       }
       function exportarQuarto() {
@@ -668,12 +671,14 @@
       // Planta: o editor de chão do jogo salva com uma mensagem só; o quarto recarrega depois.
       async function aplicarPlanta(p) {
         const pronto = esperarMensagem(ENTRADA.QUARTO_PRONTO, 15000);
+        const mobisChegaram = esperarMensagem(ENTRADA.MOBIS_DO_QUARTO, 20000);
         const comPorta = codigos.plantaComPorta(p.mapa, (copiaQuarto || []).filter((m) => !m.parede).map((m) => [m.x, m.y]));
         if (!comPorta) return null;
         const r = { ok: false, largura: comPorta.largura, altura: comPorta.altura, deslocar: comPorta.deslocar };
         if (!(await mandar(SAIDA.SALVAR_PLANTA, [['s', comPorta.mapa], ['i', comPorta.porta.x], ['i', comPorta.porta.y], ['i', comPorta.porta.direcao], ['i', p.parede], ['i', p.piso], ['i', p.alturaParede]]))) return r;
         if (!(await pronto)) return r;
-        await esperar(2500); // mobis do quarto recarregado
+        await Promise.race([mobisChegaram, esperar(4000)]); // a lista de mobis do quarto recarregado
+        await esperar(300);
         r.ok = true;
         return r;
       }
@@ -755,19 +760,30 @@
           if (extrasCopia.decoracao) partes.push(['decoracao', 'Papel de parede, piso e paisagem', true]);
           if (extrasCopia.regulador) partes.push(['regulador', 'Configuração do regulador de luz', true]);
           const marcas = {};
-          if (partes.length > 1) {
+          {
             const caixas = partes.map(function ([id, rotulo, ligado]) {
               const c = el('input', { type: 'checkbox', checked: ligado });
               marcas[id] = c;
               return el('label', { style: 'display:flex;gap:8px;align-items:center;margin:6px 0' }, [c, rotulo]);
             });
-            const ok = await camada.dialogo({ titulo: 'Colar quarto', texto: 'O que colar neste quarto? Funciona em quarto seu.', conteudo: el('div', null, caixas),
+            const ok = await camada.dialogo({ titulo: 'Colar quarto', texto: 'O que colar neste quarto? Funciona em quarto seu. Antes de começar, aparecem os mobis que faltam no inventário.', conteudo: el('div', null, caixas),
               botoes: [{ rotulo: 'Cancelar', valor: false }, { rotulo: 'Colar', valor: true, destaque: true, foco: true }] });
             if (!ok) return;
           }
           const quer = (id) => !marcas[id] || marcas[id].checked;
           const resumo = [];
           let copia = copiaQuarto; // com o floor aplicado, as posições seguem o mapa recortado
+          // Compra antes de tudo (pedido do usuário: a janela demorava a aparecer depois do floor): o
+          // inventário é lido uma vez agora, com o quarto parado, e reaproveitado se nada for comprado.
+          let itens = null, comprou = false;
+          if (quer('mobis')) {
+            camada.aviso('Conferindo o inventário…', { duracaoMs: 2500 });
+            itens = await pedirInventario();
+            if (!itens) { camada.aviso('O inventário não respondeu.', { tipo: 'erro' }); return; }
+            const c = await comprarFaltasDaCopia(copiaQuarto, 'Faltam {n} mobis no seu inventário para colar o quarto inteiro.', itens, { pular: 'Continuar sem esses mobis' });
+            if (c === 'cancelado') { camada.aviso('Colagem cancelada.'); return; }
+            comprou = c === true;
+          }
           if (extrasCopia.planta && quer('planta')) {
             camada.aviso('Aplicando o floor do quarto…');
             const r = await aplicarPlanta(extrasCopia.planta);
@@ -775,33 +791,32 @@
             if (r && r.ok) { copia = codigos.deslocarCopia(copiaQuarto, r.deslocar); resumo.push('floor aplicado' + tam); }
             else resumo.push('o floor' + tam + ' não foi aplicado (o hotel recusou: quarto que não é seu ou floor maior do que a sua conta pode criar)');
           }
-          if (extrasCopia.decoracao && quer('decoracao')) {
-            const r = await aplicarDecoracao(extrasCopia.decoracao);
-            if (r.feitos.length) resumo.push(r.feitos.join(', ') + ' ok');
-            if (r.faltaram.length) resumo.push('sem ' + r.faltaram.join(', ') + ' (não achei no inventário nem na loja)');
+          async function decoracaoERegulador() {
+            if (extrasCopia.decoracao && quer('decoracao')) {
+              const r = await aplicarDecoracao(extrasCopia.decoracao);
+              if (r.feitos.length) resumo.push(r.feitos.join(', ') + ' ok');
+              if (r.faltaram.length) resumo.push('sem ' + r.faltaram.join(', ') + ' (não achei no inventário nem na loja)');
+            }
+            if (extrasCopia.regulador && quer('regulador')) resumo.push((await aplicarRegulador(extrasCopia.regulador)) ? 'regulador configurado' : 'sem regulador de luz no quarto');
           }
           if (!quer('mobis')) {
-            if (extrasCopia.regulador && quer('regulador')) resumo.push((await aplicarRegulador(extrasCopia.regulador)) ? 'regulador configurado' : 'sem regulador de luz no quarto');
+            await decoracaoERegulador();
             camada.aviso('Pronto: ' + resumo.join('; ') + '.', { duracaoMs: 10000 });
             return;
           }
-          const comprou = await comprarFaltasDaCopia(copia, 'Faltam {n} mobis no seu inventário para colar o quarto inteiro.');
-          let itens = null, plano = null;
-          // Depois da compra, o inventário pode demorar a mostrar os novos: lê de novo até 3 vezes.
-          for (let i = 0; i < (comprou ? 3 : 1); i++) {
-            itens = await pedirInventario();
-            if (itens) plano = codigos.planoDeColagem(copia, itens);
-            if (!comprou || (plano && !plano.faltam.size)) break;
+          // Depois de comprar, o inventário pode demorar a mostrar os novos: lê de novo até 3 vezes.
+          let plano = codigos.planoDeColagem(copia, itens);
+          for (let i = 0; comprou && i < 3; i++) {
+            const novos = await pedirInventario();
+            if (novos) { itens = novos; plano = codigos.planoDeColagem(copia, itens); }
+            if (!plano.faltam.size) break;
             await esperar(400);
           }
-          if (!itens) { camada.aviso('O inventário não respondeu.', { tipo: 'erro' }); return; }
           const faltam = [...plano.faltam.values()].reduce((s, n) => s + n, 0);
           if (!plano.colocar.length) { camada.aviso('Nenhum dos mobis da cópia está no seu inventário.', { tipo: 'erro' }); return; }
-          const ok = await camada.confirmar('Colocar ' + plano.colocar.length + ' mobis do seu inventário neste quarto, nas posições da cópia?' + (faltam ? ' ' + faltam + ' não estão no inventário (raros, LTD ou que não deu para comprar); o resto é colocado sem eles.' : ''),
-            { titulo: 'Colar quarto', sim: 'Colocar' });
-          if (!ok) return;
+          camada.aviso('Colocando ' + plano.colocar.length + ' mobis' + (faltam ? ' (' + faltam + ' ficam de fora)' : '') + '…', { duracaoMs: 4000 });
           const feitos = await colocarLista(plano.colocar);
-          if (extrasCopia.regulador && quer('regulador')) { await esperar(500); resumo.push((await aplicarRegulador(extrasCopia.regulador)) ? 'regulador configurado' : 'sem regulador de luz no quarto'); }
+          await decoracaoERegulador();
           ultimaCopiaColada = copia;
           setTimeout(function () { if (ctx.ativo('construcao')) mostrarConferencia(copia); }, 1500);
           camada.aviso('Pronto: ' + feitos + ' mobis colocados' + (resumo.length ? '; ' + resumo.join('; ') : '') + '.' + (estadosDiferentes ? ' ' + estadosDiferentes + ' ficaram com o estado diferente da cópia (o hotel não aceitou fixar).' : ''), { tipo: estadosDiferentes ? 'erro' : 'ok', duracaoMs: 10000 });

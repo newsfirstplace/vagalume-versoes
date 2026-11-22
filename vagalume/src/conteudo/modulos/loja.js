@@ -161,7 +161,9 @@
       // lista: [{ tipo, quantidade }].
       const MAX_TIPOS_COMPRA = 1000, MAX_UNIDADES_COMPRA = 5000;
       let comprandoLote = false;
-      async function comprarTipos(lista, motivo) {
+      // opcoes.pular: rótulo de um terceiro botão (seguir sem comprar). Com ele, Cancelar devolve { cancelado: true }.
+      async function comprarTipos(lista, motivo, opcoes) {
+        const pular = opcoes && opcoes.pular;
         if (!conexao.disponivel()) { camada.aviso('Ligue o módulo "Conexão do jogo" e recarregue o hotel.', { tipo: 'erro' }); return; }
         if (!VL.dadosJogo) return;
         if (comprandoLote) { camada.aviso('Já há uma compra em andamento.', { tipo: 'erro' }); return; }
@@ -192,8 +194,11 @@
           titulo: 'Comprar mobis',
           texto: (motivo ? motivo + ' ' : '') + 'Comprar ' + unidades + (unidades === 1 ? ' mobi' : ' mobis') + ' de ' + pedidos.size + (pedidos.size === 1 ? ' tipo' : ' tipos') + '.' + notaFora + ' O Vagalume compra um tipo depois do outro, só os vendidos em moedas.',
           itens: [...pedidos].map(([tipo, p]) => ({ nome: nomeDe(tipo, p), icone: p.f ? VL.dadosJogo.iconeDe(p.f.classe) : null, quantidade: p.quantidade })),
-          botoes: [{ rotulo: 'Cancelar', valor: false, foco: true }, { rotulo: 'Comprar', valor: true, destaque: true }],
+          botoes: pular
+            ? [{ rotulo: 'Cancelar', valor: 'cancelar' }, { rotulo: pular, valor: false, foco: true }, { rotulo: 'Comprar', valor: true, destaque: true }]
+            : [{ rotulo: 'Cancelar', valor: false, foco: true }, { rotulo: 'Comprar', valor: true, destaque: true }],
         });
+        if (pular && ok !== true && ok !== false) return { cancelado: true }; // Cancelar ou Esc
         if (!ok) return;
         comprandoLote = true;
         // Ofertas casadas pelo tipo do mobi (uma resposta atrasada não vai para o tipo errado).
@@ -257,11 +262,14 @@
         const paginas = await pedirIndice();
         if (!paginas) return false;
         const candidatas = paginas.filter((p) => /papel|parede|piso|paisag|espaco|ambiente|wallpaper|floor|landscape/.test(codigos.semAcento(p.rotulo + ' ' + p.nome))).slice(0, 30);
-        for (const p of candidatas) {
-          const pagina = await pedirPagina(p.id);
-          if (!pagina) continue;
-          const of = pagina.ofertas.find((o) => o.produtos.length === 1 && o.produtos[0].classe === classe && String(o.produtos[0].extra) === String(valor) && !(o.pontos > 0));
-          if (of) return comprar({ pagina: pagina.id, oferta: of.id, extra: String(valor), quantidade: 1 });
+        // Seis páginas por vez (antes uma por uma, com até 6 s de espera cada).
+        for (let i = 0; i < candidatas.length; i += 6) {
+          const paginasLidas = await Promise.all(candidatas.slice(i, i + 6).map((p) => pedirPagina(p.id)));
+          for (const pagina of paginasLidas) {
+            if (!pagina) continue;
+            const of = pagina.ofertas.find((o) => o.produtos.length === 1 && o.produtos[0].classe === classe && String(o.produtos[0].extra) === String(valor) && !(o.pontos > 0));
+            if (of) return comprar({ pagina: pagina.id, oferta: of.id, extra: String(valor), quantidade: 1 });
+          }
         }
         return false;
       }
