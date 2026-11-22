@@ -12,6 +12,8 @@
     PEDIR_REGULADOR: 2813,    // ITEM_DIMMER_SETTINGS -> 2710
     SALVAR_REGULADOR: 1648,   // ITEM_DIMMER_SAVE: i efeito, i tipo, s cor "#RRGGBB", i claridade, b aplicar
     LIGAR_REGULADOR: 2296,    // ITEM_DIMMER_TOGGLE (liga/desliga)
+    TONALIZADOR: 2880,        // ROOM_TONER_APPLY: i id, i matiz, i saturação, i claridade (0 a 255; cliente 3495)
+    DADOS_OBJETO: 3608,       // SET_OBJECT_DATA: i id, i 2×pares, s chave, s valor… (imagem de fundo e afins)
     ANDAR: 3320,          // i x, i y
     FALAR: 1314,          // s texto, i estilo
     ENTRAR_GRUPO: 998,    // i grupo (GROUP_REQUEST do cliente)
@@ -82,6 +84,9 @@
     MOBI_PAREDE_ATUALIZADO: 2009, // ITEM_WALL_UPDATE
     MOBI_PAREDE_RETIRADO: 3208,   // ITEM_WALL_REMOVE: s id, i dono
     REGULADOR: 2710,          // ITEM_DIMMER_SETTINGS: i nº, i selecionado, por efeito: i id, i tipo, s cor, i claridade
+    ALERTA: 3801,             // GENERIC_ALERT: s texto, b aviso
+    NOTIFICACAO: 1992,        // NOTIFICATION_LIST: s tipo, i nº, s chave, s valor…
+    ALERTA_SIMPLES: 5100,     // NOTIFICATION_SIMPLE_ALERT: s texto, s título (opcional)
     FALA: 1446,           // i índice, s texto, i gesto, i estilo, links, i controle
     GRITO: 1036,          // igual à fala
     SUSSURRO: 2704,       // igual à fala (UNIT_CHAT_WHISPER); também a cópia do que você sussurra
@@ -314,14 +319,16 @@
 
   // Dados extras de um mobi. Só o formato 0 foi visto no Habblet; os outros seguem a forma
   // conhecida do protocolo desse tipo de cliente e não foram conferidos. Devolve o estado em texto.
-  function lerDadosExtras(l) {
+  function lerDadosExtras(l, det) {
     const formato = l.inteiro();
     let estado = '';
     switch (formato & 0xff) {
       case 0: estado = l.texto(); break;
       case 1: {
         const n = l.inteiro();
-        for (let i = 0; i < n; i++) { const k = l.texto(); const v = l.texto(); if (k === 'state') estado = v; }
+        const mapa = {};
+        for (let i = 0; i < n; i++) { const k = l.texto(); const v = l.texto(); if (k === 'state') estado = v; else if (i < 20) mapa[k] = v; }
+        if (det && Object.keys(mapa).length) det.mapa = mapa;
         break;
       }
       case 2: {
@@ -333,7 +340,9 @@
       case 4: break;
       case 5: {
         const n = l.inteiro();
-        for (let i = 0; i < n; i++) { const v = l.inteiro(); if (i === 0) estado = String(v); }
+        const numeros = [];
+        for (let i = 0; i < n; i++) { const v = l.inteiro(); if (i === 0) estado = String(v); if (i < 8) numeros.push(v); }
+        if (det) det.numeros = numeros;
         break;
       }
       case 6: {
@@ -360,11 +369,15 @@
     const textoAlturaMobi = l.texto();
     const alturaMobi = textoAlturaMobi === '' ? null : Number(textoAlturaMobi);
     l.inteiro(); // extra
-    const estado = lerDadosExtras(l);
+    const det = {};
+    const estado = lerDadosExtras(l, det);
     l.inteiro(); // validade
     l.inteiro(); // uso
     const dono = l.inteiro();
-    return { id, tipo, x, y, direcao, altura: Number.isFinite(altura) ? altura : 0, alturaMobi: Number.isFinite(alturaMobi) ? alturaMobi : null, estado, dono };
+    const m = { id, tipo, x, y, direcao, altura: Number.isFinite(altura) ? altura : 0, alturaMobi: Number.isFinite(alturaMobi) ? alturaMobi : null, estado, dono };
+    if (det.numeros) m.numeros = det.numeros; // toner de fundo: [ligado, matiz, saturação, claridade]
+    if (det.mapa) m.mapa = det.mapa;          // imagem de fundo e afins: imageUrl, offsetX…
+    return m;
   }
 
   // Lista do 1778: { donos: Map(id -> nome), mobis: [...], incompleto }.
@@ -422,9 +435,9 @@
       const x = leitor.inteiro();
       const y = leitor.inteiro();
       leitor.texto(); // altura
-      leitor.inteiro(); // direção
+      const direcao = leitor.inteiro();
       const tipo = leitor.inteiro();
-      const entidade = { id, nome, indice, x, y, tipo, visual, genero: '', pontos: null, grupo: -1, grupoNome: '', missao, inicio, fim: null };
+      const entidade = { id, nome, indice, x, y, direcao, tipo, visual, genero: '', pontos: null, grupo: -1, grupoNome: '', missao, inicio, fim: null };
       lista.push(entidade);
       // 2 pet, 3 bot, 4 bot alugável: formatos lidos no cliente do jogo em 2026-11-13 (não vistos ao vivo).
       if (tipo === 2) {
@@ -641,6 +654,9 @@
     if (mapa && mapa.length <= 28000 && /^[0-9a-zA-Z\r]+$/.test(mapa) && inteiro(p.alturaParede, -1, 64)) {
       // Espessuras de -2 a 1 (como o jogo manda); sem elas, a normal (0).
       saida.planta = { mapa, alturaParede: p.alturaParede, parede: inteiro(p.parede, -2, 1) ? p.parede : 0, piso: inteiro(p.piso, -2, 1) ? p.piso : 0 };
+      const porta = p.porta;
+      if (porta && inteiro(porta.x, 0, 255) && inteiro(porta.y, 0, 255) && inteiro(porta.direcao, 0, 7)) saida.planta.porta = { x: porta.x, y: porta.y, direcao: porta.direcao };
+      if (typeof p.esconderParedes === 'boolean') saida.planta.esconderParedes = p.esconderParedes;
     }
     if (o.decoracao && typeof o.decoracao === 'object') {
       const d = {};
@@ -654,71 +670,76 @@
     }
     return saida;
   }
-  // Planta para colar com uma porta separada de onde os mobis vão (pedido do usuário em 2026-11-22: quem
-  // entra não pode ficar em cima de um piso da cópia). O hotel recusa floor grande demais ("modelo muito
-  // grande"), então primeiro tenta sem aumentar o mapa: (1) um piso novo num buraco do mapa ("x" ao lado
-  // de um piso), longe dos mobis; (2) um piso livre da cópia, longe dos mobis; (3) só então um corredor
-  // para fora (direita ou embaixo). Nenhuma posição da cópia muda; linhas e colunas vazias do fim saem.
-  // ocupados: [[x, y], ...] dos mobis da cópia. Devolve { mapa, porta: { x, y, direcao } } ou null.
-  function plantaComPorta(mapaTexto, ocupados, distancia) {
-    const d = Math.max(2, Math.floor(distancia || 4));
+  // Floor para colar (pedido do usuário em 2026-11-22: "pegue o floor original", Ctrl+C e Ctrl+V): o mapa do
+  // quarto copiado e a porta dele. Só saem linhas e colunas inteiras sem piso das bordas (o hotel recusa
+  // mapa grande demais e conta essas bordas; o formato do chão fica igual): quem cola desloca mobis e
+  // porta por "deslocar". Sem a porta (cópia antiga), um piso da borda sem mobi da cópia.
+  // ocupados: [[x, y], ...] dos mobis da cópia (só para a porta de reserva). Devolve null se não há piso.
+  function plantaParaColar(p, ocupados) {
     const valido = (c) => !!c && c !== 'x' && c !== 'X';
-    const linhas = String(mapaTexto || '').split(/\r\n|\r|\n/);
+    const linhas = String((p && p.mapa) || '').split(/\r\n|\r|\n/);
     let largura = Math.max(0, ...linhas.map((l) => l.length));
-    let grade = linhas.map((l) => l.padEnd(largura, 'x').split(''));
+    const grade = linhas.map((l) => l.padEnd(largura, 'x').split(''));
     while (grade.length && !grade[grade.length - 1].some(valido)) grade.pop();
     while (largura && !grade.some((l) => valido(l[largura - 1]))) { largura--; grade.forEach((l) => l.pop()); }
-    // Bordas vazias do começo também saem (o hotel conta o tamanho do mapa inteiro); quem cola desloca
-    // os mobis por { x: dx, y: dy } (devolvido em "deslocar").
     let dy = 0, dx = 0;
     while (grade.length && !grade[0].some(valido)) { grade.shift(); dy++; }
     while (largura && !grade.some((l) => valido(l[0]))) { largura--; dx++; grade.forEach((l) => l.shift()); }
     const altura = grade.length;
     if (!altura || !largura) return null;
-    const deslocar = { x: dx, y: dy };
-    const texto = () => grade.map((l) => l.join('')).join('\r');
-    const mobis = (ocupados || []).filter((p) => Array.isArray(p) && Number.isInteger(p[0]) && Number.isInteger(p[1])).map((p) => [p[0] - dx, p[1] - dy]);
-    const ocupado = new Set(mobis.map((p) => p[0] + ',' + p[1]));
-    const longe = (x, y) => mobis.reduce((m, p) => Math.min(m, Math.max(Math.abs(p[0] - x), Math.abs(p[1] - y))), 99);
-    // Vizinhos na ordem oeste, leste, norte, sul; a direção é para onde quem entra olha (para o quarto).
-    const VIZ = [[-1, 0, 6], [1, 0, 2], [0, -1, 0], [0, 1, 4]];
-    let buraco = null, livre = null;
-    for (let y = 0; y < altura; y++) {
-      for (let x = 0; x < largura; x++) {
-        const dist = longe(x, y);
-        if (!valido(grade[y][x])) {
-          const v = VIZ.find(([dx, dy]) => grade[y + dy] && valido(grade[y + dy][x + dx]));
-          if (v && (!buraco || dist > buraco.dist)) buraco = { x, y, dist, h: grade[y + v[1]][x + v[0]], direcao: v[2] };
-        } else if (!ocupado.has(x + ',' + y) && (!livre || dist > livre.dist)) {
-          const v = VIZ.find(([dx, dy]) => grade[y + dy] && valido(grade[y + dy][x + dx]));
-          livre = { x, y, dist, direcao: v ? v[2] : 2 };
+    const piso = (x, y) => valido((grade[y] || [])[x]);
+    const original = p.porta && piso(p.porta.x - dx, p.porta.y - dy);
+    let porta = original ? { x: p.porta.x - dx, y: p.porta.y - dy, direcao: p.porta.direcao } : null;
+    if (!porta) {
+      // Reserva: o primeiro piso da borda (vizinho de fora do chão) sem mobi da cópia, virado para dentro.
+      const ocupado = new Set((ocupados || []).map((q) => (q[0] - dx) + ',' + (q[1] - dy)));
+      const VIZ = [[-1, 0, 2], [0, -1, 4], [1, 0, 6], [0, 1, 0]];
+      for (let x = 0; x < largura && !porta; x++) {
+        for (let y = 0; y < altura && !porta; y++) {
+          if (!piso(x, y) || ocupado.has(x + ',' + y)) continue;
+          const fora = VIZ.find(([vx, vy]) => !piso(x + vx, y + vy));
+          if (fora) porta = { x, y, direcao: fora[2] };
         }
       }
     }
-    if (buraco && buraco.dist >= 2) {
-      grade[buraco.y][buraco.x] = buraco.h;
-      return { mapa: texto(), porta: { x: buraco.x, y: buraco.y, direcao: buraco.direcao }, deslocar, largura, altura };
+    if (!porta) return null;
+    return { mapa: grade.map((l) => l.join('')).join('\r'), porta, portaOriginal: !!original, deslocar: { x: dx, y: dy }, largura, altura };
+  }
+  // Altura do piso (x, y) no mapa do floor: 0 a 9 e depois letras (a = 10); null fora do chão.
+  function alturaDoPiso(mapa, x, y) {
+    const linha = String(mapa || '').split(/\r\n|\r|\n/)[y];
+    const c = linha ? linha[x] : undefined;
+    if (!c || c === 'x' || c === 'X') return null;
+    const n = parseInt(c, 36);
+    return Number.isFinite(n) ? n : null;
+  }
+  // Texto de um aviso do hotel (3801, 1992 ou 5100) e, quando é do editor de chão, o motivo em português.
+  function lerAlerta(codigo, l) {
+    if (codigo === ENTRADA.NOTIFICACAO) {
+      const tipo = l.texto();
+      const n = l.inteiro();
+      const valores = [];
+      for (let i = 0; i < n && i < 20; i++) { const k = l.texto(); const v = l.texto(); if (/message|texto|title/i.test(k) || i === 0) valores.push(v); }
+      return { tipo, texto: valores.join(' ') };
     }
-    if (livre && livre.dist >= 3) return { mapa: texto(), porta: { x: livre.x, y: livre.y, direcao: livre.direcao }, deslocar, largura, altura };
-    // Corredor para fora, no lado que deixa o quarto menos comprido.
-    let dir = null, baixo = null;
-    for (let y = 0; y < altura; y++) {
-      for (let x = largura - 1; x >= 0; x--) if (valido(grade[y][x])) { if (!dir || x > dir.max) dir = { max: x, lista: [] }; if (x === dir.max) dir.lista.push(y); break; }
-    }
-    for (let x = 0; x < largura; x++) {
-      for (let y = altura - 1; y >= 0; y--) if (valido(grade[y][x])) { if (!baixo || y > baixo.max) baixo = { max: y, lista: [] }; if (y === baixo.max) baixo.lista.push(x); break; }
-    }
-    const meio = (lista) => lista[Math.floor((lista.length - 1) / 2)];
-    if (Math.max(largura + d, altura) <= Math.max(largura, altura + d)) {
-      const y = meio(dir.lista), h = grade[y][dir.max], portaX = largura + d - 1;
-      for (const linha of grade) while (linha.length <= portaX) linha.push('x');
-      for (let x = dir.max + 1; x <= portaX; x++) grade[y][x] = h;
-      return { mapa: texto(), porta: { x: portaX, y, direcao: 6 }, deslocar, largura: portaX + 1, altura };
-    }
-    const x = meio(baixo.lista), h = grade[baixo.max][x], portaY = altura + d - 1;
-    while (grade.length <= portaY) grade.push(new Array(largura).fill('x'));
-    for (let y = baixo.max + 1; y <= portaY; y++) grade[y][x] = h;
-    return { mapa: texto(), porta: { x, y: portaY, direcao: 0 }, deslocar, largura, altura: portaY + 1 };
+    return { tipo: '', texto: l.texto() };
+  }
+  const MOTIVOS_FLOOR = Object.freeze({
+    change_blocked_by_room_item: 'há mobis em pisos que deixariam de existir',
+    entry_tile_outside_map: 'a porta ficou fora do chão',
+    entry_not_on_tile: 'a porta ficou fora do chão',
+    invalid_door_setup: 'a porta não é aceita nesse lugar',
+    too_large_area: 'o quarto passa do tamanho que o hotel deixa',
+    too_large_height: 'o quarto passa do tamanho que o hotel deixa',
+    too_large_width: 'o quarto passa do tamanho que o hotel deixa',
+    effective_height_is_0: 'o mapa ficou vazio',
+    effective_width_is_0: 'o mapa ficou vazio',
+  });
+  function motivoDoFloor(texto) {
+    const t = String(texto || '');
+    const chaves = [...t.matchAll(/floorplan_editor\.error\.message\.([a-z_0-9]+)/gi)].map((m) => m[1].toLowerCase());
+    const motivos = [...new Set(chaves.map((k) => MOTIVOS_FLOOR[k] || k.replace(/_/g, ' ')))];
+    return motivos.length ? motivos.join('; ') : t.replace(/\$\{[^}]*\}/g, '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 200).replace(/[\s.!]+$/, '');
   }
   // A cópia levada para o floor recortado: chão por x e y, parede pelo ":w=x,y" (o "l=" é dentro da parede).
   function deslocarCopia(copia, d) {
@@ -762,12 +783,26 @@
     if (typeof v === 'number') return Number.isInteger(v) && v >= 0 && v <= 999999 ? v : null;
     return typeof v === 'string' && /^\d{1,6}$/.test(v) ? Number(v) : null;
   }
+  // Dados especiais que a cópia guarda: números (toner: ligado, matiz, saturação, claridade) e pares de
+  // texto (imagem de fundo). Limites para o que vem de arquivo.
+  function numerosValidos(v) {
+    return Array.isArray(v) && v.length && v.length <= 8 && v.every((n) => Number.isInteger(n) && n >= -1 && n <= 999999) ? v.slice() : null;
+  }
+  function mapaValido(o) {
+    if (!o || typeof o !== 'object' || Array.isArray(o)) return null;
+    const pares = Object.entries(o).filter(([k, v]) => k !== 'state' && /^[A-Za-z0-9_.-]{1,40}$/.test(k) && typeof v === 'string' && v.length <= 500);
+    return pares.length && pares.length <= 20 ? Object.fromEntries(pares) : null;
+  }
   function copiaDoQuarto(lista, paredes) {
     const deParede = (paredes || []).filter((m) => Number.isInteger(m.tipo) && LOCAL_PAREDE.test(m.local)).map((m) => ({ parede: true, tipo: m.tipo, local: m.local }));
     return lista.map(function (m) {
       const c = { tipo: m.tipo, x: m.x, y: m.y, direcao: m.direcao, altura: alturaDoMobi(m.altura) || 0 };
+      const numeros = numerosValidos(m.numeros);
+      const mapa = mapaValido(m.mapa);
+      if (numeros) c.numeros = numeros;
+      if (mapa) c.mapa = mapa;
       const e = estadoNumero(m.estado);
-      if (e != null) c.estado = e;
+      if (e != null && !numeros && !mapa) c.estado = e;
       return c;
     }).concat(deParede)
       .sort((a, b) => a.altura - b.altura || a.y - b.y || a.x - b.x);
@@ -789,7 +824,8 @@
       const altura = alturaDoMobi(m.altura == null ? 0 : m.altura);
       if (!ok || altura == null) return null;
       if (m.estado != null && estadoNumero(m.estado) == null) return null;
-      saida.push({ tipo: m.tipo, x: m.x, y: m.y, direcao: m.direcao, altura, estado: m.estado });
+      if ((m.numeros != null && !numerosValidos(m.numeros)) || (m.mapa != null && !mapaValido(m.mapa))) return null;
+      saida.push({ tipo: m.tipo, x: m.x, y: m.y, direcao: m.direcao, altura, estado: m.estado, numeros: m.numeros, mapa: m.mapa });
     }
     return copiaDoQuarto(saida, paredes);
   }
@@ -812,6 +848,8 @@
         const c = { itemId: ids.shift(), x: m.x, y: m.y, direcao: m.direcao, altura: m.altura };
         const e = estadoNumero(m.estado);
         if (e != null) c.estado = e;
+        if (m.numeros) c.numeros = m.numeros;
+        if (m.mapa) c.mapa = m.mapa;
         colocar.push(c);
       }
       else {
@@ -1078,7 +1116,7 @@
     return { id, nome, visual, genero };
   }
 
-  const api = { conferirCopia, deslocarCopia, plantaComPorta, lerPlanta, lerEspessura, lerPorta, lerDecoracao, lerMobiParede, lerMobisParede, lerRegulador, reguladorLigado, LOCAL_PAREDE, CLASSE_DECORACAO, validarExtrasQuarto, mobiRaro, estadoNumero, origemDaAmostra, pisoNaTela, telaNoPiso, origemMediana, cantosDaArea, planoGirarArea, planoEspelharArea, planoEscada, caminhoPaginaLoja, semAcento, acharPaginasLoja, MAX_PISOS_PREENCHER, MAX_CAMADAS, planoPreencher, lerCompra, resumoCarrinho, areaDe, mobisNaArea, planoMoverArea, planoDuplicar, planoSubstituir, repetidos, lerMeusDados, FEIRA_ESTADO, lerConfigFeira, lerOfertaFeira, lerOfertasFeira, lerMinhasOfertas, ofertasParaRepor, copiaDoQuarto, validarCopiaQuarto, planoDeColagem, SALVAR_WIRED, lerVisuais, visualValido, lerIndiceLoja, lerPaginaLoja, lerItemInventario, lerInventario, planoDeCompra, EXPRESSAO_INATIVO, lerAmigos, lerAmigo, lerAtualizacaoAmigos, lerMensagemRecebida, mencaoNaFala, referenciasDeQuarto, MAX_ALTURA, alturaValida, alturaDoMobi, SAIDA, ENTRADA, EXPRESSOES, MAX_DANCA, DANCAS_EXTRAS, MAX_PLACA, lerUmaOferta, lerFala, lerUsuarios, filtrarUsuarios, trocarPosicao, lerEstados, destinoDoMovimento, passo, PASSOS, EIXOS_SETAS, passoSetas, LADOS, NOMES_LADOS, linhasAoEntrar,
+  const api = { conferirCopia, deslocarCopia, plantaParaColar, alturaDoPiso, lerAlerta, motivoDoFloor, lerPlanta, lerEspessura, lerPorta, lerDecoracao, lerMobiParede, lerMobisParede, lerRegulador, reguladorLigado, LOCAL_PAREDE, CLASSE_DECORACAO, validarExtrasQuarto, mobiRaro, estadoNumero, origemDaAmostra, pisoNaTela, telaNoPiso, origemMediana, cantosDaArea, planoGirarArea, planoEspelharArea, planoEscada, caminhoPaginaLoja, semAcento, acharPaginasLoja, MAX_PISOS_PREENCHER, MAX_CAMADAS, planoPreencher, lerCompra, resumoCarrinho, areaDe, mobisNaArea, planoMoverArea, planoDuplicar, planoSubstituir, repetidos, lerMeusDados, FEIRA_ESTADO, lerConfigFeira, lerOfertaFeira, lerOfertasFeira, lerMinhasOfertas, ofertasParaRepor, copiaDoQuarto, validarCopiaQuarto, planoDeColagem, SALVAR_WIRED, lerVisuais, visualValido, lerIndiceLoja, lerPaginaLoja, lerItemInventario, lerInventario, planoDeCompra, EXPRESSAO_INATIVO, lerAmigos, lerAmigo, lerAtualizacaoAmigos, lerMensagemRecebida, mencaoNaFala, referenciasDeQuarto, MAX_ALTURA, alturaValida, alturaDoMobi, SAIDA, ENTRADA, EXPRESSOES, MAX_DANCA, DANCAS_EXTRAS, MAX_PLACA, lerUmaOferta, lerFala, lerUsuarios, filtrarUsuarios, trocarPosicao, lerEstados, destinoDoMovimento, passo, PASSOS, EIXOS_SETAS, passoSetas, LADOS, NOMES_LADOS, linhasAoEntrar,
     lerDadosExtras, lerMobi, lerMobisDoQuarto, mexer, EIXOS, mobisIguaisNaArea, encaixeSobreMobis };
   raiz.VL = raiz.VL || {};
   raiz.VL.codigos = api;
