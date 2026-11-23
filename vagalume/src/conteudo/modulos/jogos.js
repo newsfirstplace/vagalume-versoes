@@ -52,30 +52,20 @@
   .vl-jg.minimizada .vl-jg-corpo { display: none; }
   .vl-jg-corpo { padding: 16px; overflow: auto; }
   .vl-jg h3 { margin: 0 0 8px; font-size: 12px; letter-spacing: .6px; text-transform: uppercase; color: #b7c3d6; }
-  .vl-jg-escolha { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-bottom: 16px; }
   .vl-jg-cartao { display: flex; gap: 12px; align-items: center; padding: 14px; border-radius: 14px; cursor: pointer; text-align: left; color: inherit;
     border: 1px solid rgba(255,255,255,.1); background: rgba(255,255,255,.04); transition: transform .12s, border-color .12s, background .12s; }
   .vl-jg-cartao:hover { transform: translateY(-1px); border-color: rgba(214,242,74,.5); }
-  .vl-jg-cartao.ativo { border-color: #d6f24a; background: rgba(214,242,74,.12); box-shadow: 0 0 0 1px rgba(214,242,74,.35), 0 6px 22px rgba(214,242,74,.12); }
   .vl-jg-cartao .vl-jg-mini { width: 54px; height: 54px; border-radius: 10px; display: grid; place-items: center; font-size: 34px;
     background: conic-gradient(#e8edd0 0 25%, #74954e 0 50%, #e8edd0 0 75%, #74954e 0) 0 0 / 27px 27px; color: #fff;
     -webkit-text-stroke: 1.2px #1d2330; text-shadow: 0 2px 3px rgba(0,0,0,.4); }
   .vl-jg-cartao b { display: block; font-size: 16px; margin-bottom: 2px; }
   .vl-jg-cartao small { color: #aab5c7; }
-  .vl-jg-modos { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-  .vl-jg-modo { padding: 14px; border-radius: 14px; border: 1px solid rgba(255,255,255,.1); background: rgba(255,255,255,.03); }
-  .vl-jg-linha { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 10px; }
-  .vl-jg-chip { padding: 6px 11px; border-radius: 999px; border: 1px solid rgba(255,255,255,.14); background: rgba(255,255,255,.05); color: #dfe6f2; cursor: pointer; font: inherit; }
-  .vl-jg-chip.ativo { background: #d6f24a; color: #1a2108; border-color: #d6f24a; font-weight: 600; }
   .vl-jg-botao { padding: 9px 14px; border-radius: 10px; border: 1px solid rgba(214,242,74,.5); background: rgba(214,242,74,.14); color: #f2ffc0; cursor: pointer; font: 600 13px system-ui, sans-serif; }
   .vl-jg-botao:hover:not(:disabled) { background: rgba(214,242,74,.26); }
   .vl-jg-botao.forte { background: #d6f24a; color: #1a2108; border-color: #d6f24a; }
   .vl-jg-botao.forte:hover:not(:disabled) { background: #e4ff66; }
   .vl-jg-botao.discreto { border-color: rgba(255,255,255,.16); background: rgba(255,255,255,.05); color: #dfe6f2; font-weight: 500; }
   .vl-jg-botao:disabled { opacity: .45; cursor: default; }
-  .vl-jg-pessoas { display: flex; flex-direction: column; gap: 6px; max-height: 190px; overflow: auto; }
-  .vl-jg-pessoa { display: flex; align-items: center; gap: 9px; padding: 6px 8px; border-radius: 10px; background: rgba(255,255,255,.04); }
-  .vl-jg-pessoa > span:not(.vl-jg-cabeca) { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .vl-jg-cabeca { position: relative; width: 30px; height: 30px; border-radius: 50%; overflow: hidden; flex: none; background: rgba(214,242,74,.15); display: grid; place-items: center; font-weight: 700; color: #d6f24a; }
   .vl-jg-cabeca img { position: absolute; width: 90px; height: 130px; left: 50%; top: 50%; transform: translate(-50%, -53%) scale(.8); image-rendering: pixelated; }
   .vl-jg-nota { color: #9aa6b8; margin: 8px 0 0; }
@@ -126,11 +116,8 @@
   .vl-jg-promo div { display: flex; gap: 8px; padding: 10px; border-radius: 14px; background: #1b2130; border: 1px solid #d6f24a; }
   .vl-jg-promo button { width: 58px; height: 58px; border-radius: 10px; border: 1px solid rgba(255,255,255,.15); background: #e8edd0; cursor: pointer; display: grid; place-items: center; }
   .vl-jg-promo button:hover { background: #d6f24a; }
-  .vl-jg-modo.largo { grid-column: 1 / -1; }
-  .vl-jg-amigos { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 6px; max-height: 176px; overflow: auto; }
   .vl-jg-vel { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 12px; color: #9aa6b8; font-size: 12px; }
   .vl-jg-lado .vl-jg-vel { margin-top: 0; }
-  .vl-jg-vel .vl-jg-chip { padding: 4px 10px; font-size: 12px; }
   .vl-jg-anim { position: absolute; inset: 0; z-index: 4; pointer-events: none; }
   .vl-jg-fantasma { position: absolute; width: 12.5%; height: 12.5%; display: grid; place-items: center; will-change: transform, opacity; }
   .vl-jg-fantasma.voando { z-index: 1; filter: drop-shadow(0 7px 6px rgba(0,0,0,.35)); }
@@ -179,7 +166,53 @@
   .vl-pp-dica { margin: 0; color: #8a96a8; font-size: 12px; text-align: center; }
   .vl-pp:focus-visible .vl-pp-mesa { box-shadow: 0 0 0 2px rgba(214,242,74,.6); }
   .vl-pp-acoes { justify-content: center; }
-  @media (max-width: 720px) { .vl-jg-partida { flex-direction: column; align-items: center; } .vl-jg-escolha, .vl-jg-modos { grid-template-columns: 1fr; } }
+  .vl-jg-cab .vl-jg-voltar { font-size: 20px; line-height: 1; }
+  .vl-jg-sala { display: flex; flex-direction: column; gap: 14px; }
+  .vl-jg-heroi { position: relative; display: flex; gap: 18px; align-items: center; padding: 18px 20px; border-radius: 18px; overflow: hidden; border: 1px solid rgba(255,255,255,.08); background: linear-gradient(120deg, rgba(214,242,74,.16), rgba(214,242,74,0) 60%), #151a25; }
+  .vl-jg-heroi.xadrez { background: linear-gradient(120deg, rgba(116,149,78,.42), rgba(116,149,78,0) 62%), #151a25; }
+  .vl-jg-heroi.damas { background: linear-gradient(120deg, rgba(150,104,62,.45), rgba(150,104,62,0) 62%), #151a25; }
+  .vl-jg-heroi.pingpong { background: linear-gradient(120deg, rgba(45,116,189,.5), rgba(45,116,189,0) 62%), #151a25; }
+  .vl-jg-heroi::after { content: ''; position: absolute; right: -60px; top: -70px; width: 240px; height: 240px; border-radius: 50%; background: radial-gradient(circle, rgba(214,242,74,.16), transparent 66%); pointer-events: none; }
+  .vl-jg-arte { position: relative; z-index: 1; width: 86px; height: 86px; flex: none; border-radius: 20px; display: grid; place-items: center; font-size: 54px; color: #fff; -webkit-text-stroke: 1.6px #1d2330; text-shadow: 0 3px 4px rgba(0,0,0,.4);
+    background: conic-gradient(#e8edd0 0 25%, #74954e 0 50%, #e8edd0 0 75%, #74954e 0) 0 0 / 43px 43px; box-shadow: 0 12px 26px rgba(0,0,0,.45), 0 0 0 3px rgba(255,255,255,.08); }
+  .vl-jg-arte.damas { background: conic-gradient(#efe6cf 0 25%, #7b5a3d 0 50%, #efe6cf 0 75%, #7b5a3d 0) 0 0 / 43px 43px; }
+  .vl-jg-arte.pingpong { background: linear-gradient(90deg, transparent 47%, #eef2f6 47% 53%, transparent 53%), linear-gradient(180deg, #2d74bd, #1a4c82); -webkit-text-stroke: 0; font-size: 46px; }
+  .vl-jg-heroi-texto { position: relative; z-index: 1; min-width: 0; }
+  .vl-jg-heroi h2 { margin: 0 0 4px; font-size: 24px; letter-spacing: .2px; color: #fff; }
+  .vl-jg-heroi p { margin: 0 0 10px; color: #b9c4d6; max-width: 48ch; }
+  .vl-jg-fatos { display: flex; flex-wrap: wrap; gap: 6px; }
+  .vl-jg-fato { font-size: 11.5px; padding: 3px 10px; border-radius: 999px; background: rgba(255,255,255,.07); color: #e3e9f3; border: 1px solid rgba(255,255,255,.08); white-space: nowrap; }
+  .vl-jg-fato::before { content: ''; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #d6f24a; margin-right: 6px; vertical-align: 1px; box-shadow: 0 0 6px rgba(214,242,74,.8); }
+  .vl-jg-trocar { position: absolute; z-index: 1; right: 14px; top: 12px; border: 0; background: none; color: #d6f24a; cursor: pointer; font: 600 12px system-ui, sans-serif; opacity: .85; }
+  .vl-jg-trocar:hover { opacity: 1; text-decoration: underline; }
+  .vl-jg-colunas { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); gap: 14px; align-items: stretch; }
+  .vl-jg-bloco { display: flex; flex-direction: column; gap: 10px; padding: 14px; border-radius: 16px; background: rgba(255,255,255,.035); border: 1px solid rgba(255,255,255,.08); min-width: 0; }
+  .vl-jg-bloco-cab { display: flex; align-items: center; gap: 10px; }
+  .vl-jg-bloco-cab .ic { width: 32px; height: 32px; border-radius: 10px; display: grid; place-items: center; font-size: 17px; background: rgba(214,242,74,.14); box-shadow: inset 0 0 0 1px rgba(214,242,74,.25); }
+  .vl-jg-bloco-cab h3 { margin: 0; font-size: 15px; letter-spacing: 0; text-transform: none; color: #eef3fa; }
+  .vl-jg-rotulo { font-size: 11px; text-transform: uppercase; letter-spacing: .6px; color: #8f9bb0; margin-bottom: -4px; }
+  .vl-jg-seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 3px; padding: 3px; border-radius: 12px; background: rgba(0,0,0,.3); border: 1px solid rgba(255,255,255,.06); }
+  .vl-jg-seg button { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 7px 6px; border: 0; border-radius: 9px; background: transparent; color: #c6d0e0; font: 600 12.5px system-ui, sans-serif; cursor: pointer; white-space: nowrap; min-width: 0; }
+  .vl-jg-seg button:hover { background: rgba(255,255,255,.06); color: #fff; }
+  .vl-jg-seg button[aria-pressed="true"] { background: #d6f24a; color: #1a2108; box-shadow: 0 2px 10px rgba(214,242,74,.3); }
+  .vl-jg-peao { width: 10px; height: 10px; border-radius: 50%; flex: none; box-shadow: 0 0 0 1.5px rgba(0,0,0,.45); }
+  .vl-jg-peao.w { background: #fffdf4; } .vl-jg-peao.b { background: #22262f; box-shadow: 0 0 0 1.5px rgba(255,255,255,.35); } .vl-jg-peao.s { background: linear-gradient(90deg, #fffdf4 50%, #22262f 50%); }
+  .vl-jg-botao.grande { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px 14px; border-radius: 12px; font-size: 14px; margin-top: auto; }
+  .vl-jg-gente { display: flex; flex-direction: column; gap: 6px; max-height: 200px; overflow: auto; padding-right: 2px; }
+  .vl-jg-linha-pessoa { display: flex; align-items: center; gap: 10px; padding: 7px 8px 7px 10px; border-radius: 12px; background: rgba(255,255,255,.04); border: 1px solid transparent; transition: border-color .12s, background .12s; }
+  .vl-jg-linha-pessoa:hover { border-color: rgba(214,242,74,.25); background: rgba(214,242,74,.05); }
+  .vl-jg-linha-pessoa .quem { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .vl-jg-linha-pessoa .quem b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+  .vl-jg-linha-pessoa .quem small { color: #8f9bb0; font-size: 11px; display: flex; align-items: center; gap: 5px; }
+  .vl-jg-linha-pessoa .quem small::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: #3ba55c; }
+  .vl-jg-linha-pessoa .vl-jg-botao { padding: 6px 12px; font-size: 12px; }
+  .vl-jg-vazio { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 20px 12px; color: #8f9bb0; text-align: center; border-radius: 12px; border: 1px dashed rgba(255,255,255,.12); }
+  .vl-jg-vazio b { color: #d3dbe8; font-size: 13px; }
+  .vl-jg-bloco .vl-jg-nota { margin: 0; font-size: 11.5px; }
+  .vl-jg-rodape { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; border-radius: 14px; background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.06); color: #9aa6b8; font-size: 12px; }
+  .vl-jg-rodape .vl-jg-seg { flex: 0 1 300px; }
+  .vl-jg-vel .vl-jg-seg { flex: 1; }
+  @media (max-width: 720px) { .vl-jg-partida { flex-direction: column; align-items: center; } .vl-jg-colunas { grid-template-columns: 1fr; } .vl-jg-trocar { position: static; } .vl-jg-heroi { flex-wrap: wrap; } }
   @media (prefers-reduced-motion: reduce) { .vl-jg-peca.nova, .vl-jg-disco.nova, .vl-jg-chamada, .vl-jg-chamada-anel::before, .vl-jg-chamada-anel::after { animation: none; } }
   `;
 
@@ -269,6 +302,7 @@
         const id = l.inteiro();
         if (!tabuleiros.has(id) || Date.now() - abertoEm < 800) return;
         abertoEm = Date.now();
+        if (escolha.jogo !== 'damas' && (!partida || partida.fim)) escolha.jogo = 'xadrez';
         abrir();
       }));
 
@@ -299,14 +333,8 @@
       }
       // Som e velocidade são lidos a cada uso: mudar o ajuste só redesenha (sem reiniciar o módulo e perder a partida).
       ctx.aoConfig(function (secao) { if (secao === 'jogos') desenhar(); });
-      function linhaVelocidade() {
-        const v = velocidade();
-        return el('div', { class: 'vl-jg-vel', role: 'group', 'aria-label': 'Velocidade das jogadas' }, [
-          el('span', { texto: 'Velocidade das jogadas:' }),
-          chip('Um pouco mais lenta', v === 'lenta', () => escolherVelocidade('lenta'), 'vel-lenta'),
-          chip('Rápida', v === 'rapida', () => escolherVelocidade('rapida'), 'vel-rapida'),
-        ]);
-      }
+      const seletorVelocidade = (curto) => segmento('Velocidade das jogadas', [['lenta', curto ? 'Mais lenta' : 'Um pouco mais lenta'], ['rapida', 'Rápida']], velocidade(), escolherVelocidade, 'vel');
+      function linhaVelocidade() { return el('div', { class: 'vl-jg-vel' }, [el('span', { texto: 'Animação:' }), seletorVelocidade(true)]); }
 
       function abrir() {
         if (!janela) montarJanela();
@@ -331,8 +359,9 @@
       }
       function montarJanela() {
         const cab = el('div', { class: 'vl-jg-cab' }, [
+          el('button', { type: 'button', class: 'vl-jg-voltar', title: 'Todos os jogos', 'aria-label': 'Todos os jogos', texto: '‹', onclick: voltarAosJogos }),
           el('span', { class: 'vl-jg-ic', 'aria-hidden': 'true', texto: '♞' + VS }),
-          el('b', { texto: 'Jogos' }), el('span', { class: 'vl-jg-esp' }),
+          el('b', { class: 'vl-jg-titulo', texto: 'Jogos' }), el('span', { class: 'vl-jg-esp' }),
           el('button', { type: 'button', class: 'vl-jg-min', title: 'Minimizar', 'aria-label': 'Minimizar', texto: '−', onclick: alternarMinimizada }),
           el('button', { type: 'button', title: 'Fechar', 'aria-label': 'Fechar', texto: '×', onclick: fechar }),
         ]);
@@ -363,19 +392,25 @@
       }
       function pintar() {
         if (!janela) return;
-        janela.classList.toggle('damas', (partida ? partida.jogo : escolha.jogo) === 'damas');
+        const jogo = partida ? partida.jogo : escolha.jogo;
+        janela.classList.toggle('damas', jogo === 'damas');
+        janela.querySelector('.vl-jg-titulo').textContent = NOMES[jogo];
+        janela.querySelector('.vl-jg-ic').textContent = glifoDe(jogo);
+        janela.querySelector('.vl-jg-voltar').hidden = !!(partida && !partida.fim);
         camada.trocar(corpo, partida ? (partida.jogo === 'pingpong' ? telaPingPong() : telaPartida()) : telaInicio());
       }
 
       // ---------- início: escolher o jogo e o adversário ----------
-      function cartaoJogo(id, glifo, texto) {
-        return el('button', { type: 'button', class: 'vl-jg-cartao' + (escolha.jogo === id ? ' ativo' : ''), 'aria-pressed': String(escolha.jogo === id), 'data-foco': 'jogo-' + id,
-          onclick() { escolha.jogo = id; desenhar(); } }, [
-          el('span', { class: 'vl-jg-mini ' + id, 'aria-hidden': 'true', texto: glifo }),
-          el('span', null, [el('b', { texto: NOMES[id] }), el('small', { texto })]),
-        ]);
+      // Botões agrupados (um escolhido por vez).
+      function segmento(rotulo, opcoes, atual, escolher, foco) {
+        return el('div', { class: 'vl-jg-seg', role: 'group', 'aria-label': rotulo }, opcoes.map(([id, texto, enfeite]) => el('button', { type: 'button', 'aria-pressed': String(atual === id), 'data-foco': foco + '-' + id, onclick() { escolher(id); } }, [enfeite || null, el('span', { texto })])));
       }
-      function chip(texto, ativo, fn, foco) { return el('button', { type: 'button', class: 'vl-jg-chip' + (ativo ? ' ativo' : ''), 'aria-pressed': String(!!ativo), 'data-foco': foco, onclick: fn, texto }); }
+      // Voltar para a lista de todos os jogos (aba Jogos do painel).
+      function voltarAosJogos() {
+        if (partida && !partida.fim) return;
+        fechar();
+        ctx.emitir('painel:abrir', { aba: 'jogos' });
+      }
       const fotoDe = (visual) => 'https://imaging.habblet.city/avatarimage?figure=' + encodeURIComponent(visual) + '&headonly=1&direction=2&head_direction=3';
       // Visual pelo apelido: de quem está no quarto ou da lista de amigos.
       function visualDe(nome) {
@@ -397,51 +432,70 @@
         const lista = VL.pessoas && VL.pessoas.lista ? VL.pessoas.lista() : [];
         return lista.filter((n) => VL.comunidade && VL.comunidade.usaVagalume && VL.comunidade.usaVagalume(n));
       }
-      function linhaEspera() {
-        const c = convidando;
-        return el('div', { class: 'vl-jg-pessoa' }, [cabeca(c.nome), el('span', { texto: 'Esperando ' + c.nome + ' aceitar…' }),
-          el('button', { type: 'button', class: 'vl-jg-botao discreto', texto: 'Cancelar', 'data-foco': 'cancelar-convite', onclick: cancelarConvite })]);
-      }
+      // ---------- sala do jogo (antes de começar): o jogo escolhido, contra o bot ou com alguém ----------
+      const FATOS = {
+        xadrez: ['Regras completas', 'Bot em 3 níveis', 'Com amigos de outros quartos'],
+        damas: ['Regra brasileira', 'Bot em 3 níveis', 'Com amigos de outros quartos'],
+        pingpong: ['Em 3D', 'Efeito na bola', 'Até 11 pontos'],
+      };
+      let abaPessoas = null; // 'quarto' ou 'amigos' (null: a que tiver gente)
       function amigosOnline() {
         const lista = VL.amigos && VL.amigos.lista ? VL.amigos.lista() : [];
         return lista.filter((a) => a && a.online && a.id != null && a.nome).sort((a, b) => String(a.nome).localeCompare(String(b.nome)));
       }
+      function linhaPessoa(nome, visual, detalhe, foco, convidarAgora, esperando) {
+        return el('div', { class: 'vl-jg-linha-pessoa' }, [
+          cabeca(nome, visual),
+          el('span', { class: 'quem' }, [el('b', { texto: nome }), el('small', { texto: esperando ? 'Esperando aceitar…' : detalhe })]),
+          esperando
+            ? el('button', { type: 'button', class: 'vl-jg-botao discreto', 'data-foco': 'cancelar-convite', texto: 'Cancelar', onclick: cancelarConvite })
+            : el('button', { type: 'button', class: 'vl-jg-botao', 'data-foco': foco, texto: 'Convidar', onclick: convidarAgora }),
+        ]);
+      }
+      const vazio = (titulo, texto) => el('div', { class: 'vl-jg-vazio' }, [el('b', { texto: titulo }), el('span', { texto })]);
       function telaInicio() {
-        const pessoas = vagalumesNoQuarto();
-        const listaPessoas = convidando && convidando.via === 'quarto' ? linhaEspera()
-          : pessoas.length
-            ? el('div', { class: 'vl-jg-pessoas' }, pessoas.map((n) => el('div', { class: 'vl-jg-pessoa' }, [cabeca(n), el('span', { texto: n }), el('button', { type: 'button', class: 'vl-jg-botao', texto: 'Convidar', 'data-foco': 'conv-' + n, onclick() { convidar({ via: 'quarto', nome: n }); } })])))
-            : el('p', { class: 'vl-jg-nota', texto: 'Ninguém com o Vagalume neste quarto agora. Quem usa o Vagalume aparece aqui (precisa da Comunidade Vagalume ligada).' });
-        const amigos = amigosOnline();
-        const listaAmigos = convidando && convidando.amigo ? linhaEspera()
-          : amigos.length
-            ? el('div', { class: 'vl-jg-amigos' }, amigos.map((a) => el('div', { class: 'vl-jg-pessoa' }, [cabeca(a.nome, a.visual), el('span', { texto: a.nome }), el('button', { type: 'button', class: 'vl-jg-botao', texto: 'Convidar', 'data-foco': 'amigo-' + a.id, onclick() { convidarAmigo(a); } })])))
-            : el('p', { class: 'vl-jg-nota', texto: VL.amigos ? 'Nenhum amigo online agora.' : 'Ligue "Amigos e console" para chamar amigos de outros quartos.' });
+        const jogo = escolha.jogo, j = JOGOS.find((x) => x.id === jogo) || JOGOS[0], pp = jogo === 'pingpong';
+        const noQuarto = vagalumesNoQuarto(), amigos = amigosOnline();
+        const aba = abaPessoas || (noQuarto.length || !amigos.length ? 'quarto' : 'amigos');
+        const cores = pp ? [['w', 'Eu saco'], ['b', 'O outro'], ['?', 'Sorteio']]
+          : [['w', 'Brancas', el('span', { class: 'vl-jg-peao w' })], ['b', 'Pretas', el('span', { class: 'vl-jg-peao b' })], ['?', 'Sorteio', el('span', { class: 'vl-jg-peao s' })]];
         const comQual = escolha.cor === 'b' ? 'pretas' : escolha.cor === '?' ? 'brancas ou as pretas, por sorteio' : 'brancas';
-        return [
-          el('h3', { texto: 'Escolha o jogo' }),
-          el('div', { class: 'vl-jg-escolha' }, JOGOS.map((j) => cartaoJogo(j.id, glifoDe(j.id), j.texto))),
-          el('div', { class: 'vl-jg-modos' }, [
-            el('section', { class: 'vl-jg-modo' }, [
-              el('h3', { texto: 'Contra o bot' }),
-              el('div', { class: 'vl-jg-linha' }, NIVEIS.map(([id, nome]) => chip(nome, escolha.nivel === id, () => { escolha.nivel = id; desenhar(); }, 'nivel-' + id))),
-              el('div', { class: 'vl-jg-linha' }, (escolha.jogo === 'pingpong' ? [['w', 'Eu saco'], ['b', 'O outro saca'], ['?', 'Sorteio']] : [['w', 'Brancas'], ['b', 'Pretas'], ['?', 'Sorteio']]).map(([id, nome]) => chip(nome, escolha.cor === id, () => { escolha.cor = id; desenhar(); }, 'cor-' + id))),
-              el('button', { type: 'button', class: 'vl-jg-botao forte', 'data-foco': 'bot', texto: 'Jogar contra o bot', onclick() { comecar({ jogo: escolha.jogo, modo: 'bot', nivel: escolha.nivel, minhaCor: corEscolhida() }); } }),
+        const lista = aba === 'quarto'
+          ? (noQuarto.length ? noQuarto.map((n) => linhaPessoa(n, null, 'Neste quarto', 'conv-' + n, () => convidar({ via: 'quarto', nome: n }), !!(convidando && convidando.via === 'quarto' && nomeChave(convidando.nome) === nomeChave(n))))
+            : [vazio('Ninguém com o Vagalume neste quarto', 'Quem usa o Vagalume aparece aqui (precisa da Comunidade Vagalume ligada).')])
+          : (amigos.length ? amigos.map((a) => linhaPessoa(a.nome, a.visual, 'Online', 'amigo-' + a.id, () => convidarAmigo(a), !!(convidando && convidando.amigo && convidando.id === String(a.id))))
+            : [vazio(VL.amigos ? 'Nenhum amigo online' : 'Amigos desligados', VL.amigos ? 'Quando um amigo entrar no hotel, ele aparece aqui.' : 'Ligue "Amigos e console" nos Ajustes.')]);
+        const nota = (aba === 'amigos' ? 'O convite chega no console e toca como uma chamada; cada um joga do seu quarto. ' : '')
+          + (pp ? 'Primeiro saque: ' + (escolha.cor === 'b' ? 'de quem é convidado' : escolha.cor === '?' ? 'sorteado' : 'de quem convida') : 'Quem convida joga com as ' + comQual) + '. A outra pessoa precisa usar o Vagalume.';
+        return [el('div', { class: 'vl-jg-sala' }, [
+          el('div', { class: 'vl-jg-heroi ' + jogo }, [
+            el('span', { class: 'vl-jg-arte ' + jogo, 'aria-hidden': 'true', texto: glifoDe(jogo) }),
+            el('div', { class: 'vl-jg-heroi-texto' }, [
+              el('h2', { texto: NOMES[jogo] }),
+              el('p', { texto: j.texto }),
+              el('div', { class: 'vl-jg-fatos' }, FATOS[jogo].map((x) => el('span', { class: 'vl-jg-fato', texto: x }))),
             ]),
-            el('section', { class: 'vl-jg-modo' }, [
-              el('h3', { texto: 'Contra alguém do quarto' }),
-              listaPessoas,
-              el('p', { class: 'vl-jg-nota', texto: (escolha.jogo === 'pingpong' ? 'Primeiro saque: ' + (escolha.cor === 'b' ? 'de quem é convidado' : escolha.cor === '?' ? 'sorteado' : 'de quem convida') : 'Quem convida joga com as ' + comQual) + '. A outra pessoa precisa usar o Vagalume.' }),
+            pp ? null : el('button', { type: 'button', class: 'vl-jg-trocar', 'data-foco': 'trocar', texto: (jogo === 'xadrez' ? 'Jogar damas' : 'Jogar xadrez') + ' neste tabuleiro ›', onclick() { escolha.jogo = jogo === 'xadrez' ? 'damas' : 'xadrez'; desenhar(); } }),
+          ]),
+          el('div', { class: 'vl-jg-colunas' }, [
+            el('section', { class: 'vl-jg-bloco' }, [
+              el('div', { class: 'vl-jg-bloco-cab' }, [el('span', { class: 'ic', 'aria-hidden': 'true', texto: '🤖' }), el('h3', { texto: 'Contra o bot' })]),
+              el('span', { class: 'vl-jg-rotulo', texto: 'Nível' }),
+              segmento('Nível do bot', NIVEIS, escolha.nivel, (id) => { escolha.nivel = id; desenhar(); }, 'nivel'),
+              el('span', { class: 'vl-jg-rotulo', texto: pp ? 'Primeiro saque' : 'Suas peças' }),
+              segmento(pp ? 'Primeiro saque' : 'Suas peças', cores, escolha.cor, (id) => { escolha.cor = id; desenhar(); }, 'cor'),
+              el('button', { type: 'button', class: 'vl-jg-botao forte grande', 'data-foco': 'bot', onclick() { comecar({ jogo, modo: 'bot', nivel: escolha.nivel, minhaCor: corEscolhida() }); } }, [el('span', { 'aria-hidden': 'true', texto: '▶' }), el('span', { texto: 'Jogar agora' })]),
             ]),
-            el('section', { class: 'vl-jg-modo largo' }, [
-              el('h3', { texto: 'Chamar um amigo de outro quarto' }),
-              listaAmigos,
-              el('p', { class: 'vl-jg-nota', texto: 'O convite chega no console do amigo e toca como uma chamada; cada um joga do quarto em que está. Ele também precisa usar o Vagalume.' }),
+            el('section', { class: 'vl-jg-bloco' }, [
+              el('div', { class: 'vl-jg-bloco-cab' }, [el('span', { class: 'ic', 'aria-hidden': 'true', texto: '👥' }), el('h3', { texto: 'Jogar com alguém' })]),
+              segmento('Com quem jogar', [['quarto', 'No quarto (' + noQuarto.length + ')'], ['amigos', 'Amigos online (' + amigos.length + ')']], aba, (id) => { abaPessoas = id; desenhar(); }, 'aba'),
+              el('div', { class: 'vl-jg-gente' }, lista),
+              el('p', { class: 'vl-jg-nota', texto: nota }),
             ]),
           ]),
-          escolha.jogo === 'pingpong' ? null : linhaVelocidade(),
-          el('p', { class: 'vl-jg-aviso', role: 'status', texto: avisoInicio || '' }),
-        ];
+          pp ? null : el('div', { class: 'vl-jg-rodape' }, [el('span', { texto: 'Animação das jogadas' }), seletorVelocidade()]),
+          el('p', { class: 'vl-jg-aviso', role: 'status', hidden: !avisoInicio, texto: avisoInicio || '' }),
+        ])];
       }
       let avisoInicio = '';
 
@@ -490,7 +544,7 @@
         const acoes = [];
         if (!p.fim) acoes.push(el('button', { type: 'button', class: 'vl-jg-botao discreto', texto: 'Desistir', onclick: desistir }));
         else acoes.push(el('button', { type: 'button', class: 'vl-jg-botao forte', 'data-foco': 'revanche', texto: p.modo === 'bot' ? 'Jogar de novo' : 'Revanche', onclick: revanche }));
-        acoes.push(el('button', { type: 'button', class: 'vl-jg-botao discreto', texto: 'Outro jogo', onclick: sairDaPartida }));
+        acoes.push(el('button', { type: 'button', class: 'vl-jg-botao discreto', texto: 'Menu', title: 'Voltar ao menu do jogo', onclick: sairDaPartida }));
         // O placar final já aparece na própria mesa; aqui só o fim por desistência ou saída.
         let fim = null;
         if (p.fim && !/^por /.test(p.fim.motivo || '')) {
@@ -750,7 +804,7 @@
           acoes.push(el('button', { type: 'button', class: 'vl-jg-botao forte', texto: p.modo === 'bot' ? 'Jogar de novo' : 'Revanche', onclick: revanche }));
         }
         acoes.push(el('button', { type: 'button', class: 'vl-jg-botao discreto', texto: 'Virar tabuleiro', onclick() { p.virado = !p.virado; desenhar(); } }));
-        acoes.push(el('button', { type: 'button', class: 'vl-jg-botao discreto', texto: 'Outro jogo', onclick: sairDaPartida }));
+        acoes.push(el('button', { type: 'button', class: 'vl-jg-botao discreto', texto: 'Menu', title: 'Voltar ao menu do jogo', onclick: sairDaPartida }));
         return [el('div', { class: 'vl-jg-partida' }, [
           tab,
           el('div', { class: 'vl-jg-lado' }, [
@@ -1167,6 +1221,7 @@
         executar(pedido) {
           const qual = { xadrez: 'xadrez', damas: 'damas', pingpong: 'pingpong', pong: 'pingpong' }[pedido && pedido.nome];
           if (qual) escolha.jogo = qual;
+          else if (!partida && ctx.ativo('painel')) { ctx.emitir('painel:abrir', { aba: 'jogos' }); return; } // a lista de jogos fica no painel
           abrir();
         },
       });
