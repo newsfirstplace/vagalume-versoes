@@ -84,6 +84,7 @@
     loja: [
       { tipo: 'numero', chave: 'quantidadePadrao', rotulo: 'Quantidade que a loja já mostra ao escolher um item', passo: 1, nota: '1 deixa como o jogo faz.' },
       { tipo: 'chave', chave: 'confirmarOutraMoeda', rotulo: 'Perguntar antes de comprar com diamantes ou outra moeda especial', nota: 'Vale para o botão Comprar da loja do jogo, mesmo com "Pular a confirmação" ligado. Itens só de moedas vão direto.' },
+      { tipo: 'chave', chave: 'marcarCustom', rotulo: 'Marcar os mobis custom', nota: 'Na loja e no inventário, os mobis que não existem na Habbo original (feitos pelo Habblet ou por artistas) ganham fundo roxo e um C no canto. A lista dos originais vem do arquivo oficial de mobis da Habbo.' },
       { tipo: 'chave', chave: 'pularConfirmacao', rotulo: 'Pular a confirmação de compra', nota: 'Se aparecer um botão de confirmar depois de Comprar, o Vagalume clica nele. Gasta moedas sem perguntar de novo.' },
       { tipo: 'chave', chave: 'repor', rotulo: 'Repor sozinho os mobis que estão acabando no inventário', nota: 'Só tipos já vistos na loja, pagos com moedas. Compra sem perguntar.' },
       { tipo: 'numero', chave: 'reporLimite', rotulo: 'Repor quando restarem', unidade: 'ou menos', passo: 1 },

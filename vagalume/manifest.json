@@ -119,6 +119,7 @@
         "src/core/mencoes.js",
         "src/core/protocolo.js",
         "src/core/codigos.js",
+        "src/core/mobis-originais.js",
         "src/core/agrupar.js",
         "src/conteudo/nucleo.js",
         "src/conteudo/jogo.js",

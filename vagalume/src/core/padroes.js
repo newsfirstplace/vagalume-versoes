@@ -47,7 +47,7 @@
     silenciar: { apelidos: [], termos: [], modo: 'esconder', minimoPontos: 0, ocultarPessoas: false, ocultarBots: false, ocultarPets: false, excetoMeus: true, excetoAmigos: true },
     agrupar: { janela: 5 },
     wired: { copiarAoSalvar: true, enterSalva: true, naoAndarAoClicar: false, avancadasAbertas: false },
-    loja: { repor: false, reporLimite: 2, reporQuantidade: 10, reporSoWired: false, reporSemTeleporte: true, quantidadePadrao: 1, pularConfirmacao: true, confirmarOutraMoeda: true },
+    loja: { repor: false, reporLimite: 2, reporQuantidade: 10, reporSoWired: false, reporSemTeleporte: true, quantidadePadrao: 1, pularConfirmacao: true, confirmarOutraMoeda: true, marcarCustom: true },
     comunidade: { entrarNoGrupo: true, selo: true, aparecer: true },
     musica: { mostrar: true, usuario: '', compartilhar: true, chave: '' },
     midia: { volume: 80, bloqueados: [] },

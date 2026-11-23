@@ -14,10 +14,50 @@
   // Páginas de wired da loja do Habblet (rótulos vistos no índice em 2026-11-13).
   const PAGINAS_WIRED = new Set(['Ativadores', 'Efeitos', 'Condições', 'Seletores', 'Add-ons', 'Wired Variáveis', 'Extras Variáveis']);
   const esperar = (ms) => new Promise((r) => setTimeout(r, ms));
+  // Mobis custom (sugestão de usuários do Habblet em 2026-11-22): fundo roxo e um C no canto, pelo ícone do cartão.
+  const CSS_CUSTOM = '.nitro-catalog .layout-grid-item.vl-mobi-custom, .nitro-inventory .layout-grid-item.vl-mobi-custom { position: relative; background-color: rgba(150, 90, 230, .28) !important; box-shadow: inset 0 0 0 2px rgba(180, 120, 255, .9) !important; }'
+    + ' .layout-grid-item.vl-mobi-custom::after { content: "C"; position: absolute; top: 2px; right: 2px; min-width: 13px; height: 13px; border-radius: 7px; background: #9b5cff; color: #fff; font: bold 9px/13px sans-serif; text-align: center; pointer-events: none; z-index: 3; }';
+  function marcarCustom(ctx) {
+    if (!camada.estiloPagina || typeof MutationObserver === 'undefined' || !document.body) return;
+    let porIcone = null, carregando = false, quadro = 0;
+    const desligar = camada.estiloPagina('loja-custom', CSS_CUSTOM);
+    async function carregar() {
+      if (porIcone || carregando || !VL.dadosJogo || !VL.mobisOriginais) return;
+      carregando = true;
+      try {
+        const d = await VL.dadosJogo.mobis();
+        const mapa = new Map();
+        const por = (id, f, parede) => { const ic = VL.dadosJogo.iconeDe(f.classe); if (ic) mapa.set(ic, mapa.get(ic) || VL.mobisOriginais.ehOriginal(id, parede)); };
+        for (const [id, f] of d.chao) por(id, f, false);
+        for (const [id, f] of d.parede) por(id, f, true);
+        porIcone = mapa;
+        marcar();
+      } catch (e) { /* sem o arquivo de mobis: nada marcado */ } finally { carregando = false; }
+    }
+    function marcar() {
+      quadro = 0;
+      const ligado = ctx.ativo('loja') && ctx.secao().marcarCustom !== false;
+      const cartoes = document.querySelectorAll('.nitro-catalog .layout-grid-item, .nitro-inventory .layout-grid-item');
+      if (!cartoes.length) return;
+      if (ligado && !porIcone) { carregar(); return; }
+      for (const cartao of cartoes) {
+        const url = /url\(["']?([^"')]+)/.exec(cartao.style.backgroundImage || '');
+        const custom = ligado && !!url && porIcone.has(url[1]) && !porIcone.get(url[1]);
+        if (cartao.classList.contains('vl-mobi-custom') === custom) continue;
+        cartao.classList.toggle('vl-mobi-custom', custom);
+        if (custom) cartao.setAttribute('title', 'Mobi custom: não existe na Habbo original'); else if (cartao.getAttribute('title') === 'Mobi custom: não existe na Habbo original') cartao.removeAttribute('title');
+      }
+    }
+    const obs = new MutationObserver(function () { if (!quadro) quadro = requestAnimationFrame(marcar); });
+    obs.observe(document.body, { childList: true, subtree: true });
+    ctx.aoParar(function () { obs.disconnect(); if (quadro) cancelAnimationFrame(quadro); desligar(); document.querySelectorAll('.vl-mobi-custom').forEach((c) => c.classList.remove('vl-mobi-custom')); });
+    return marcar;
+  }
 
   nucleo.definirModulo({
     id: 'loja',
     iniciar(ctx) {
+      marcarCustom(ctx);
       const inventario = new Map(); // id -> item
       let recebendo = null;
       const ofertas = new Map();    // classe -> oferta (a última vista numa página da loja)
