@@ -1034,7 +1034,12 @@
           camada.aviso('Colocando ' + plano.colocar.length + ' mobis' + (corrigir.length ? ' e acertando ' + corrigir.length : '') + (faltam ? ' (' + faltam + ' ficam de fora)' : '') + '. Fique neste quarto até terminar.', { duracaoMs: 5000 });
           const feitos = await colocarLista(plano.colocar.concat(corrigir), { sair, mapa: () => planta && planta.mapa, jaNoQuarto: new Set(corrigir.map((c) => c.itemId)) });
           if (paradaLista === 'saiu') { parou(); return; }
-          if (paradaLista === 'recusado') { camada.aviso('O hotel não aceitou nenhum mobi neste quarto (você é o dono ou tem direitos aqui?). A colagem parou.' + (avisoLista ? ' Aviso do hotel: ' + avisoLista + '.' : ''), { tipo: 'erro', duracaoMs: 12000 }); return; }
+          if (paradaLista === 'recusado') {
+            const ja = mobis.size + mobisParede.size;
+            camada.aviso('O hotel não aceitou nenhum dos mobis que faltam' + (avisoLista ? ' (aviso dele: ' + avisoLista + ')' : ', sem mandar aviso') + '. A colagem parou. '
+              + (ja ? 'Este quarto já tem ' + ja + ' mobis: pode ser o limite de mobis por quarto. Coloque um mobi à mão pelo inventário para ver a mensagem do jogo.' : 'Você é o dono ou tem direitos aqui?'), { tipo: 'erro', duracaoMs: 15000 });
+            return;
+          }
           if (paradaLista === 'limite' || paradaLista === 'travou') {
             ultimaCopiaColada = copia;
             setTimeout(function () { if (ctx.ativo('construcao')) mostrarConferencia(copia); }, 1500);
