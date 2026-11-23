@@ -112,7 +112,7 @@
       // O Congelado saiu (2026-11-15: pesava no FPS): quem o tinha gravado passa para o Fantasma.
       if (caminho === 'amigos.desconhecidos') { saida.desconhecidos = 'fantasma'; continue; } // só o Fantasma (pedido do usuário em 2026-11-16)
       if (caminho === 'midia.bloqueados') { saida.bloqueados = limparTermos(v, MAX_SILENCIADOS); continue; }
-      if (caminho === 'digitando.estilo') { if (['jogo', 'vagalume', 'limao', 'noite', 'brilho', 'pergaminho', 'floresta', 'neon', 'galaxia'].includes(v)) saida.estilo = v; continue; }
+      if (caminho === 'digitando.estilo') { if (['jogo', 'vagalume', 'limao', 'noite', 'brilho', 'pergaminho', 'floresta', 'neon', 'galaxia', 'bolha', 'explosao', 'gatinho', 'coracao', 'nuvem', 'melancia', 'gelo', 'docinho', 'vulcao'].includes(v)) saida.estilo = v; continue; }
       if (caminho === 'jogos.velocidade') { if (['rapida', 'lenta'].includes(v)) saida.velocidade = v; continue; }
       if (caminho === 'zoom.modo') { if (['camera', 'jogo'].includes(v)) saida.modo = v; continue; }
       if (caminho === 'zoom.aoEntrar') { if (['manter', 'perto', 'longe'].includes(v)) saida.aoEntrar = v; continue; }

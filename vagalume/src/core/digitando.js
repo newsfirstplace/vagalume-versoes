@@ -36,7 +36,7 @@
     { id: 'brilho', nome: 'Brilho (branco com contorno limão)', cores: { c: '#6f8f10', m: '#ffffff', b: '#ffffff', 1: '#8fb11a', 2: '#8fb11a', 3: '#8fb11a' } },
   ];
   // Balões temáticos em imagem (core/digitando-temas.js): maiores que o do jogo e já com os quadros.
-  const TEMAS = ['pergaminho', 'floresta', 'neon', 'galaxia'];
+  const TEMAS = ['pergaminho', 'floresta', 'neon', 'galaxia', 'bolha', 'explosao', 'gatinho', 'coracao', 'nuvem', 'melancia', 'gelo', 'docinho', 'vulcao'];
   const IDS = ESTILOS.map((e) => e.id).concat(TEMAS);
 
   function rgb(hex) {
