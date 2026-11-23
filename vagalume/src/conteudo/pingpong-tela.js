@@ -36,7 +36,7 @@
       rastro: [], marcas: [], efeitos: [], festa: [], aviso: null, venceu: null,
       botMira: null, botMiraEm: 0, botSaqueEm: 0, cam: 0, camera: null,
       teclas: new Set(), mouse: null, querSacar: false, enviadoEm: 0, enviado: null,
-      mouseVista: null, empurrao: 0, mira: null, miraQuique: null,
+      mouseVista: null, empurrao: 0, lateral: 0, mira: null, miraQuique: null,
     };
 
     // ---------- elementos ----------
@@ -51,7 +51,7 @@
       el('div', { class: 'vl-pp-placar' }, [jogador(eu, 'eu'), el('span', { class: 'vl-pp-meio', texto: 'até ' + P.PONTOS }), jogador(ele, 'ele')]),
       el('div', { class: 'vl-pp-mesa' }, [canvas]),
       estado,
-      el('p', { class: 'vl-pp-dica', texto: 'Alinhe a raquete com a bola mexendo o mouse para os lados (ou ← → / A D): ela vai para a frente e para trás sozinha. Na hora da batida, mexa o mouse para cima (ou ↑ / W) para bater mais forte; com a ponta da raquete, a bola sai na diagonal. Clique ou espaço para sacar.' }),
+      el('p', { class: 'vl-pp-dica', texto: 'Leve a raquete até a bola com o mouse (ou setas / WASD). Na hora da batida, empurre para a frente para bater mais forte (forte demais vai para fora) e puxe para o lado para dar efeito: a bola faz curva. Clique ou espaço para sacar.' }),
     ]);
     const g = canvas.getContext('2d');
 
@@ -78,15 +78,15 @@
     // ---------- regras da partida ----------
     const sacadorAgora = () => P.sacador(s.pontos, o.primeiro || 'w');
     function avisar(texto, dur) { s.aviso = { texto, desde: agora(), ate: agora() + (dur || 1.1) }; }
-    function bolaParaRede(b) { return { x: r4(b.x), y: r4(b.y), z: r4(b.z), vx: r4(b.vx), vy: r4(b.vy), vz: r4(b.vz) }; }
+    function bolaParaRede(b) { return { x: r4(b.x), y: r4(b.y), z: r4(b.z), vx: r4(b.vx), vy: r4(b.vy), vz: r4(b.vz), e: r4(b.e || 0) }; }
     function novaJogada(lado) { s.ultimo = lado; s.quiques = { w: 0, b: 0 }; s.botMira = null; s.segura = false; s.mira = null; s.miraQuique = null; }
     function sacar(lado) {
       const r = s.raq[lado];
       const pos = P.posicaoDeSaque(lado, r.x);
-      let forca, desvio;
-      if (lado === eu) { forca = Math.min(0.9, 0.5 + Math.max(0, s.empurrao) * 0.05); desvio = clamp(r.vx * 0.05, -0.3, 0.3); }
-      else { forca = sorteio(nivel.forca[0], nivel.forca[1]) * 0.85; desvio = sorteio(-0.35, 0.35); }
-      s.bola = P.rebater(pos, lado, forca, desvio);
+      let forca, desvio, efeito;
+      if (lado === eu) { const ld = eu === 'b' ? -s.lateral : s.lateral; forca = 0.45 + 0.5 * (1 - Math.exp(-Math.max(0, s.empurrao) / 3.5)); desvio = clamp(ld * 0.03, -0.3, 0.3); efeito = clamp(ld * 0.35, -3, 3); }
+      else { forca = sorteio(nivel.forca[0], nivel.forca[1]) * 0.85; desvio = sorteio(-0.35, 0.35); efeito = sorteio(-nivel.efeito, nivel.efeito) * 0.6; }
+      s.bola = P.rebater(pos, lado, forca, desvio, efeito);
       novaJogada(lado);
       s.fase = 'jogo'; s.querSacar = false;
       o.som('saque');
@@ -94,29 +94,32 @@
     }
     function rebaterAqui(lado) {
       const r = s.raq[lado];
-      let forca, desvio;
+      let forca, desvio, efeito = 0;
       if (lado === eu) {
-        // A sua bola sempre cai na mesa: mexer o mouse para cima bate mais forte (sem passar do fim da mesa) e a
-        // ponta da raquete abre o ângulo (sem sair pela lateral).
-        forca = Math.min(1, 0.5 + Math.max(0, s.empurrao) * 0.06);
-        desvio = clamp(s.bola.x + (s.bola.x - r.x) * 1.2 + r.vx * 0.05, -0.6, 0.6) - s.bola.x;
+        // Força pelo empurrão para a frente, numa curva suave: um empurrão normal manda a bola funda e segura; só um
+        // empurrão muito forte passa do fim da mesa. A ponta da raquete abre o ângulo e puxar para o lado dá efeito.
+        forca = 0.45 + 0.65 * (1 - Math.exp(-Math.max(0, s.empurrao) / 3.5));
+        const lado = eu === 'b' ? -s.lateral : s.lateral;
+        desvio = (s.bola.x - r.x) * 1.0 + lado * 0.03;
+        efeito = clamp(lado * 0.45, -P.EFEITO_MAX, P.EFEITO_MAX);
       } else {
         forca = sorteio(nivel.forca[0], nivel.forca[1]);
         desvio = sorteio(-nivel.abre, nivel.abre) - s.bola.x;
+        efeito = sorteio(-nivel.efeito, nivel.efeito);
         if (Math.random() < nivel.falha) {
           const tipo = Math.floor(Math.random() * 3);
           if (tipo === 0) forca = 1.3; else if (tipo === 1) desvio = (Math.random() < 0.5 ? -1 : 1) * 1.15 - s.bola.x;
           else { // bola baixa e reta na rede
             const dir = lado === 'w' ? 1 : -1;
             s.bola = { x: s.bola.x, y: s.bola.y, z: Math.max(0.05, Math.min(0.09, s.bola.z)), vx: 0, vy: dir * 5, vz: 0 };
-            novaJogada(lado); efeito(s.bola, false); o.som('bate');
+            novaJogada(lado); anel(s.bola, false); o.som('bate');
             return;
           }
         }
       }
-      s.bola = P.rebater(s.bola, lado, forca, desvio);
+      s.bola = P.rebater(s.bola, lado, forca, desvio, efeito);
       novaJogada(lado);
-      efeito(s.bola, lado === eu);
+      anel(s.bola, lado === eu);
       o.som('bate');
       if (!bot && lado === eu) o.enviar(Object.assign({ t: 'pp:bate' }, bolaParaRede(s.bola)), true);
     }
@@ -131,7 +134,7 @@
       else avisar(MOTIVO[motivo] || (ganhou === eu ? 'Ponto seu!' : 'Ponto de ' + o.nome(ganhou)), 1.2);
       if (!bot && !placar) o.enviar({ t: 'pp:ponto', a: ganhou, pw: s.pontos.w, pb: s.pontos.b, m: motivo }, true);
     }
-    function efeito(b, meu) { s.efeitos.push({ x: b.x, y: b.y, z: b.z, desde: agora(), meu }); if (s.efeitos.length > 8) s.efeitos.shift(); }
+    function anel(b, meu) { s.efeitos.push({ x: b.x, y: b.y, z: b.z, desde: agora(), meu }); if (s.efeitos.length > 8) s.efeitos.shift(); }
     function marca(b) { s.marcas.push({ x: b.x, y: b.y, desde: agora() }); if (s.marcas.length > 6) s.marcas.shift(); }
     function festa() { for (let i = 0; i < 70; i++) s.festa.push({ x: 0.5, y: 0.45, vx: sorteio(-0.6, 0.6), vy: sorteio(-0.9, -0.1), desde: agora(), vida: sorteio(1.2, 2.4) }); }
 
@@ -146,7 +149,7 @@
         const b = P.bolaValida(d);
         if (!b) return;
         s.bola = b; novaJogada(ele); s.fase = 'jogo';
-        if (d.t === 'pp:bate') { efeito(b, false); o.som('bate'); } else o.som('saque');
+        if (d.t === 'pp:bate') { anel(b, false); o.som('bate'); } else o.som('saque');
         return;
       }
       if (d.t === 'pp:ponto' && (d.a === 'w' || d.a === 'b')) {
@@ -211,7 +214,9 @@
       const relA = antes.y - rr.py, relD = s.bola.y - rr.y;
       const cruzou = recebe === 'w' ? relA > 0 && relD <= 0 : relA < 0 && relD >= 0;
       const naZona = Math.abs(relD) <= 0.12; // a bola passa bem perto da raquete
-      if ((cruzou || naZona) && s.quiques[recebe] === 1) {
+      // Pessoas podem rebater antes do quique (voleio); o bot espera o quique.
+      const pessoa = recebe === eu || !bot;
+      if ((cruzou || naZona) && (s.quiques[recebe] === 1 || (pessoa && s.quiques[recebe] === 0))) {
         if (juiz) {
           const alcance = recebe === eu ? 0.25 : RAQUETE.alcance; // a sua raquete pega um pouco além da borda
           if (Math.abs(s.bola.x - rr.x) <= alcance && s.bola.z > -0.02 && s.bola.z < 0.8) { rebaterAqui(recebe); return; }
@@ -227,33 +232,31 @@
       const r = s.raq[eu];
       // O que o mouse (ou as teclas) pede, na vista: x para os lados, y para a frente.
       const pedido = s.mouseVista ? { x: s.mouseVista.x, y: s.mouseVista.y } : vista(r.ax, r.ay);
-      let empurrao = 0;
+      // Empurrão (para a frente) e puxada (para o lado) do mouse nos últimos instantes: viram força e efeito.
+      let empurrao = 0, lateral = 0;
       if (s.teclas.size) {
         let mx = 0, my = 0;
         for (const k of s.teclas) { mx += TECLAS[k][0]; my += TECLAS[k][1]; }
         pedido.x += mx * 2.4 * dt; pedido.y += my * 2.4 * dt;
-        empurrao = my > 0 ? 3 : 0;
+        empurrao = my > 0 ? 3 : 0; lateral = mx * 3;
       } else if (s.mouse && s.camera) {
         const p = s.camera.plano(s.mouse.x, s.mouse.y, RAQUETE.altura);
-        if (p) { if (s.mouseVista && dt > 0) empurrao = (p.y - s.mouseVista.y) / dt; pedido.x = p.x; pedido.y = p.y; }
+        if (p) { if (s.mouseVista && dt > 0) { empurrao = (p.y - s.mouseVista.y) / dt; lateral = (p.x - s.mouseVista.x) / dt; } pedido.x = p.x; pedido.y = p.y; }
       }
       pedido.x = clamp(pedido.x, -1.05, 1.05); pedido.y = clamp(pedido.y, -0.6, MEIO - 0.15);
       s.mouseVista = pedido;
       s.empurrao += (empurrao - s.empurrao) * Math.min(1, dt * 12);
-      // Quando a bola vem para você, a raquete vai sozinha para a frente ou para trás, logo atrás de onde ela vai
-      // quicar (a marca limão na mesa); você só alinha para os lados.
+      s.lateral += (clamp(lateral, -15, 15) - s.lateral) * Math.min(1, dt * 10);
+      // Onde a bola do outro vai quicar do seu lado (a marca limão na mesa, já contando a curva do efeito).
       const vindo = s.fase === 'jogo' && s.bola && s.ultimo === ele && !s.segura;
       if (vindo && !s.mira) {
         const q = s.quiques[eu] === 0 ? P.preverQuique(s.bola) : null;
-        if (q && q.lado === eu) {
-          s.miraQuique = { x: q.x, y: q.y };
-          s.mira = { y: eu === 'w' ? Math.max(P.fundo('w'), q.y - 0.35) : Math.min(P.fundo('b'), q.y + 0.35) };
-        } else s.mira = { y: null };
+        s.mira = true;
+        s.miraQuique = q && q.lado === eu ? { x: q.x, y: q.y } : null;
       }
       if (!vindo) { s.mira = null; s.miraQuique = null; }
       const alvo = vista(pedido.x, pedido.y);
-      r.ax = alvo.x;
-      r.ay = vindo && s.mira.y != null ? s.mira.y : alvo.y;
+      r.ax = alvo.x; r.ay = alvo.y;
       // Física em passos curtos (também recupera quadros atrasados).
       let resta = dt;
       while (resta > 1e-6) {
@@ -497,9 +500,10 @@
     }
     // Bola: rastro, esfera com luz de cima e, quando espera a resposta do outro, um anel pulsando.
     function bola(cam, b, d) {
+      const girando = Math.abs(b.e || 0) > 0.3;
       s.rastro.forEach((p, i) => {
         const v = vista(p.x, p.y), c = cam.p(v.x, v.y, p.z);
-        g.fillStyle = 'rgba(255,190,110,' + (((i + 1) / s.rastro.length) * 0.3).toFixed(2) + ')';
+        g.fillStyle = (girando ? 'rgba(214,242,74,' : 'rgba(255,190,110,') + (((i + 1) / s.rastro.length) * 0.3).toFixed(2) + ')';
         g.beginPath(); g.arc(c.x, c.y, Math.max(1.5 * d, BOLA.raio * c.s * (0.4 + (0.5 * (i + 1)) / s.rastro.length)), 0, Math.PI * 2); g.fill();
       });
       const v = vista(b.x, b.y), c = cam.p(v.x, v.y, b.z);
@@ -507,6 +511,14 @@
       const gb = g.createRadialGradient(c.x - rb * 0.35, c.y - rb * 0.35, rb * 0.1, c.x, c.y, rb);
       gb.addColorStop(0, '#ffffff'); gb.addColorStop(0.45, '#ffe6b8'); gb.addColorStop(1, '#ff9b3d');
       g.fillStyle = gb; g.beginPath(); g.arc(c.x, c.y, rb, 0, Math.PI * 2); g.fill();
+      if (girando) { // efeito: uma faixa girando na bola (para o lado da curva)
+        const ang = agora() * 24 * Math.sign(eu === 'b' ? -b.e : b.e);
+        g.save();
+        g.beginPath(); g.arc(c.x, c.y, rb, 0, Math.PI * 2); g.clip();
+        g.strokeStyle = 'rgba(230,90,20,.8)'; g.lineWidth = Math.max(1, rb * 0.45);
+        g.beginPath(); g.moveTo(c.x + Math.cos(ang) * rb * 1.3, c.y + Math.sin(ang) * rb * 1.3); g.lineTo(c.x - Math.cos(ang) * rb * 1.3, c.y - Math.sin(ang) * rb * 1.3); g.stroke();
+        g.restore();
+      }
       if (s.segura || (s.fase === 'saque' && sacadorAgora() === eu)) {
         g.strokeStyle = 'rgba(214,242,74,' + (0.35 + 0.3 * Math.sin(agora() * 8)).toFixed(2) + ')';
         g.lineWidth = 1.5 * d;
@@ -528,7 +540,7 @@
       else if (s.fase === 'ponto' && s.ultimoPonto) texto = (s.ultimoPonto.ganhou === eu ? 'Ponto seu' : 'Ponto de ' + o.nome(s.ultimoPonto.ganhou)) + (s.ultimoPonto.motivo ? ' (' + MOTIVO[s.ultimoPonto.motivo].replace(/!$/, '').toLowerCase() + ')' : '') + '.';
       else if (s.segura) texto = 'Esperando ' + o.nome(ele) + '…';
       else if (s.pontos.w >= P.PONTOS - 1 && s.pontos.b >= P.PONTOS - 1) texto = s.pontos.w === s.pontos.b ? 'Empate: um saque para cada.' : 'Vantagem de ' + o.nome(s.pontos.w > s.pontos.b ? 'w' : 'b') + '.';
-      else texto = s.ultimo === ele ? 'Alinhe a raquete com a bola: a marca limão mostra onde ela vai quicar.' : 'Boa! A bola vai para ' + o.nome(ele) + '.';
+      else texto = s.ultimo === ele ? 'Vá até a bola: a marca limão mostra onde ela vai quicar.' : (Math.abs((s.bola && s.bola.e) || 0) > 1 ? 'Com efeito! A bola vai fazer curva.' : 'Boa! A bola vai para ' + o.nome(ele) + '.');
       if (texto !== ultimoEstado) { ultimoEstado = texto; estado.textContent = texto; }
     }
 

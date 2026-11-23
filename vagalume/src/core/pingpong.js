@@ -5,6 +5,7 @@
 // Regras: depois de cada rebatida a bola precisa quicar uma vez do lado de quem recebe; quique do próprio lado, bola
 // na rede ou fora da mesa é ponto do outro; quem recebe só rebate depois desse quique e perde se ela quicar duas vezes
 // ou passar. Partida até 11, com 2 de vantagem; dois saques para cada um e, a partir de 10 a 10, um saque cada.
+// Efeito: a bola pode levar um efeito lateral (e, em m/s²) que a faz curvar no ar e desviar um pouco no quique.
 (function (raiz) {
   'use strict';
   const MESA = { largura: 1.525, comprimento: 2.74, rede: 0.1525 };
@@ -12,6 +13,7 @@
   const RAQUETE = { raio: 0.085, alcance: 0.19, altura: 0.17 };
   const PONTOS = 11;
   const MEIO = MESA.comprimento / 2;
+  const EFEITO_MAX = 5; // m/s² de curva
   const G = BOLA.gravidade;
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const outra = (c) => (c === 'w' ? 'b' : 'w');
@@ -30,9 +32,11 @@
     return null;
   }
 
-  // Um passo de física. Devolve a bola nova e o que aconteceu: quique (lado da mesa) ou rede.
+  // Um passo de física. Devolve a bola nova e o que aconteceu: quique (lado da mesa) ou rede. O efeito curva a bola
+  // para o lado (e perde um pouco de força com o tempo).
   function passo(b, dt) {
-    const n = { x: b.x + b.vx * dt, y: b.y + b.vy * dt, z: b.z + b.vz * dt - 0.5 * G * dt * dt, vx: b.vx, vy: b.vy, vz: b.vz - G * dt };
+    const e = b.e || 0;
+    const n = { x: b.x + b.vx * dt + 0.5 * e * dt * dt, y: b.y + b.vy * dt, z: b.z + b.vz * dt - 0.5 * G * dt * dt, vx: b.vx + e * dt, vy: b.vy, vz: b.vz - G * dt, e: e * (1 - 0.25 * dt) };
     let quique = null, rede = false;
     if ((b.y - MEIO) * (n.y - MEIO) < 0) {
       const f = (MEIO - b.y) / (n.y - b.y);
@@ -44,7 +48,7 @@
       }
     }
     if (n.z <= BOLA.raio && n.vz < 0 && b.z >= BOLA.raio - 0.03 && naMesa(n.x, n.y)) {
-      n.z = BOLA.raio; n.vz = -n.vz * BOLA.quique; n.vx *= BOLA.atrito; n.vy *= BOLA.atrito;
+      n.z = BOLA.raio; n.vz = -n.vz * BOLA.quique; n.vx = n.vx * BOLA.atrito + n.e * 0.08; n.vy *= BOLA.atrito; n.e *= 0.5; // o efeito "morde" a mesa
       quique = ladoDe(n.y);
     }
     return { bola: n, quique, rede };
@@ -52,7 +56,7 @@
 
   // Velocidade para a bola sair de pos e cair em alvo (no tampo) em T segundos; se o arco não passa a rede, sobe
   // (e aí cai um pouco mais longe, como de verdade).
-  function golpe(pos, alvo, T) {
+  function golpe(pos, alvo, T, efeito) {
     const vx = (alvo.x - pos.x) / T, vy = (alvo.y - pos.y) / T;
     let vz = (BOLA.raio - pos.z + 0.5 * G * T * T) / T;
     const tn = (MEIO - pos.y) / vy;
@@ -61,16 +65,17 @@
       const minimo = MESA.rede + BOLA.raio + 0.03;
       if (zn < minimo) vz += (minimo - zn) / tn;
     }
-    return { x: pos.x, y: pos.y, z: pos.z, vx, vy, vz };
+    return { x: pos.x, y: pos.y, z: pos.z, vx, vy, vz, e: efeito || 0 };
   }
-  // Rebatida de quem joga no `lado`: forca 0 a 1,25 (1 = quase no fim da mesa; acima disso tende a sair) e desvio
-  // lateral em metros (bater com a ponta da raquete e puxar para o lado mandam a bola na diagonal).
-  function rebater(bola, lado, forca, desvioX) {
+  // Rebatida de quem joga no `lado`: forca 0 a 1,3 (1 = quase no fim da mesa; acima disso tende a sair), desvio
+  // lateral em metros (bater com a ponta da raquete manda a bola na diagonal) e efeito (curva, em m/s²; a mira não
+  // conta a curva, então efeito demais perto da borda pode tirar a bola da mesa).
+  function rebater(bola, lado, forca, desvioX, efeito) {
     const dir = lado === 'w' ? 1 : -1;
     const f = clamp(forca, 0.12, 1.3);
     const alvo = { x: clamp(bola.x + desvioX, -1.3, 1.3), y: MEIO + dir * (0.3 + f * 1.05) };
     const T = 0.68 - 0.24 * Math.min(1, f); // arco de uns 30 a 50 cm acima da mesa; um pouco mais lenta para dar tempo
-    return golpe({ x: bola.x, y: bola.y, z: Math.max(bola.z, BOLA.raio + 0.01) }, alvo, T);
+    return golpe({ x: bola.x, y: bola.y, z: Math.max(bola.z, BOLA.raio + 0.01) }, alvo, T, clamp(efeito || 0, -EFEITO_MAX, EFEITO_MAX));
   }
   // Bola parada na frente da raquete de quem saca.
   function posicaoDeSaque(lado, raqueteX) {
@@ -107,18 +112,19 @@
   }
   // Bot por nível: velocidade da raquete (m/s), tempo até reagir, erro de mira, chance de errar o golpe e força.
   const NIVEIS = {
-    facil: { vel: 1.3, reacao: 0.35, erro: 0.12, falha: 0.2, forca: [0.3, 0.6], abre: 0.3 },
-    medio: { vel: 2.0, reacao: 0.2, erro: 0.06, falha: 0.1, forca: [0.4, 0.8], abre: 0.45 },
-    dificil: { vel: 3.2, reacao: 0.08, erro: 0.02, falha: 0.04, forca: [0.55, 0.95], abre: 0.6 },
+    facil: { vel: 1.3, reacao: 0.35, erro: 0.12, falha: 0.2, forca: [0.3, 0.6], abre: 0.3, efeito: 0 },
+    medio: { vel: 2.0, reacao: 0.2, erro: 0.06, falha: 0.1, forca: [0.4, 0.8], abre: 0.45, efeito: 1.2 },
+    dificil: { vel: 3.2, reacao: 0.08, erro: 0.02, falha: 0.04, forca: [0.55, 0.95], abre: 0.6, efeito: 2.4 },
   };
   // Bola recebida pela rede: só números possíveis.
   function bolaValida(b) {
     if (!b || ![b.x, b.y, b.z, b.vx, b.vy, b.vz].every(Number.isFinite)) return null;
+    const e = Number.isFinite(b.e) ? clamp(b.e, -EFEITO_MAX, EFEITO_MAX) : 0;
     if (Math.hypot(b.vx, b.vy, b.vz) > BOLA.maxima || Math.abs(b.x) > 3 || b.y < -2 || b.y > MESA.comprimento + 2 || b.z < -1 || b.z > 3) return null;
-    return { x: b.x, y: b.y, z: b.z, vx: b.vx, vy: b.vy, vz: b.vz };
+    return { x: b.x, y: b.y, z: b.z, vx: b.vx, vy: b.vy, vz: b.vz, e };
   }
 
-  const api = { MESA, BOLA, RAQUETE, PONTOS, MEIO, NIVEIS, outra, ladoDe, naMesa, fundo, sacador, vencedor, passo, golpe, rebater, posicaoDeSaque, preverCruzamento, preverQuique, bolaValida };
+  const api = { MESA, BOLA, RAQUETE, PONTOS, MEIO, NIVEIS, EFEITO_MAX, outra, ladoDe, naMesa, fundo, sacador, vencedor, passo, golpe, rebater, posicaoDeSaque, preverCruzamento, preverQuique, bolaValida };
   raiz.VL = raiz.VL || {};
   raiz.VL.pingpong = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
