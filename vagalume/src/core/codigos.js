@@ -359,7 +359,7 @@
   }
 
   // Um mobi do chão, como no 1778 e no 3776.
-  function lerMobi(l) {
+  function lerMobi(l, tolerante) {
     const id = l.inteiro();
     const tipo = l.inteiro();
     const x = l.inteiro();
@@ -370,10 +370,15 @@
     const alturaMobi = textoAlturaMobi === '' ? null : Number(textoAlturaMobi);
     l.inteiro(); // extra
     const det = {};
-    const estado = lerDadosExtras(l, det);
-    l.inteiro(); // validade
-    l.inteiro(); // uso
-    const dono = l.inteiro();
+    let estado = '', dono = 0;
+    try {
+      estado = lerDadosExtras(l, det);
+      l.inteiro(); // validade
+      l.inteiro(); // uso
+      dono = l.inteiro();
+    } catch (erro) {
+      if (!tolerante) throw erro;
+    }
     const m = { id, tipo, x, y, direcao, altura: Number.isFinite(altura) ? altura : 0, alturaMobi: Number.isFinite(alturaMobi) ? alturaMobi : null, estado, dono };
     if (det.numeros) m.numeros = det.numeros; // toner de fundo: [ligado, matiz, saturação, claridade]
     if (det.mapa) m.mapa = det.mapa;          // imagem de fundo e afins: imageUrl, offsetX…
@@ -734,10 +739,16 @@
     too_large_width: 'o quarto passa do tamanho que o hotel deixa',
     effective_height_is_0: 'o mapa ficou vazio',
     effective_width_is_0: 'o mapa ficou vazio',
+    max_furniture: 'o quarto chegou ao limite de mobis do hotel',
+    cant_set_item: 'o hotel não deixou colocar alguns mobis no lugar',
+    cant_set_not_owner: 'sem direitos neste quarto',
+    max_queuetiles: 'limite de rollers do quarto',
+    max_soundfurni: 'só um mobi sonoro por quarto',
+    max_stickies: 'limite de 50 adesivos por quarto',
   });
   function motivoDoFloor(texto) {
     const t = String(texto || '');
-    const chaves = [...t.matchAll(/floorplan_editor\.error\.message\.([a-z_0-9]+)/gi)].map((m) => m[1].toLowerCase());
+    const chaves = [...t.matchAll(/(?:floorplan_editor\.error\.message|room\.error)\.([a-z_0-9]+)/gi)].map((m) => m[1].toLowerCase());
     const motivos = [...new Set(chaves.map((k) => MOTIVOS_FLOOR[k] || k.replace(/_/g, ' ')))];
     return motivos.length ? motivos.join('; ') : t.replace(/\$\{[^}]*\}/g, '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 200).replace(/[\s.!]+$/, '');
   }
@@ -748,6 +759,22 @@
       if (!m.parede) return Object.assign({}, m, { x: m.x - d.x, y: m.y - d.y });
       return Object.assign({}, m, { local: m.local.replace(/^:w=(\d+),(\d+)/, (t, x, y) => ':w=' + (Number(x) - d.x) + ',' + (Number(y) - d.y)) });
     }).filter((m) => m.parede ? LOCAL_PAREDE.test(m.local) : m.x >= 0 && m.y >= 0);
+  }
+  // O que da cópia ainda não está no quarto (mesmo tipo, piso e altura; parede pelo tipo e local): colar de novo
+  // continua de onde parou, sem repetir o que já foi colocado.
+  function faltandoNoQuarto(copia, chao, paredes) {
+    const porLugar = new Map();
+    for (const m of chao) { const k = m.tipo + '|' + m.x + '|' + m.y; if (!porLugar.has(k)) porLugar.set(k, []); porLugar.get(k).push(m.altura || 0); }
+    const locais = new Map();
+    for (const m of paredes) { const k = m.tipo + '|' + m.local; locais.set(k, (locais.get(k) || 0) + 1); }
+    return copia.filter(function (e) {
+      if (e.parede) { const k = e.tipo + '|' + e.local; if (!locais.get(k)) return true; locais.set(k, locais.get(k) - 1); return false; }
+      const lista = porLugar.get(e.tipo + '|' + e.x + '|' + e.y) || [];
+      const i = lista.findIndex((z) => Math.abs(z - (e.altura || 0)) < 0.01);
+      if (i < 0) return true;
+      lista.splice(i, 1);
+      return false;
+    });
   }
   // Conferência do quarto colado com a cópia: cada mobi esperado é casado com um do quarto (mesmo tipo e
   // posição; altura e estado comparados). Devolve contagens e os tipos de cada problema.
@@ -1116,7 +1143,7 @@
     return { id, nome, visual, genero };
   }
 
-  const api = { conferirCopia, deslocarCopia, plantaParaColar, alturaDoPiso, lerAlerta, motivoDoFloor, lerPlanta, lerEspessura, lerPorta, lerDecoracao, lerMobiParede, lerMobisParede, lerRegulador, reguladorLigado, LOCAL_PAREDE, CLASSE_DECORACAO, validarExtrasQuarto, mobiRaro, estadoNumero, origemDaAmostra, pisoNaTela, telaNoPiso, origemMediana, cantosDaArea, planoGirarArea, planoEspelharArea, planoEscada, caminhoPaginaLoja, semAcento, acharPaginasLoja, MAX_PISOS_PREENCHER, MAX_CAMADAS, planoPreencher, lerCompra, resumoCarrinho, areaDe, mobisNaArea, planoMoverArea, planoDuplicar, planoSubstituir, repetidos, lerMeusDados, FEIRA_ESTADO, lerConfigFeira, lerOfertaFeira, lerOfertasFeira, lerMinhasOfertas, ofertasParaRepor, copiaDoQuarto, validarCopiaQuarto, planoDeColagem, SALVAR_WIRED, lerVisuais, visualValido, lerIndiceLoja, lerPaginaLoja, lerItemInventario, lerInventario, planoDeCompra, EXPRESSAO_INATIVO, lerAmigos, lerAmigo, lerAtualizacaoAmigos, lerMensagemRecebida, mencaoNaFala, referenciasDeQuarto, MAX_ALTURA, alturaValida, alturaDoMobi, SAIDA, ENTRADA, EXPRESSOES, MAX_DANCA, DANCAS_EXTRAS, MAX_PLACA, lerUmaOferta, lerFala, lerUsuarios, filtrarUsuarios, trocarPosicao, lerEstados, destinoDoMovimento, passo, PASSOS, EIXOS_SETAS, passoSetas, LADOS, NOMES_LADOS, linhasAoEntrar,
+  const api = { faltandoNoQuarto, conferirCopia, deslocarCopia, plantaParaColar, alturaDoPiso, lerAlerta, motivoDoFloor, lerPlanta, lerEspessura, lerPorta, lerDecoracao, lerMobiParede, lerMobisParede, lerRegulador, reguladorLigado, LOCAL_PAREDE, CLASSE_DECORACAO, validarExtrasQuarto, mobiRaro, estadoNumero, origemDaAmostra, pisoNaTela, telaNoPiso, origemMediana, cantosDaArea, planoGirarArea, planoEspelharArea, planoEscada, caminhoPaginaLoja, semAcento, acharPaginasLoja, MAX_PISOS_PREENCHER, MAX_CAMADAS, planoPreencher, lerCompra, resumoCarrinho, areaDe, mobisNaArea, planoMoverArea, planoDuplicar, planoSubstituir, repetidos, lerMeusDados, FEIRA_ESTADO, lerConfigFeira, lerOfertaFeira, lerOfertasFeira, lerMinhasOfertas, ofertasParaRepor, copiaDoQuarto, validarCopiaQuarto, planoDeColagem, SALVAR_WIRED, lerVisuais, visualValido, lerIndiceLoja, lerPaginaLoja, lerItemInventario, lerInventario, planoDeCompra, EXPRESSAO_INATIVO, lerAmigos, lerAmigo, lerAtualizacaoAmigos, lerMensagemRecebida, mencaoNaFala, referenciasDeQuarto, MAX_ALTURA, alturaValida, alturaDoMobi, SAIDA, ENTRADA, EXPRESSOES, MAX_DANCA, DANCAS_EXTRAS, MAX_PLACA, lerUmaOferta, lerFala, lerUsuarios, filtrarUsuarios, trocarPosicao, lerEstados, destinoDoMovimento, passo, PASSOS, EIXOS_SETAS, passoSetas, LADOS, NOMES_LADOS, linhasAoEntrar,
     lerDadosExtras, lerMobi, lerMobisDoQuarto, mexer, EIXOS, mobisIguaisNaArea, encaixeSobreMobis };
   raiz.VL = raiz.VL || {};
   raiz.VL.codigos = api;

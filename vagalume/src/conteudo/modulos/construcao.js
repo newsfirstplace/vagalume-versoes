@@ -599,11 +599,16 @@
       // partir do piso (em piso alto) e descontar a altura do piso. Sem nenhum mobi aceito nos 12 primeiros
       // pedidos, para (sem direitos no quarto).
       let estadosDiferentes = 0; // da última colocarLista: mobis no lugar certo mas com outro estado
-      let paradaLista = null;    // da última colocarLista: 'saiu' ou 'recusado'
+      let paradaLista = null;    // da última colocarLista: 'saiu', 'recusado', 'limite' ou 'travou'
+      let avisoLista = '';       // último aviso do hotel durante a última colocarLista
+      // Sem nenhum mobi confirmado por esse tempo, o hotel parou de aceitar (vídeo do usuário em 2026-11-22:
+      // "travou" em 570 de 987 e seguia tentando sem avisar).
+      const SEM_AVANCO_MS = 45000;
       async function colocarLista(todos, opcoes) {
         const sair = (opcoes && opcoes.sair) || (() => false);
         const mapaAtual = (opcoes && opcoes.mapa) || (() => planta && planta.mapa);
         paradaLista = null;
+        avisoLista = '';
         const paredes = todos.filter((m) => m.parede);
         const colocar = todos.filter((m) => !m.parede);
         const certo = (m, lido) => lido.x === m.x && lido.y === m.y && Math.abs(lido.altura - (m.altura || 0)) < 0.01;
@@ -621,18 +626,21 @@
         const alturaPiso = (m) => codigos.alturaDoPiso(mapaAtual(), m.x, m.y) || 0;
         const alvoFixo = (m) => (m.altura || 0) - (aPartirDoPiso ? alturaPiso(m) : 0);
         let acordar = null;
+        let ultimoAvanco = Date.now();
         function ouvir(l, colocado) {
           let lido = null;
-          try { lido = codigos.lerMobi(l); } catch (e) { return; }
+          try { lido = codigos.lerMobi(l, true); } catch (e) { return; }
           const m = alvos.get(lido.id);
           if (!m) return;
-          if (colocado) colocados.add(lido.id);
+          if (colocado && !colocados.has(lido.id)) { colocados.add(lido.id); ultimoAvanco = Date.now(); }
+          // Só pelo mover (que sempre usa a altura fixa) e conferindo a cada vez: ao colocar, o hotel pode
+          // empilhar no topo e coincidir por acaso.
           const f = fixadoCom.get(lido.id);
-          if (aPartirDoPiso == null && f != null && alturaPiso(m) > 0) {
+          if (!colocado && f != null && alturaPiso(m) > 0) {
             if (Math.abs(lido.altura - f) < 0.01) aPartirDoPiso = false;
             else if (Math.abs(lido.altura - (f + alturaPiso(m))) < 0.01) aPartirDoPiso = true;
           }
-          if (certo(m, lido)) prontos.add(lido.id);
+          if (certo(m, lido) && !prontos.has(lido.id)) { prontos.add(lido.id); ultimoAvanco = Date.now(); }
           conferirEstado(lido.id, lido.estado);
           if (acordar) acordar();
         }
@@ -643,6 +651,13 @@
           try { const id = Number(l.texto()); l.inteiro(); conferirEstado(id, l.texto()); } catch (e) { return; }
           if (acordar) acordar();
         });
+        // Avisos do hotel no meio (limite de mobis, lugar não permitido…): o último vai para o resumo.
+        const pararAvisos = [ENTRADA.ALERTA, ENTRADA.NOTIFICACAO, ENTRADA.ALERTA_SIMPLES].map((cod) => conexao.ouvir('entrada', cod, function (l) {
+          let texto = '';
+          try { const a = codigos.lerAlerta(cod, l); texto = a.texto; } catch (e) { return; }
+          if (/max_furniture|limite m[aá]ximo de mobis/i.test(texto)) paradaLista = 'limite';
+          avisoLista = codigos.motivoDoFloor(texto) || avisoLista;
+        }));
         const aguardar = (feito, ms) => new Promise(function (r) { if (feito()) { r(); return; } acordar = () => { if (feito()) r(); }; setTimeout(r, ms || 700); }).then(() => { acordar = null; });
         const ordem = (a, b) => (a.altura || 0) - (b.altura || 0) || (codigos.estadoNumero(a.estado) ?? -1) - (codigos.estadoNumero(b.estado) ?? -1);
         let pedidos = 0, avisadoEm = Date.now();
@@ -654,6 +669,8 @@
               if (!fila.length) break;
               while (fila.length) {
                 if (!ctx.ativo('construcao') || sair()) { paradaLista = 'saiu'; return; }
+                if (paradaLista === 'limite') return;
+                if (Date.now() - ultimoAvanco > SEM_AVANCO_MS) { paradaLista = 'travou'; return; }
                 const chave = (m) => alvoFixo(m) + '|' + codigos.estadoNumero(m.estado);
                 const lote = [fila.shift()];
                 while (rodada === 0 && lote.length < 3 && fila.length && chave(fila[0]) === chave(lote[0])) lote.push(fila.shift());
@@ -679,12 +696,16 @@
                 for (const m of lote) if (codigos.estadoNumero(m.estado) != null && prontos.has(m.itemId)) { tentouEstado++; if (estadoCerto.has(m.itemId)) acertouEstado++; }
                 const resto = folga * lote.length - (Date.now() - inicio);
                 if (resto > 0) await esperar(resto);
-                if (Date.now() - avisadoEm > 4000) { avisadoEm = Date.now(); camada.aviso('Colando: ' + prontos.size + ' de ' + colocar.length + ' mobis. Fique neste quarto até terminar.', { duracaoMs: 4500 }); }
+                if (Date.now() - avisadoEm > 4000) {
+                  avisadoEm = Date.now();
+                  camada.aviso('Colando: ' + prontos.size + ' de ' + colocar.length + ' mobis' + (rodada ? ' (repetindo os que faltaram, ' + (rodada + 1) + 'ª de 3 voltas)' : '') + '. Fique neste quarto até terminar.'
+                    + (avisoLista ? ' Último aviso do hotel: ' + avisoLista + '.' : ''), { duracaoMs: 4500 });
+                }
               }
               await esperar(500); // confirmações atrasadas antes de decidir quem repete
             }
           });
-        } finally { pararA(); pararB(); pararC(); }
+        } finally { pararA(); pararB(); pararC(); pararAvisos.forEach((fn) => fn()); }
         estadosDiferentes = [...prontos].filter((id) => !estadoCerto.has(id)).length;
         if (paradaLista) return prontos.size;
         return prontos.size + (paredes.length && ctx.ativo('construcao') ? await colocarParede(paredes, sair) : 0);
@@ -757,6 +778,12 @@
         await esperar(300);
         r.ok = true;
         return r;
+      }
+      function deslocarSeMesmoFloor(p) {
+        const alvo = codigos.plantaParaColar(p, []);
+        const atual = planta ? codigos.plantaParaColar({ mapa: planta.mapa }, []) : null;
+        if (!alvo || !atual || atual.mapa !== alvo.mapa) return null;
+        return { x: alvo.deslocar.x - atual.deslocar.x, y: alvo.deslocar.y - atual.deslocar.y };
       }
       // Esvazia o quarto antes de colar (Ctrl+V de verdade): o :pickall do jogo recolhe tudo para o inventário do
       // dono. Espera a lista de mobis zerar (para de esperar com 3 s sem mudança). Devolve quantos ficaram.
@@ -877,9 +904,16 @@
         try {
           // O que colar (só aparecem as partes que a cópia tem).
           const noQuarto = mobis.size + mobisParede.size;
+          // Colagem que parou no meio: se metade ou mais do que está aqui já é da cópia (no mesmo floor), o padrão
+          // é continuar, colocando só o que falta, em vez de recolher tudo.
+          const mesmoFloor = extrasCopia.planta ? deslocarSeMesmoFloor(extrasCopia.planta) : { x: 0, y: 0 };
+          const jaNoLugar = noQuarto && mesmoFloor ? copiaQuarto.length - codigos.faltandoNoQuarto(codigos.deslocarCopia(copiaQuarto, mesmoFloor), [...mobis.values()], [...mobisParede.values()]).length : 0;
+          const continuar = noQuarto > 0 && jaNoLugar >= noQuarto * 0.5;
           const partes = [['mobis', 'Mobis do chão e da parede', true]];
           if (extrasCopia.planta) partes.unshift(['planta', 'Floor igual ao do quarto copiado, com a mesma porta (o quarto recarrega)', true]);
-          if (noQuarto) partes.unshift(['esvaziar', 'Recolher antes os ' + noQuarto + ' mobis que já estão neste quarto: vão para o seu inventário e entram na colagem (a arrumação atual deste quarto se perde)', true]);
+          if (noQuarto) partes.unshift(['esvaziar', continuar
+            ? 'Recolher antes os ' + noQuarto + ' mobis deste quarto e colar tudo de novo (desmarcado: continua a colagem, ' + jaNoLugar + ' mobis da cópia já estão no lugar e só entra o que falta)'
+            : 'Recolher antes os ' + noQuarto + ' mobis que já estão neste quarto: vão para o seu inventário e entram na colagem (a arrumação atual deste quarto se perde)', !continuar]);
           if (extrasCopia.decoracao) partes.push(['decoracao', 'Papel de parede, piso e paisagem', true]);
           if (extrasCopia.regulador) partes.push(['regulador', 'Configuração do regulador de luz', true]);
           const marcas = {};
@@ -908,6 +942,9 @@
             if (ficaram && !(await camada.confirmar(ficaram + ' mobis continuam neste quarto (o jogo só deixa o dono recolher tudo). Colar mesmo assim, com eles no quarto?', { titulo: 'Colar quarto', sim: 'Colar mesmo assim' }))) return;
           }
           let copia = copiaQuarto; // com o floor aplicado, as posições seguem o recorte do mapa
+          // Sem recolher, o que já está no lugar fica de fora da compra e da colagem.
+          const doQuarto = () => [[...mobis.values()], [...mobisParede.values()]];
+          const pular = (c) => (recolheu || !(mobis.size + mobisParede.size) ? c : codigos.faltandoNoQuarto(c, ...doQuarto()));
           // Compra antes do floor (pedido do usuário: a janela demorava a aparecer depois do floor): o
           // inventário é lido uma vez agora e reaproveitado se nada for comprado.
           let itens = null, comprou = false;
@@ -923,7 +960,7 @@
               itens = novos;
             }
             if (!itens) { camada.aviso('O inventário não respondeu.', { tipo: 'erro' }); return; }
-            const c = await comprarFaltasDaCopia(copiaQuarto, 'Faltam {n} mobis no seu inventário para colar o quarto inteiro.', itens, { pular: 'Continuar sem esses mobis' });
+            const c = await comprarFaltasDaCopia(mesmoFloor ? pular(codigos.deslocarCopia(copiaQuarto, mesmoFloor)) : copiaQuarto, 'Faltam {n} mobis no seu inventário para colar o quarto inteiro.', itens, { pular: 'Continuar sem esses mobis' });
             if (c === 'cancelado') { camada.aviso('Colagem cancelada.'); return; }
             comprou = c === true;
           }
@@ -958,10 +995,17 @@
             return;
           }
           // Depois de comprar ou recolher, o inventário pode demorar a mostrar os itens: lê de novo até 3 vezes.
-          let plano = codigos.planoDeColagem(copia, itens);
+          const paraColocar = pular(copia);
+          if (paraColocar.length < copia.length) resumo.push((copia.length - paraColocar.length) + ' já estavam no lugar');
+          if (!paraColocar.length) {
+            await decoracaoERegulador();
+            camada.aviso('Pronto: todos os mobis da cópia já estão no lugar' + (resumo.length ? '; ' + resumo.join('; ') : '') + '.', { tipo: 'ok', duracaoMs: 10000 });
+            return;
+          }
+          let plano = codigos.planoDeColagem(paraColocar, itens);
           for (let i = 0; comprou && i < 3; i++) {
             const novos = await pedirInventario();
-            if (novos) { itens = novos; plano = codigos.planoDeColagem(copia, itens); }
+            if (novos) { itens = novos; plano = codigos.planoDeColagem(paraColocar, itens); }
             if (!plano.faltam.size) break;
             await esperar(400);
           }
@@ -971,7 +1015,15 @@
           camada.aviso('Colocando ' + plano.colocar.length + ' mobis' + (faltam ? ' (' + faltam + ' ficam de fora)' : '') + '. Fique neste quarto até terminar.', { duracaoMs: 5000 });
           const feitos = await colocarLista(plano.colocar, { sair, mapa: () => planta && planta.mapa });
           if (paradaLista === 'saiu') { parou(); return; }
-          if (paradaLista === 'recusado') { camada.aviso('O hotel não aceitou nenhum mobi neste quarto (você é o dono ou tem direitos aqui?). A colagem parou.', { tipo: 'erro', duracaoMs: 12000 }); return; }
+          if (paradaLista === 'recusado') { camada.aviso('O hotel não aceitou nenhum mobi neste quarto (você é o dono ou tem direitos aqui?). A colagem parou.' + (avisoLista ? ' Aviso do hotel: ' + avisoLista + '.' : ''), { tipo: 'erro', duracaoMs: 12000 }); return; }
+          if (paradaLista === 'limite' || paradaLista === 'travou') {
+            ultimaCopiaColada = copia;
+            setTimeout(function () { if (ctx.ativo('construcao')) mostrarConferencia(copia); }, 1500);
+            camada.aviso((paradaLista === 'limite' ? 'O quarto chegou ao limite de mobis do hotel: ' : 'O hotel parou de aceitar os mobis (nada novo em 45 s): ')
+              + feitos + ' de ' + plano.colocar.length + ' colocados.' + (avisoLista && paradaLista !== 'limite' ? ' Último aviso do hotel: ' + avisoLista + '.' : '')
+              + ' Para continuar, use Colar quarto de novo sem marcar "Recolher antes": só entra o que falta.', { tipo: 'erro', duracaoMs: 15000 });
+            return;
+          }
           const especiais = await aplicarDadosEspeciais(plano.colocar, sair);
           if (especiais) resumo.push(especiais + (especiais === 1 ? ' mobi com cor ou imagem de fundo configurado' : ' mobis com cor ou imagem de fundo configurados'));
           await decoracaoERegulador();
