@@ -477,6 +477,19 @@
       let copiaQuarto = null;
       let extrasCopia = {}; // { planta, decoracao, regulador } da cópia (pedido do usuário em 2026-11-22)
       let colando = false;
+      const CHAVE_COPIA = 'vl.copiaQuarto';
+      const areaLocal = raiz.chrome && raiz.chrome.storage && raiz.chrome.storage.local;
+      function guardarCopia() {
+        if (!areaLocal || !copiaQuarto) return;
+        areaLocal.set({ [CHAVE_COPIA]: { mobis: copiaQuarto, extras: extrasCopia, quando: Date.now() } }).catch(function () { /* sem espaço: fica só na memória */ });
+      }
+      if (areaLocal) {
+        areaLocal.get(CHAVE_COPIA).then(function (r) {
+          const o = r && r[CHAVE_COPIA];
+          const lista = o && !copiaQuarto ? codigos.validarCopiaQuarto(o.mobis) : null;
+          if (lista) { copiaQuarto = lista; extrasCopia = codigos.validarExtrasQuarto(o.extras); }
+        }).catch(function () { /* sem cópia guardada */ });
+      }
       // Espera uma mensagem que chega com o código; devolve o leitor ou null no tempo.
       function esperarMensagem(codigo, ms, pedir) {
         return new Promise(function (resolver) {
@@ -504,6 +517,7 @@
           if (lReg) extrasCopia.regulador = Object.assign(codigos.lerRegulador(lReg), { ligado: codigos.reguladorLigado(dimmer.estado) });
         }
         extrasCopia = codigos.validarExtrasQuarto(extrasCopia);
+        guardarCopia();
         const partes = [copiaQuarto.length + ' mobis'];
         if (extrasCopia.planta) partes.push(extrasCopia.planta.porta ? 'floor com a porta' : 'floor (sem a porta: ao colar, o Vagalume escolhe um piso da borda)');
         if (extrasCopia.decoracao) partes.push('papel de parede, piso e paisagem');
@@ -538,6 +552,7 @@
         if (!lista) { camada.aviso('Este arquivo não é uma cópia de quarto do Vagalume.', { tipo: 'erro' }); return; }
         copiaQuarto = lista;
         extrasCopia = codigos.validarExtrasQuarto(obj.extras);
+        guardarCopia();
         camada.aviso('Cópia importada: ' + lista.length + ' mobis. Entre num quarto seu e cole.', { tipo: 'ok' });
       }
       function pedirInventario() {
@@ -609,10 +624,11 @@
         const mapaAtual = (opcoes && opcoes.mapa) || (() => planta && planta.mapa);
         paradaLista = null;
         avisoLista = '';
+        const jaNoQuarto = (opcoes && opcoes.jaNoQuarto) || new Set();
         const paredes = todos.filter((m) => m.parede);
         const colocar = todos.filter((m) => !m.parede);
         const certo = (m, lido) => lido.x === m.x && lido.y === m.y && Math.abs(lido.altura - (m.altura || 0)) < 0.01;
-        const colocados = new Set();
+        const colocados = new Set(jaNoQuarto); // corrigidos no lugar: não se coloca de novo, só se move
         const prontos = new Set();
         const estadoCerto = new Set(); // ids com o estado da referência (ou sem estado para conferir)
         for (const m of colocar) if (codigos.estadoNumero(m.estado) == null) estadoCerto.add(m.itemId);
@@ -995,9 +1011,12 @@
             return;
           }
           // Depois de comprar ou recolher, o inventário pode demorar a mostrar os itens: lê de novo até 3 vezes.
-          const paraColocar = pular(copia);
-          if (paraColocar.length < copia.length) resumo.push((copia.length - paraColocar.length) + ' já estavam no lugar');
-          if (!paraColocar.length) {
+          const continuacao = recolheu || !(mobis.size + mobisParede.size) ? { faltam: copia, corrigir: [] } : codigos.planoContinuar(copia, ...doQuarto());
+          const paraColocar = continuacao.faltam, corrigir = continuacao.corrigir;
+          const iguais = copia.length - paraColocar.length - corrigir.length;
+          if (iguais) resumo.push(iguais + ' já estavam no lugar');
+          if (corrigir.length) resumo.push(corrigir.length + ' que já estavam no quarto foram acertados no lugar');
+          if (!paraColocar.length && !corrigir.length) {
             await decoracaoERegulador();
             camada.aviso('Pronto: todos os mobis da cópia já estão no lugar' + (resumo.length ? '; ' + resumo.join('; ') : '') + '.', { tipo: 'ok', duracaoMs: 10000 });
             return;
@@ -1010,17 +1029,17 @@
             await esperar(400);
           }
           const faltam = [...plano.faltam.values()].reduce((s, n) => s + n, 0);
-          if (!plano.colocar.length) { camada.aviso('Nenhum dos mobis da cópia está no seu inventário.', { tipo: 'erro' }); return; }
+          if (!plano.colocar.length && !corrigir.length) { camada.aviso('Nenhum dos mobis que faltam está no seu inventário.', { tipo: 'erro' }); return; }
           if (sair()) { parou(); return; }
-          camada.aviso('Colocando ' + plano.colocar.length + ' mobis' + (faltam ? ' (' + faltam + ' ficam de fora)' : '') + '. Fique neste quarto até terminar.', { duracaoMs: 5000 });
-          const feitos = await colocarLista(plano.colocar, { sair, mapa: () => planta && planta.mapa });
+          camada.aviso('Colocando ' + plano.colocar.length + ' mobis' + (corrigir.length ? ' e acertando ' + corrigir.length : '') + (faltam ? ' (' + faltam + ' ficam de fora)' : '') + '. Fique neste quarto até terminar.', { duracaoMs: 5000 });
+          const feitos = await colocarLista(plano.colocar.concat(corrigir), { sair, mapa: () => planta && planta.mapa, jaNoQuarto: new Set(corrigir.map((c) => c.itemId)) });
           if (paradaLista === 'saiu') { parou(); return; }
           if (paradaLista === 'recusado') { camada.aviso('O hotel não aceitou nenhum mobi neste quarto (você é o dono ou tem direitos aqui?). A colagem parou.' + (avisoLista ? ' Aviso do hotel: ' + avisoLista + '.' : ''), { tipo: 'erro', duracaoMs: 12000 }); return; }
           if (paradaLista === 'limite' || paradaLista === 'travou') {
             ultimaCopiaColada = copia;
             setTimeout(function () { if (ctx.ativo('construcao')) mostrarConferencia(copia); }, 1500);
             camada.aviso((paradaLista === 'limite' ? 'O quarto chegou ao limite de mobis do hotel: ' : 'O hotel parou de aceitar os mobis (nada novo em 45 s): ')
-              + feitos + ' de ' + plano.colocar.length + ' colocados.' + (avisoLista && paradaLista !== 'limite' ? ' Último aviso do hotel: ' + avisoLista + '.' : '')
+              + feitos + ' de ' + (plano.colocar.length + corrigir.length) + ' colocados.' + (avisoLista && paradaLista !== 'limite' ? ' Último aviso do hotel: ' + avisoLista + '.' : '')
               + ' Para continuar, use Colar quarto de novo sem marcar "Recolher antes": só entra o que falta.', { tipo: 'erro', duracaoMs: 15000 });
             return;
           }
