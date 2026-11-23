@@ -54,7 +54,7 @@
         .then(function (d) {
           const chao = new Map();
           const parede = new Map();
-          const guardar = (lista, mapa) => { for (const f of lista || []) if (f && Number.isInteger(f.id)) mapa.set(f.id, { classe: String(f.classname || ''), nome: String(f.name || ''), oferta: Number(f.offerid) || 0, sentar: f.cansiton === true, deitar: f.canlayon === true }); };
+          const guardar = (lista, mapa) => { for (const f of lista || []) if (f && Number.isInteger(f.id)) mapa.set(f.id, { classe: String(f.classname || ''), nome: String(f.name || ''), oferta: Number(f.offerid) || 0, sentar: f.cansiton === true, deitar: f.canlayon === true, largura: Number(f.xdim) || 1, comprimento: Number(f.ydim) || 1 }); };
           guardar(d.roomitemtypes && d.roomitemtypes.furnitype, chao);
           guardar(d.wallitemtypes && d.wallitemtypes.furnitype, parede);
           return { chao, parede };

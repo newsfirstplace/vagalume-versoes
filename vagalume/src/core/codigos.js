@@ -1034,6 +1034,36 @@
           : { id: m.id, x: m.x, y: area.y1 + area.y2 - m.y, direcao: (12 - d) % 8 };
       });
   }
+  // Modo espelho (sugestão de usuários do Habblet em 2026-11-22: "o que você desenha de um lado aparece do
+  // outro"): linha vertical ou horizontal da tela passando pelo piso (cx, cy). Na tela, x − y anda na
+  // horizontal e x + y na vertical: a linha vertical troca x e y em volta dela (direções 0↔6, 2↔4) e a
+  // horizontal os inverte (0↔2, 4↔6). dims: [largura, comprimento] do mobi (xdim, ydim), para achar o canto
+  // de um mobi de vários pisos depois de espelhado (com a linha vertical o canto vem certo sem elas).
+  function espelharPonto(m, eixo, centro, dims) {
+    const d = (Number(m.direcao) || 0) % 8;
+    const [lx, ly] = dims || [1, 1];
+    const deLado = d % 4 === 2; // em 2 e 6 o mobi ocupa os pisos com largura e comprimento trocados
+    const W = deLado ? ly : lx, L = deLado ? lx : ly;
+    if (eixo === 'horizontal') {
+      const s = centro.x + centro.y;
+      return { x: s - m.y - L + 1, y: s - m.x - W + 1, direcao: (10 - d) % 8 };
+    }
+    const k = centro.x - centro.y;
+    return { x: m.y + k, y: m.x - k, direcao: (14 - d) % 8 };
+  }
+  // Pisos do floor que ficam em cima da linha do espelho (a guia desenhada no chão).
+  function pisosDaLinha(mapa, eixo, centro) {
+    const linhas = String(mapa || '').split(/\r\n|\r|\n/);
+    const pisos = [];
+    for (let y = 0; y < linhas.length; y++) {
+      for (let x = 0; x < linhas[y].length; x++) {
+        const c = linhas[y][x];
+        if (c === 'x' || c === 'X') continue;
+        if (eixo === 'horizontal' ? x + y === centro.x + centro.y : x - y === centro.x - centro.y) pisos.push({ x, y });
+      }
+    }
+    return pisos;
+  }
   // Escada: cada mobi da área ganha uma altura que sobe a cada piso ao longo do eixo (x ou y), a partir
   // da base. Nivelar é a escada com passo 0.
   function planoEscada(lista, eixo, base, passo) {
@@ -1156,7 +1186,7 @@
     return { id, nome, visual, genero };
   }
 
-  const api = { planoContinuar, faltandoNoQuarto, conferirCopia, deslocarCopia, plantaParaColar, alturaDoPiso, lerAlerta, motivoDoFloor, lerPlanta, lerEspessura, lerPorta, lerDecoracao, lerMobiParede, lerMobisParede, lerRegulador, reguladorLigado, LOCAL_PAREDE, CLASSE_DECORACAO, validarExtrasQuarto, mobiRaro, estadoNumero, origemDaAmostra, pisoNaTela, telaNoPiso, origemMediana, cantosDaArea, planoGirarArea, planoEspelharArea, planoEscada, caminhoPaginaLoja, semAcento, acharPaginasLoja, MAX_PISOS_PREENCHER, MAX_CAMADAS, planoPreencher, lerCompra, resumoCarrinho, areaDe, mobisNaArea, planoMoverArea, planoDuplicar, planoSubstituir, repetidos, lerMeusDados, FEIRA_ESTADO, lerConfigFeira, lerOfertaFeira, lerOfertasFeira, lerMinhasOfertas, ofertasParaRepor, copiaDoQuarto, validarCopiaQuarto, planoDeColagem, SALVAR_WIRED, lerVisuais, visualValido, lerIndiceLoja, lerPaginaLoja, lerItemInventario, lerInventario, planoDeCompra, EXPRESSAO_INATIVO, lerAmigos, lerAmigo, lerAtualizacaoAmigos, lerMensagemRecebida, mencaoNaFala, referenciasDeQuarto, MAX_ALTURA, alturaValida, alturaDoMobi, SAIDA, ENTRADA, EXPRESSOES, MAX_DANCA, DANCAS_EXTRAS, MAX_PLACA, lerUmaOferta, lerFala, lerUsuarios, filtrarUsuarios, trocarPosicao, lerEstados, destinoDoMovimento, passo, PASSOS, EIXOS_SETAS, passoSetas, LADOS, NOMES_LADOS, linhasAoEntrar,
+  const api = { espelharPonto, pisosDaLinha, planoContinuar, faltandoNoQuarto, conferirCopia, deslocarCopia, plantaParaColar, alturaDoPiso, lerAlerta, motivoDoFloor, lerPlanta, lerEspessura, lerPorta, lerDecoracao, lerMobiParede, lerMobisParede, lerRegulador, reguladorLigado, LOCAL_PAREDE, CLASSE_DECORACAO, validarExtrasQuarto, mobiRaro, estadoNumero, origemDaAmostra, pisoNaTela, telaNoPiso, origemMediana, cantosDaArea, planoGirarArea, planoEspelharArea, planoEscada, caminhoPaginaLoja, semAcento, acharPaginasLoja, MAX_PISOS_PREENCHER, MAX_CAMADAS, planoPreencher, lerCompra, resumoCarrinho, areaDe, mobisNaArea, planoMoverArea, planoDuplicar, planoSubstituir, repetidos, lerMeusDados, FEIRA_ESTADO, lerConfigFeira, lerOfertaFeira, lerOfertasFeira, lerMinhasOfertas, ofertasParaRepor, copiaDoQuarto, validarCopiaQuarto, planoDeColagem, SALVAR_WIRED, lerVisuais, visualValido, lerIndiceLoja, lerPaginaLoja, lerItemInventario, lerInventario, planoDeCompra, EXPRESSAO_INATIVO, lerAmigos, lerAmigo, lerAtualizacaoAmigos, lerMensagemRecebida, mencaoNaFala, referenciasDeQuarto, MAX_ALTURA, alturaValida, alturaDoMobi, SAIDA, ENTRADA, EXPRESSOES, MAX_DANCA, DANCAS_EXTRAS, MAX_PLACA, lerUmaOferta, lerFala, lerUsuarios, filtrarUsuarios, trocarPosicao, lerEstados, destinoDoMovimento, passo, PASSOS, EIXOS_SETAS, passoSetas, LADOS, NOMES_LADOS, linhasAoEntrar,
     lerDadosExtras, lerMobi, lerMobisDoQuarto, mexer, EIXOS, mobisIguaisNaArea, encaixeSobreMobis };
   raiz.VL = raiz.VL || {};
   raiz.VL.codigos = api;

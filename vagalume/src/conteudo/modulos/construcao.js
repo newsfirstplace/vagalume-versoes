@@ -402,7 +402,8 @@
           const grade = (filhos) => el('div', { class: 'vl-cons-acoes' }, filhos);
           const congelar = acao('❄', 'Congelar', 'Seu avatar não anda ao clicar no chão.', function () { alternarCongelar(); });
           const tele = acao('✦', 'Teleporte', 'Clique num piso e vá direto (precisa de direitos).', function () { alternarTeleporte(); });
-          botoesModo = { congelar, tele };
+          const espelhoBotao = acao('⧎', 'Modo espelho', 'O que você coloca, move, gira ou recolhe de um lado da linha se repete do outro.', function () { escolherEspelho(); });
+          botoesModo = { congelar, tele, espelho: espelhoBotao };
           setTimeout(atualizarModo, 0);
           // Duas partes (pedido do usuário em 2026-11-22): Área (vários mobis) e Mobi (um só); o resto fica embaixo.
           const area = el('div', { class: 'vl-cons-painel', role: 'tabpanel', 'aria-label': 'Área' }, []);
@@ -430,7 +431,7 @@
             el('p', { class: 'vl-cuidado', texto: '⚠ Não clique sem parar: cada clique manda uma mensagem ao jogo, e o Habblet dá mute por flood.' }),
             el('p', { class: 'vl-nota', texto: 'No quarto: Ctrl+setas movem, Ctrl+Shift+← → giram e Shift+roda muda a altura do mobi.' }),
           ]);
-          const geralAcoes = grade([congelar, tele]);
+          const geralAcoes = grade([congelar, tele, espelhoBotao]);
           const geral = el('div', { class: 'vl-cons-geral' }, [secao('Ferramentas do quarto', [geralAcoes])]);
           const fimGeral = secao('Quarto inteiro', [grade([
             acao('☷', 'Lista de mobis', 'Todos os mobis do chão deste quarto.', function () { listar(); }),
@@ -1355,7 +1356,12 @@
       // Move a lista na ordem do plano. Se um mobi chega a um piso onde ainda está outro da mesma lista,
       // o jogo o empilha por cima (visto ao vivo em 2026-11-15: ficou a 0,65); no fim, ele é movido de
       // novo para o mesmo piso, já livre, e o jogo recalcula a altura.
+      let lotesProprios = 0; // colocar e mover em lote do Vagalume (colar, preencher, espelho): o espelho não os repete
       async function comAlturasFixas(fn, opcoes) {
+        lotesProprios++;
+        try { return await comAlturasFixasDentro(fn, opcoes); } finally { lotesProprios--; }
+      }
+      async function comAlturasFixasDentro(fn, opcoes) {
         clearTimeout(relogioAltura);
         await enviarAlturas();
         clearTimeout(relogioDesligarUp);
@@ -1507,6 +1513,123 @@
           alturasNaArea(eixo, base, passo);
         },
       });
+      // ---------- modo espelho (sugestão de usuários do Habblet em 2026-11-22) ----------
+      // Com o modo ligado, o que você coloca pelo jogo ganha um par do outro lado da linha (outro mobi igual do
+      // inventário, mesma altura, direção espelhada); mover, girar ou recolher um dos dois faz o mesmo no par.
+      // A linha passa pelo piso onde o seu avatar está ao ligar. Mobis que já estavam no quarto não têm par.
+      let espelho = null;                 // { eixo: 'vertical' | 'horizontal', centro: { x, y } }
+      const pares = new Map();            // id -> id do par
+      const doEspelho = new Set();        // ids que o próprio espelho mandou (não espelhar de volta)
+      const colocadosPeloJogo = new Set();
+      const movidosPeloJogo = new Set();
+      let filaEspelho = Promise.resolve();
+      const emFilaEspelho = (fn) => { filaEspelho = filaEspelho.then(fn).catch(function (erro) { camada.aviso('Espelho: ' + (erro.message || erro), { tipo: 'erro' }); }); };
+      async function tamanhoDe(tipo) {
+        try { const d = VL.dadosJogo && (await VL.dadosJogo.mobis()).chao.get(tipo); if (d) return [d.largura || 1, d.comprimento || 1]; } catch (e) { /* sem o arquivo: 1 × 1 */ }
+        return [1, 1];
+      }
+      function mostrarGuia() { if (ferramenta && ferramenta.definirGuia) ferramenta.definirGuia(espelho && planta ? codigos.pisosDaLinha(planta.mapa, espelho.eixo, espelho.centro) : []); }
+      function ligarEspelho(eixo) {
+        const eu = VL.pessoas && VL.pessoas.meuIndice() != null ? VL.pessoas.posicaoDe(VL.pessoas.meuIndice()) : null;
+        let centro = eu ? { x: eu.x, y: eu.y } : null;
+        if (!centro && planta) { const p = codigos.plantaParaColar({ mapa: planta.mapa }, []); if (p) centro = { x: p.deslocar.x + Math.floor(p.largura / 2), y: p.deslocar.y + Math.floor(p.altura / 2) }; }
+        if (!centro) { camada.aviso('Entre num quarto seu para usar o modo espelho.', { tipo: 'erro' }); return; }
+        espelho = { eixo, centro };
+        pares.clear();
+        mostrarGuia();
+        atualizarModo();
+        camada.aviso('Espelho ' + eixo + ' ligado, com a linha passando pelo piso (' + centro.x + ', ' + centro.y + ')' + (eu ? ', onde você está' : ', no meio do quarto') + '. O que você colocar, mover, girar ou recolher de um lado se repete do outro, com outro mobi igual do inventário.', { tipo: 'ok', duracaoMs: 10000 });
+      }
+      function desligarEspelho(motivo) {
+        if (!espelho) return;
+        espelho = null;
+        pares.clear();
+        mostrarGuia();
+        atualizarModo();
+        camada.aviso(motivo || 'Modo espelho desligado.');
+      }
+      async function escolherEspelho() {
+        if (!conexao.disponivel()) { exigir(); return; }
+        const valor = await camada.dialogo({ titulo: 'Modo espelho', texto: 'Fique no piso por onde a linha deve passar e escolha a direção da linha. Com o modo ligado, o que você colocar, mover, girar ou recolher de um lado se repete do outro, com outro mobi igual do seu inventário.',
+          botoes: [{ rotulo: espelho ? 'Desligar' : 'Cancelar', valor: espelho ? 'desligar' : false }, { rotulo: '↕ Linha horizontal', valor: 'horizontal' }, { rotulo: '↔ Linha vertical', valor: 'vertical', destaque: true, foco: true }] });
+        if (valor === 'desligar') desligarEspelho();
+        else if (valor === 'vertical' || valor === 'horizontal') ligarEspelho(valor);
+      }
+      async function espelharColocado(m) {
+        if (!espelho) return;
+        const alvo = codigos.espelharPonto(m, espelho.eixo, espelho.centro, await tamanhoDe(m.tipo));
+        if (alvo.x === m.x && alvo.y === m.y) return; // em cima da linha: é o próprio par
+        if (codigos.alturaDoPiso(planta && planta.mapa, alvo.x, alvo.y) == null) { camada.aviso('O lado espelhado de (' + m.x + ', ' + m.y + ') fica fora do chão.', { tipo: 'erro' }); return; }
+        const itens = await pedirInventario();
+        const item = (itens || []).find((i) => i.chao && i.classe === m.tipo && i.id !== m.id && !mobis.has(i.id));
+        if (!item) { camada.aviso('Espelho: não há outro mobi igual no inventário para o outro lado.', { tipo: 'erro' }); return; }
+        doEspelho.add(item.id);
+        try {
+          await colocarLista([{ itemId: item.id, x: alvo.x, y: alvo.y, direcao: alvo.direcao, altura: m.altura || 0 }]);
+        } finally { setTimeout(() => doEspelho.delete(item.id), 3000); }
+        if (mobis.has(item.id) && mobis.has(m.id)) { pares.set(m.id, item.id); pares.set(item.id, m.id); }
+      }
+      async function moverPar(m) {
+        const par = pares.get(m.id);
+        if (!espelho || par == null) return;
+        if (!mobis.has(par)) { pares.delete(m.id); pares.delete(par); return; }
+        const alvo = codigos.espelharPonto(m, espelho.eixo, espelho.centro, await tamanhoDe(m.tipo));
+        if (alvo.x === m.x && alvo.y === m.y) return;
+        doEspelho.add(par);
+        try { await moverLista([{ id: par, x: alvo.x, y: alvo.y, direcao: alvo.direcao, altura: m.altura || 0 }], true); } finally { setTimeout(() => doEspelho.delete(par), 3000); }
+      }
+      function recolherPar(id) {
+        const par = pares.get(id);
+        pares.delete(id);
+        if (par == null) return;
+        pares.delete(par);
+        if (!mobis.has(par)) return;
+        doEspelho.add(par);
+        mandar(SAIDA.PEGAR_MOBI, [['i', 10], ['i', par]]).finally(() => setTimeout(() => doEspelho.delete(par), 3000));
+      }
+      cancelar.push(
+        conexao.ouvir('saida', SAIDA.COLOCAR_MOBI, function (l) {
+          if (!espelho) return;
+          const partes = String(l.texto()).split(' ');
+          const id = Number(partes[0]);
+          if (partes.length === 4 && !doEspelho.has(id) && !lotesProprios) colocadosPeloJogo.add(id);
+        }),
+        conexao.ouvir('entrada', ENTRADA.MOBI_COLOCADO, function (l) {
+          let m = null;
+          try { m = codigos.lerMobi(l, true); } catch (e) { return; }
+          if (colocadosPeloJogo.delete(m.id)) emFilaEspelho(() => espelharColocado(m));
+        }),
+        conexao.ouvir('saida', SAIDA.MOVER_MOBI, function (l) {
+          const id = l.inteiro();
+          if (espelho && pares.has(id) && !doEspelho.has(id) && !lotesProprios) movidosPeloJogo.add(id);
+        }),
+        conexao.ouvir('entrada', ENTRADA.MOBI_ATUALIZADO, function (l) {
+          let m = null;
+          try { m = codigos.lerMobi(l, true); } catch (e) { return; }
+          if (movidosPeloJogo.delete(m.id)) emFilaEspelho(() => moverPar(m));
+        }),
+        conexao.ouvir('saida', SAIDA.PEGAR_MOBI, function (l) {
+          l.inteiro();
+          const id = l.inteiro();
+          if (espelho && !doEspelho.has(id)) recolherPar(id);
+        }),
+        conexao.ouvir('entrada', ENTRADA.PLANTA, function () { setTimeout(mostrarGuia, 0); }),
+        conexao.ouvir('entrada', ENTRADA.QUARTO_PRONTO, function () { desligarEspelho('Modo espelho desligado: você mudou de quarto.'); }),
+      );
+      ctx.aoParar(function () { espelho = null; });
+      ctx.comando({
+        nome: 'espelho',
+        apelidos: ['simetria'],
+        uso: 'espelho [vertical|horizontal|desligar]',
+        descricao: 'Modo espelho: o que você coloca, move, gira ou recolhe de um lado da linha (que passa pelo piso onde você está) se repete do outro, com outro mobi igual do inventário.',
+        executar(pedido) {
+          const a = String(pedido.args[0] || '').toLowerCase();
+          if (/^(desligar|off|sair)$/.test(a)) desligarEspelho();
+          else if (/^(h|horizontal)$/.test(a)) ligarEspelho('horizontal');
+          else if (/^(v|vertical)$/.test(a)) ligarEspelho('vertical');
+          else escolherEspelho();
+        },
+      });
       // Teleporte do jogo (:tele): com direitos no quarto, clicar num piso leva o avatar direto para lá.
       let teleporteLigado = false;
       function alternarTeleporte() {
@@ -1537,6 +1660,10 @@
         nome(botoesModo.tele, teleporteLigado ? 'Teleporte: ligado' : 'Teleporte');
         botoesModo.congelar.classList.toggle('ligado', congelado);
         botoesModo.tele.classList.toggle('ligado', teleporteLigado);
+        if (botoesModo.espelho) {
+          nome(botoesModo.espelho, espelho ? 'Espelho: ' + (espelho.eixo === 'horizontal' ? 'horizontal' : 'vertical') : 'Modo espelho');
+          botoesModo.espelho.classList.toggle('ligado', !!espelho);
+        }
       }
       ctx.aoParar(function () { botoesModo = null; });
 
@@ -2200,7 +2327,7 @@
         esperar,
         recolherIds,
         pedirInventario,
-        colocarLista, colocarNoTopo, colarQuarto, copiarQuarto, aplicarPlanta,
+        colocarLista, colocarNoTopo, colarQuarto, copiarQuarto, aplicarPlanta, ligarEspelho, desligarEspelho,
         desfazer() { return voltar('desfazer', 'Nada para desfazer neste quarto.'); },
         refazer() { return voltar('refazer', 'Nada para refazer.'); },
         alternarCongelar,

@@ -353,6 +353,8 @@
 
     // ---------- desenho no chão (SVG por cima do quarto, sem pegar o mouse) ----------
     let verAlturas = false;
+    let guia = []; // pisos da linha do modo espelho
+    function definirGuia(pisos) { guia = Array.isArray(pisos) ? pisos.slice(0, 200) : []; desenhar(); }
     const svg = document.createElementNS(NS, 'svg');
     svg.setAttribute('class', 'vl-chao');
     document.documentElement.appendChild(svg);
@@ -384,6 +386,7 @@
           }
         }
         if (destinoPreview) pecas.push(poligono(cantos(destinoPreview).map(tela), 'vl-chao-destino'));
+        for (const p of guia) pecas.push(poligono(cantos({ x1: p.x, y1: p.y, x2: p.x, y2: p.y }).map(tela), 'vl-chao-guia'));
         if (verAlturas) {
           let n = 0;
           for (const m of api.mobis.values()) {
@@ -749,6 +752,7 @@
 
     ctx.aoParar(camada.estiloPagina('construcao-ferramenta', 'svg.vl-chao { position: fixed; inset: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 2147483000; overflow: visible; }'
       + ' .vl-chao-area { fill: rgba(214, 242, 74, .22); stroke: #d6f24a; stroke-width: 3; stroke-linejoin: round; filter: drop-shadow(0 0 4px rgba(214, 242, 74, .55)); }'
+      + ' .vl-chao-guia { fill: rgba(120, 200, 255, .16); stroke: #8fd3ff; stroke-width: 1.5; stroke-dasharray: 4 4; }'
       + ' .vl-chao-destino { fill: rgba(214, 242, 74, .13); stroke: #d6f24a; stroke-width: 2; stroke-dasharray: 7 5; }'
       + ' .vl-chao-altura { fill: #d6f24a; font: 700 11px system-ui, sans-serif; text-anchor: middle; paint-order: stroke; stroke: #12161f; stroke-width: 3px; }'
       + ' html[data-vl-selecionando] canvas { cursor: crosshair !important; }'
@@ -763,6 +767,6 @@
     ctx.aoParar(function () { pedirMotor('desativar'); });
     ctx.aoParar(function () { document.documentElement.removeAttribute('data-vl-ferramenta-integrada'); });
 
-    return { abrirJanela, comecarSelecao, selecionarIguais, selecionarPilha, limparSelecao, montarPainel, previaColocacao, alturasPisos };
+    return { definirGuia, abrirJanela, comecarSelecao, selecionarIguais, selecionarPilha, limparSelecao, montarPainel, previaColocacao, alturasPisos };
   };
 })(typeof globalThis !== 'undefined' ? globalThis : this);
