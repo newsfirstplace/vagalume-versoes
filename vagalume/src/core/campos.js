@@ -61,6 +61,7 @@
       { tipo: 'chave', chave: 'novidades', rotulo: 'Mostrar as novidades uma vez quando o Vagalume for atualizado' },
     ],
     jogos: [
+      { tipo: 'escolha', chave: 'velocidade', rotulo: 'Velocidade das jogadas', nota: 'Cada peça desliza até a casa nova e as tomadas somem aos poucos. "Um pouco mais lenta" dá tempo de ver o que o adversário fez.', opcoes: [{ valor: 'lenta', rotulo: 'Um pouco mais lenta' }, { valor: 'rapida', rotulo: 'Rápida' }] },
       { tipo: 'chave', chave: 'som', rotulo: 'Som dos lances', nota: 'Um estalo baixinho a cada lance e um pouco mais grave nas capturas.' },
     ],
     notificacoes: [

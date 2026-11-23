@@ -27,6 +27,7 @@
     'aba:construcao': { mobi: 'caixa_ferramentas_80s_sky' },
     'aba:inventario': { jogo: 'inventory' },
     'aba:wired': { mobi: 'wf_trg_player_clicked' },
+    'aba:jogos': { mobi: 'ngh_chessboard' },
     // assuntos de Ajustes
     'assunto:conversa': { jogo: 'message' },
     'assunto:pessoas': { jogo: 'friendall' },

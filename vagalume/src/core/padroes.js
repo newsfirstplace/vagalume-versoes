@@ -47,7 +47,7 @@
     notificacoes: { ocultarCompras: false, ocultarConquistas: false },
     silenciar: { apelidos: [], termos: [], modo: 'esconder', minimoPontos: 0, ocultarPessoas: false, ocultarBots: false, ocultarPets: false, excetoMeus: true, excetoAmigos: true },
     agrupar: { janela: 5 },
-    jogos: { som: true },
+    jogos: { som: true, velocidade: 'lenta' },
     wired: { copiarAoSalvar: true, enterSalva: true, naoAndarAoClicar: false, avancadasAbertas: false },
     loja: { repor: false, reporLimite: 2, reporQuantidade: 10, reporSoWired: false, reporSemTeleporte: true, quantidadePadrao: 1, pularConfirmacao: true, confirmarOutraMoeda: true, marcarCustom: true },
     comunidade: { entrarNoGrupo: true, selo: true, aparecer: true },

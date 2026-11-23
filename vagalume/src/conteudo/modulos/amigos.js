@@ -81,7 +81,8 @@
           const de = amigos.get(msg.de);
           // Para o módulo Menções: menção pelo console conta como menção.
           ctx.emitir('amigos:mensagem', { autor: de ? de.nome : '', de: msg.de, texto: msg.texto });
-          if (!ctx.secao().avisarMensagens || conversaAberta(de ? de.nome : '')) return;
+          // O convite de jogo vira um cartão de chamada no módulo Jogos: sem o aviso de mensagem.
+          if (!ctx.secao().avisarMensagens || conversaAberta(de ? de.nome : '') || /vl-jogo-[xd][wb]9d{11}/.test(msg.texto)) return;
           camada.aviso('Mensagem de ' + (de ? de.nome : 'um amigo') + ': ' + msg.texto.slice(0, 200), { duracaoMs: 8000 });
         }),
         // "@amigo texto" dito no quarto também vai para o console do amigo.

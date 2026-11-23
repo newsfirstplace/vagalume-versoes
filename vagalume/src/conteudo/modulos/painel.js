@@ -21,6 +21,7 @@
     construcao: 'M4 20l10-10 M10 4l4-2l8 8l-4 4z M3 17l4 4',
     inventario: 'M3 7l9-4l9 4v11l-9 4l-9-4z M3 7l9 4l9-4 M12 11v11',
     wired: 'M4 5h6v6H4z M14 13h6v6h-6z M10 8h4a3 3 0 0 1 3 3v2 M7 11v5h7',
+    jogos: 'M12 3a2.5 2.5 0 1 0 0 5a2.5 2.5 0 1 0 0-5 M9.5 8h5l-1 6h-3z M8 14h8l1 4H7z M5 21h14',
   };
   const caminhosAssuntos = {
     conversa: 'M4 5h16v12H9l-5 4v-4H4z M7 9h10 M7 12h7',
@@ -1376,7 +1377,7 @@
         inicio: 'Ligue e ajuste cada função', 'efeitos-itens': 'Efeitos e itens de mão', conexoes: 'Miniperfil e contas confirmadas',
         quarto: 'Ações rápidas no quarto', historico: 'Tudo o que foi falado', mencoes: 'Quem chamou você',
         comandos: 'Todos os comandos', macros: 'Falas automáticas', 'grupos-voz': 'Chamadas com amigos',
-        captura: 'Prints do quarto', construcao: 'Mover, girar e empilhar', inventario: 'Seus mobis', wired: 'Copiar e colar wired',
+        captura: 'Prints do quarto', construcao: 'Mover, girar e empilhar', inventario: 'Seus mobis', wired: 'Copiar e colar wired', jogos: 'Xadrez e damas com amigos',
       };
       const PADRAO_MAIS_USADOS = ['construcao', 'efeitos-itens', 'grupos-voz', 'conexoes', 'captura', 'quarto'];
       function montarCasa(alvo) {
