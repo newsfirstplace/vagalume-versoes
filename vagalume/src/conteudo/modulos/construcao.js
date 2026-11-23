@@ -1529,16 +1529,20 @@
         return [1, 1];
       }
       function mostrarGuia() { if (ferramenta && ferramenta.definirGuia) ferramenta.definirGuia(espelho && planta ? codigos.pisosDaLinha(planta.mapa, espelho.eixo, espelho.centro) : []); }
-      function ligarEspelho(eixo) {
-        const eu = VL.pessoas && VL.pessoas.meuIndice() != null ? VL.pessoas.posicaoDe(VL.pessoas.meuIndice()) : null;
-        let centro = eu ? { x: eu.x, y: eu.y } : null;
-        if (!centro && planta) { const p = codigos.plantaParaColar({ mapa: planta.mapa }, []); if (p) centro = { x: p.deslocar.x + Math.floor(p.largura / 2), y: p.deslocar.y + Math.floor(p.altura / 2) }; }
+      // Linha pelo meio do chão do quarto (como a guia do Photoshop) ou, se pedido, pelo piso onde o avatar está.
+      const NOMES_ESPELHO = { x: 'paralela à parede da esquerda', y: 'paralela à parede da direita', vertical: 'vertical na tela', horizontal: 'horizontal na tela' };
+      function ligarEspelho(eixo, ondeEstou) {
+        if (!NOMES_ESPELHO[eixo]) eixo = 'x';
+        const eu = ondeEstou && VL.pessoas && VL.pessoas.meuIndice() != null ? VL.pessoas.posicaoDe(VL.pessoas.meuIndice()) : null;
+        let centro = eu ? { x: eu.x, y: eu.y } : (planta ? codigos.meioDoFloor(planta.mapa) : null);
         if (!centro) { camada.aviso('Entre num quarto seu para usar o modo espelho.', { tipo: 'erro' }); return; }
+        // As linhas da tela precisam passar por um piso inteiro.
+        if (eixo === 'vertical' || eixo === 'horizontal') centro = { x: Math.round(centro.x), y: Math.round(centro.y) };
         espelho = { eixo, centro };
         pares.clear();
         mostrarGuia();
         atualizarModo();
-        camada.aviso('Espelho ' + eixo + ' ligado, com a linha passando pelo piso (' + centro.x + ', ' + centro.y + ')' + (eu ? ', onde você está' : ', no meio do quarto') + '. O que você colocar, mover, girar ou recolher de um lado se repete do outro, com outro mobi igual do inventário.', { tipo: 'ok', duracaoMs: 10000 });
+        camada.aviso('Espelho ligado: linha ' + NOMES_ESPELHO[eixo] + (eu ? ', pelo piso onde você está' : ', no meio do quarto') + ' (a guia azul no chão). O que você colocar, mover, girar ou recolher de um lado aparece do outro, com outro mobi igual do inventário.' + (ondeEstou && !eu ? ' Não achei onde você está; usei o meio do quarto.' : ''), { tipo: 'ok', duracaoMs: 10000 });
       }
       function desligarEspelho(motivo) {
         if (!espelho) return;
@@ -1550,15 +1554,28 @@
       }
       async function escolherEspelho() {
         if (!conexao.disponivel()) { exigir(); return; }
-        const valor = await camada.dialogo({ titulo: 'Modo espelho', texto: 'Fique no piso por onde a linha deve passar e escolha a direção da linha. Com o modo ligado, o que você colocar, mover, girar ou recolher de um lado se repete do outro, com outro mobi igual do seu inventário.',
-          botoes: [{ rotulo: espelho ? 'Desligar' : 'Cancelar', valor: espelho ? 'desligar' : false }, { rotulo: '↕ Linha horizontal', valor: 'horizontal' }, { rotulo: '↔ Linha vertical', valor: 'vertical', destaque: true, foco: true }] });
+        const opcoes = [['x', 'Paralela à parede da esquerda', 'divide o quarto entre o lado da parede esquerda e o lado da frente'],
+          ['y', 'Paralela à parede da direita', 'divide o quarto entre o lado da parede direita e o lado da frente'],
+          ['vertical', 'Vertical na tela', 'esquerda e direita da tela (bom em quarto quadrado)'],
+          ['horizontal', 'Horizontal na tela', 'cima e baixo da tela (bom em quarto quadrado)']];
+        const atual = espelho ? espelho.eixo : 'x';
+        const radios = {};
+        const linhas = opcoes.map(function ([id, titulo, nota]) {
+          const r = el('input', { type: 'radio', name: 'vl-espelho-eixo', checked: id === atual });
+          radios[id] = r;
+          return el('label', { style: 'display:flex;gap:8px;align-items:flex-start;margin:6px 0' }, [r, el('span', null, [el('b', { texto: titulo }), el('br'), el('small', { texto: nota })])]);
+        });
+        const aqui = el('input', { type: 'checkbox' });
+        linhas.push(el('label', { style: 'display:flex;gap:8px;align-items:center;margin:10px 0 0' }, [aqui, 'Passar a linha pelo piso onde estou (senão, pelo meio do quarto)']));
+        const valor = await camada.dialogo({ titulo: 'Modo espelho', texto: 'Com o modo ligado, o que você colocar, mover, girar ou recolher de um lado da linha aparece do outro lado, com outro mobi igual do seu inventário. Mobis em cima da linha não têm outro lado.', conteudo: el('div', null, linhas),
+          botoes: [{ rotulo: espelho ? 'Desligar' : 'Cancelar', valor: espelho ? 'desligar' : false }, { rotulo: 'Ligar', valor: 'ligar', destaque: true, foco: true }] });
         if (valor === 'desligar') desligarEspelho();
-        else if (valor === 'vertical' || valor === 'horizontal') ligarEspelho(valor);
+        else if (valor === 'ligar') ligarEspelho((Object.keys(radios).find((k) => radios[k].checked)) || 'x', aqui.checked);
       }
       async function espelharColocado(m) {
         if (!espelho) return;
         const alvo = codigos.espelharPonto(m, espelho.eixo, espelho.centro, await tamanhoDe(m.tipo));
-        if (alvo.x === m.x && alvo.y === m.y) return; // em cima da linha: é o próprio par
+        if (alvo.x === m.x && alvo.y === m.y) { camada.aviso('Esse mobi ficou em cima da linha do espelho, então não tem outro lado.'); return; }
         if (codigos.alturaDoPiso(planta && planta.mapa, alvo.x, alvo.y) == null) { camada.aviso('O lado espelhado de (' + m.x + ', ' + m.y + ') fica fora do chão.', { tipo: 'erro' }); return; }
         const itens = await pedirInventario();
         const item = (itens || []).find((i) => i.chao && i.classe === m.tipo && i.id !== m.id && !mobis.has(i.id));
@@ -1620,13 +1637,14 @@
       ctx.comando({
         nome: 'espelho',
         apelidos: ['simetria'],
-        uso: 'espelho [vertical|horizontal|desligar]',
-        descricao: 'Modo espelho: o que você coloca, move, gira ou recolhe de um lado da linha (que passa pelo piso onde você está) se repete do outro, com outro mobi igual do inventário.',
+        uso: 'espelho [esquerda|direita|vertical|horizontal|desligar] [aqui]',
+        descricao: 'Modo espelho: o que você coloca, move, gira ou recolhe de um lado da linha aparece do outro, com outro mobi igual do inventário. A linha passa pelo meio do quarto (com "aqui", pelo piso onde você está): esquerda e direita são paralelas às paredes; vertical e horizontal, na tela.',
         executar(pedido) {
           const a = String(pedido.args[0] || '').toLowerCase();
+          const aqui = /^aqui$/i.test(String(pedido.args[1] || ''));
+          const eixo = { esquerda: 'x', x: 'x', direita: 'y', y: 'y', vertical: 'vertical', v: 'vertical', horizontal: 'horizontal', h: 'horizontal' }[a];
           if (/^(desligar|off|sair)$/.test(a)) desligarEspelho();
-          else if (/^(h|horizontal)$/.test(a)) ligarEspelho('horizontal');
-          else if (/^(v|vertical)$/.test(a)) ligarEspelho('vertical');
+          else if (eixo) ligarEspelho(eixo, aqui);
           else escolherEspelho();
         },
       });
@@ -1661,7 +1679,7 @@
         botoesModo.congelar.classList.toggle('ligado', congelado);
         botoesModo.tele.classList.toggle('ligado', teleporteLigado);
         if (botoesModo.espelho) {
-          nome(botoesModo.espelho, espelho ? 'Espelho: ' + (espelho.eixo === 'horizontal' ? 'horizontal' : 'vertical') : 'Modo espelho');
+          nome(botoesModo.espelho, espelho ? 'Espelho ligado' : 'Modo espelho');
           botoesModo.espelho.classList.toggle('ligado', !!espelho);
         }
       }

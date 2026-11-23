@@ -1044,6 +1044,9 @@
     const [lx, ly] = dims || [1, 1];
     const deLado = d % 4 === 2; // em 2 e 6 o mobi ocupa os pisos com largura e comprimento trocados
     const W = deLado ? ly : lx, L = deLado ? lx : ly;
+    // Paralela à parede da esquerda (x fixo) ou da direita (y fixo): o centro pode ficar entre dois pisos (.5).
+    if (eixo === 'x') return { x: 2 * centro.x - m.x - W + 1, y: m.y, direcao: (8 - d) % 8 };
+    if (eixo === 'y') return { x: m.x, y: 2 * centro.y - m.y - L + 1, direcao: (12 - d) % 8 };
     if (eixo === 'horizontal') {
       const s = centro.x + centro.y;
       return { x: s - m.y - L + 1, y: s - m.x - W + 1, direcao: (10 - d) % 8 };
@@ -1051,7 +1054,15 @@
     const k = centro.x - centro.y;
     return { x: m.y + k, y: m.x - k, direcao: (14 - d) % 8 };
   }
-  // Pisos do floor que ficam em cima da linha do espelho (a guia desenhada no chão).
+  // Meio do chão do floor (pelos pisos que existem); pode cair entre dois pisos (.5).
+  function meioDoFloor(mapa) {
+    const linhas = String(mapa || '').split(/\r\n|\r|\n/);
+    let x1 = Infinity, y1 = Infinity, x2 = -Infinity, y2 = -Infinity;
+    linhas.forEach((l, y) => { for (let x = 0; x < l.length; x++) if (l[x] !== 'x' && l[x] !== 'X') { x1 = Math.min(x1, x); x2 = Math.max(x2, x); y1 = Math.min(y1, y); y2 = Math.max(y2, y); } });
+    return x2 < x1 ? null : { x: (x1 + x2) / 2, y: (y1 + y2) / 2 };
+  }
+  // Pisos do floor que ficam em cima da linha do espelho (a guia desenhada no chão). Com a linha entre dois
+  // pisos, os dois aparecem.
   function pisosDaLinha(mapa, eixo, centro) {
     const linhas = String(mapa || '').split(/\r\n|\r|\n/);
     const pisos = [];
@@ -1059,7 +1070,9 @@
       for (let x = 0; x < linhas[y].length; x++) {
         const c = linhas[y][x];
         if (c === 'x' || c === 'X') continue;
-        if (eixo === 'horizontal' ? x + y === centro.x + centro.y : x - y === centro.x - centro.y) pisos.push({ x, y });
+        const naLinha = eixo === 'x' ? Math.abs(x - centro.x) < 0.6 : eixo === 'y' ? Math.abs(y - centro.y) < 0.6
+          : eixo === 'horizontal' ? x + y === centro.x + centro.y : x - y === centro.x - centro.y;
+        if (naLinha) pisos.push({ x, y });
       }
     }
     return pisos;
@@ -1186,7 +1199,7 @@
     return { id, nome, visual, genero };
   }
 
-  const api = { espelharPonto, pisosDaLinha, planoContinuar, faltandoNoQuarto, conferirCopia, deslocarCopia, plantaParaColar, alturaDoPiso, lerAlerta, motivoDoFloor, lerPlanta, lerEspessura, lerPorta, lerDecoracao, lerMobiParede, lerMobisParede, lerRegulador, reguladorLigado, LOCAL_PAREDE, CLASSE_DECORACAO, validarExtrasQuarto, mobiRaro, estadoNumero, origemDaAmostra, pisoNaTela, telaNoPiso, origemMediana, cantosDaArea, planoGirarArea, planoEspelharArea, planoEscada, caminhoPaginaLoja, semAcento, acharPaginasLoja, MAX_PISOS_PREENCHER, MAX_CAMADAS, planoPreencher, lerCompra, resumoCarrinho, areaDe, mobisNaArea, planoMoverArea, planoDuplicar, planoSubstituir, repetidos, lerMeusDados, FEIRA_ESTADO, lerConfigFeira, lerOfertaFeira, lerOfertasFeira, lerMinhasOfertas, ofertasParaRepor, copiaDoQuarto, validarCopiaQuarto, planoDeColagem, SALVAR_WIRED, lerVisuais, visualValido, lerIndiceLoja, lerPaginaLoja, lerItemInventario, lerInventario, planoDeCompra, EXPRESSAO_INATIVO, lerAmigos, lerAmigo, lerAtualizacaoAmigos, lerMensagemRecebida, mencaoNaFala, referenciasDeQuarto, MAX_ALTURA, alturaValida, alturaDoMobi, SAIDA, ENTRADA, EXPRESSOES, MAX_DANCA, DANCAS_EXTRAS, MAX_PLACA, lerUmaOferta, lerFala, lerUsuarios, filtrarUsuarios, trocarPosicao, lerEstados, destinoDoMovimento, passo, PASSOS, EIXOS_SETAS, passoSetas, LADOS, NOMES_LADOS, linhasAoEntrar,
+  const api = { espelharPonto, pisosDaLinha, meioDoFloor, planoContinuar, faltandoNoQuarto, conferirCopia, deslocarCopia, plantaParaColar, alturaDoPiso, lerAlerta, motivoDoFloor, lerPlanta, lerEspessura, lerPorta, lerDecoracao, lerMobiParede, lerMobisParede, lerRegulador, reguladorLigado, LOCAL_PAREDE, CLASSE_DECORACAO, validarExtrasQuarto, mobiRaro, estadoNumero, origemDaAmostra, pisoNaTela, telaNoPiso, origemMediana, cantosDaArea, planoGirarArea, planoEspelharArea, planoEscada, caminhoPaginaLoja, semAcento, acharPaginasLoja, MAX_PISOS_PREENCHER, MAX_CAMADAS, planoPreencher, lerCompra, resumoCarrinho, areaDe, mobisNaArea, planoMoverArea, planoDuplicar, planoSubstituir, repetidos, lerMeusDados, FEIRA_ESTADO, lerConfigFeira, lerOfertaFeira, lerOfertasFeira, lerMinhasOfertas, ofertasParaRepor, copiaDoQuarto, validarCopiaQuarto, planoDeColagem, SALVAR_WIRED, lerVisuais, visualValido, lerIndiceLoja, lerPaginaLoja, lerItemInventario, lerInventario, planoDeCompra, EXPRESSAO_INATIVO, lerAmigos, lerAmigo, lerAtualizacaoAmigos, lerMensagemRecebida, mencaoNaFala, referenciasDeQuarto, MAX_ALTURA, alturaValida, alturaDoMobi, SAIDA, ENTRADA, EXPRESSOES, MAX_DANCA, DANCAS_EXTRAS, MAX_PLACA, lerUmaOferta, lerFala, lerUsuarios, filtrarUsuarios, trocarPosicao, lerEstados, destinoDoMovimento, passo, PASSOS, EIXOS_SETAS, passoSetas, LADOS, NOMES_LADOS, linhasAoEntrar,
     lerDadosExtras, lerMobi, lerMobisDoQuarto, mexer, EIXOS, mobisIguaisNaArea, encaixeSobreMobis };
   raiz.VL = raiz.VL || {};
   raiz.VL.codigos = api;
