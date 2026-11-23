@@ -69,7 +69,7 @@
     const dir = lado === 'w' ? 1 : -1;
     const f = clamp(forca, 0.12, 1.3);
     const alvo = { x: clamp(bola.x + desvioX, -1.3, 1.3), y: MEIO + dir * (0.3 + f * 1.05) };
-    const T = 0.62 - 0.27 * Math.min(1, f); // arco de uns 30 a 40 cm acima da mesa, como num jogo de verdade
+    const T = 0.68 - 0.24 * Math.min(1, f); // arco de uns 30 a 50 cm acima da mesa; um pouco mais lenta para dar tempo
     return golpe({ x: bola.x, y: bola.y, z: Math.max(bola.z, BOLA.raio + 0.01) }, alvo, T);
   }
   // Bola parada na frente da raquete de quem saca.
@@ -107,9 +107,9 @@
   }
   // Bot por nível: velocidade da raquete (m/s), tempo até reagir, erro de mira, chance de errar o golpe e força.
   const NIVEIS = {
-    facil: { vel: 1.6, reacao: 0.3, erro: 0.09, falha: 0.12, forca: [0.35, 0.7], abre: 0.35 },
-    medio: { vel: 2.4, reacao: 0.16, erro: 0.045, falha: 0.06, forca: [0.45, 0.88], abre: 0.5 },
-    dificil: { vel: 3.4, reacao: 0.07, erro: 0.015, falha: 0.025, forca: [0.6, 0.98], abre: 0.62 },
+    facil: { vel: 1.3, reacao: 0.35, erro: 0.12, falha: 0.2, forca: [0.3, 0.6], abre: 0.3 },
+    medio: { vel: 2.0, reacao: 0.2, erro: 0.06, falha: 0.1, forca: [0.4, 0.8], abre: 0.45 },
+    dificil: { vel: 3.2, reacao: 0.08, erro: 0.02, falha: 0.04, forca: [0.55, 0.95], abre: 0.6 },
   };
   // Bola recebida pela rede: só números possíveis.
   function bolaValida(b) {
