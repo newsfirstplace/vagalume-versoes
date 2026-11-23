@@ -1,4 +1,4 @@
-// Vagalume — módulo "jogos": xadrez e damas jogáveis (pedido do usuário em 2026-11-22).
+// Vagalume — módulo "jogos": xadrez, damas e ping-pong (pedido do usuário em 2026-11-22; ping-pong em 2026-11-23).
 // Abrem pela aba Jogos do painel, por /jogos ou com dois cliques num tabuleiro do quarto (o jogo manda "usar" o
 // mobi): contra o bot, contra quem usa o Vagalume no mesmo quarto ou chamando um amigo de outro quarto. No mesmo
 // quarto a partida vai pelo canal direto da comunidade; com um amigo, o convite vai no console (mensagem privada
@@ -19,7 +19,7 @@
   // Tabuleiros e Jogos de Mesa.
   const TABULEIROS = new Set([1356475873, 1356469514, 2100000708, 886652737, 886652738, 886647434, 886634006, 886655528, 1356476911]);
 
-  const NOMES = { xadrez: 'Xadrez', damas: 'Damas' };
+  const NOMES = { xadrez: 'Xadrez', damas: 'Damas', pingpong: 'Ping-pong' };
   const NIVEIS = [['facil', 'Fácil'], ['medio', 'Médio'], ['dificil', 'Difícil']];
   const GLIFO = { k: '♚', q: '♛', r: '♜', b: '♝', n: '♞', p: '♟' };
   const NOME_PECA = { k: 'rei', q: 'dama', r: 'torre', b: 'bispo', n: 'cavalo', p: 'peão' };
@@ -29,9 +29,11 @@
   const JOGOS = [
     { id: 'xadrez', glifo: '♞', texto: 'Regras completas: roque, en passant, promoção, xeque-mate e empates.' },
     { id: 'damas', glifo: '⛂', texto: 'Regra brasileira: captura obrigatória pela maioria e dama voadora.' },
+    { id: 'pingpong', glifo: '🏓', emoji: true, texto: 'Em 3D: a bola quica na mesa e você rebate com a raquete no mouse. Até 11 pontos.' },
   ];
-  // Convite de amigo no console: jogo (x/d), cor de quem convida (w/b) e a sala da partida ("9" + 11 dígitos).
-  const CODIGO_CONVITE = /vl-jogo-([xd])([wb])(9\d{11})/;
+  // Convite de amigo no console: jogo (x/d/p), cor de quem convida (w/b) e a sala da partida ("9" + 11 dígitos).
+  const LETRA_JOGO = { xadrez: 'x', damas: 'd', pingpong: 'p' }, JOGO_DA_LETRA = { x: 'xadrez', d: 'damas', p: 'pingpong' };
+  const CODIGO_CONVITE = /vl-jogo-([xdp])([wb])(9\d{11})/;
   const VS = '︎'; // mostra o símbolo como texto, não como emoji
 
   const CSS = `
@@ -50,7 +52,7 @@
   .vl-jg.minimizada .vl-jg-corpo { display: none; }
   .vl-jg-corpo { padding: 16px; overflow: auto; }
   .vl-jg h3 { margin: 0 0 8px; font-size: 12px; letter-spacing: .6px; text-transform: uppercase; color: #b7c3d6; }
-  .vl-jg-escolha { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+  .vl-jg-escolha { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-bottom: 16px; }
   .vl-jg-cartao { display: flex; gap: 12px; align-items: center; padding: 14px; border-radius: 14px; cursor: pointer; text-align: left; color: inherit;
     border: 1px solid rgba(255,255,255,.1); background: rgba(255,255,255,.04); transition: transform .12s, border-color .12s, background .12s; }
   .vl-jg-cartao:hover { transform: translateY(-1px); border-color: rgba(214,242,74,.5); }
@@ -160,6 +162,23 @@
   .vl-jg-cartao.embreve { cursor: default; border-style: dashed; opacity: .78; }
   .vl-jg-cartao.embreve:hover { transform: none; border-color: rgba(255,255,255,.1); }
   .vl-jg-mais { width: 54px; height: 54px; flex: none; border-radius: 10px; display: grid; place-items: center; font-size: 30px; color: #d6f24a; border: 1px dashed rgba(214,242,74,.5); }
+  .vl-jg-mini.pingpong { background: linear-gradient(90deg, transparent 47%, #eef2f6 47% 53%, transparent 53%), linear-gradient(180deg, #2d74bd, #1a4c82); -webkit-text-stroke: 0; text-shadow: 0 2px 3px rgba(0,0,0,.35); font-size: 28px; }
+  .vl-pp { display: flex; flex-direction: column; gap: 10px; outline: none; }
+  .vl-pp-placar { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px; }
+  .vl-pp-jogador { display: flex; align-items: center; gap: 9px; padding: 8px 12px; border-radius: 12px; background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08); min-width: 0; }
+  .vl-pp-jogador.eu { border-color: rgba(214,242,74,.45); background: rgba(214,242,74,.08); }
+  .vl-pp-jogador .nome { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+  .vl-pp-jogador.ele .nome { text-align: right; }
+  .vl-pp-pontos { font: 800 28px/1 system-ui, 'Segoe UI', sans-serif; color: #f2ffc0; min-width: 34px; text-align: center; font-variant-numeric: tabular-nums; }
+  .vl-pp-saque { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+  .vl-pp-saque.ativo { background: radial-gradient(circle at 35% 35%, #fff, #ff9b3d); box-shadow: 0 0 8px rgba(255,155,61,.8); }
+  .vl-pp-meio { color: #9aa6b8; font-size: 12px; text-transform: uppercase; letter-spacing: .6px; }
+  .vl-pp-mesa { width: min(100%, calc((100vh - 330px) * 1.6)); margin: 0 auto; border-radius: 14px; background: radial-gradient(ellipse at 50% 40%, #232a3a, #121620 70%); box-shadow: inset 0 0 0 1px rgba(255,255,255,.06); }
+  .vl-pp-canvas { display: block; width: 100%; aspect-ratio: 16 / 10; cursor: none; touch-action: none; }
+  .vl-pp-estado { padding: 9px 12px; border-radius: 12px; background: rgba(0,0,0,.25); font-weight: 600; color: #f2ffc0; text-align: center; min-height: 18px; }
+  .vl-pp-dica { margin: 0; color: #8a96a8; font-size: 12px; text-align: center; }
+  .vl-pp:focus-visible .vl-pp-mesa { box-shadow: 0 0 0 2px rgba(214,242,74,.6); }
+  .vl-pp-acoes { justify-content: center; }
   @media (max-width: 720px) { .vl-jg-partida { flex-direction: column; align-items: center; } .vl-jg-escolha, .vl-jg-modos { grid-template-columns: 1fr; } }
   @media (prefers-reduced-motion: reduce) { .vl-jg-peca.nova, .vl-jg-disco.nova, .vl-jg-chamada, .vl-jg-chamada-anel::before, .vl-jg-chamada-anel::after { animation: none; } }
   `;
@@ -179,6 +198,25 @@
       o.start(); o.stop(audio.currentTime + 0.2);
     } catch (e) { /* sem som */ }
   }
+  // Notas curtas em sequência (ping-pong): [[frequência, duração], …].
+  function bipes(notas, volume) {
+    try {
+      audio = audio || new (raiz.AudioContext || raiz.webkitAudioContext)();
+      let t = audio.currentTime;
+      for (const [f, d] of notas) {
+        const o = audio.createOscillator(), g = audio.createGain();
+        o.type = 'triangle';
+        o.frequency.value = f;
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(volume || 0.08, t + 0.008);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+        o.connect(g).connect(audio.destination);
+        o.start(t); o.stop(t + d + 0.02);
+        t += d * 0.9;
+      }
+    } catch (e) { /* sem som */ }
+  }
+  const SONS_PP = { bate: [[1175, 0.05]], mesa: [[700, 0.03]], rede: [[180, 0.09]], saque: [[880, 0.06]], ponto: [[392, 0.12], [294, 0.18]], fim: [[523, 0.11], [659, 0.11], [784, 0.22]] };
   const novaSessao = () => Array.from(crypto.getRandomValues(new Uint8Array(8)), (b) => b.toString(16).padStart(2, '0')).join('');
   const sessaoValida = (s) => /^(?:[a-f0-9]{16}|9\d{11})$/.test(String(s || '')); // partida no quarto ou sala com um amigo
   const novoCanal = () => '9' + Array.from(crypto.getRandomValues(new Uint32Array(3)), (n) => String(n % 10000).padStart(4, '0')).join('').slice(0, 11);
@@ -192,6 +230,7 @@
   const nomeChave = (n) => String(n || '').trim().toLowerCase();
 
   // Regras de cada jogo atrás da mesma cara.
+  const glifoDe = (id) => { const j = JOGOS.find((x) => x.id === id); return j ? j.glifo + (j.emoji ? '' : VS) : ''; };
   const REGRAS = {
     xadrez: {
       novo: X.novo, jogar: X.jogar, lances: X.lances, situacao: X.situacao, melhor: X.melhorLance,
@@ -293,12 +332,12 @@
       function montarJanela() {
         const cab = el('div', { class: 'vl-jg-cab' }, [
           el('span', { class: 'vl-jg-ic', 'aria-hidden': 'true', texto: '♞' + VS }),
-          el('b', { texto: 'Jogos de tabuleiro' }), el('span', { class: 'vl-jg-esp' }),
+          el('b', { texto: 'Jogos' }), el('span', { class: 'vl-jg-esp' }),
           el('button', { type: 'button', class: 'vl-jg-min', title: 'Minimizar', 'aria-label': 'Minimizar', texto: '−', onclick: alternarMinimizada }),
           el('button', { type: 'button', title: 'Fechar', 'aria-label': 'Fechar', texto: '×', onclick: fechar }),
         ]);
         corpo = el('div', { class: 'vl-jg-corpo' });
-        janela = el('div', { class: 'vl-jg', role: 'dialog', 'aria-label': 'Jogos de tabuleiro do Vagalume', tabindex: '0' }, [cab, corpo]);
+        janela = el('div', { class: 'vl-jg', role: 'dialog', 'aria-label': 'Jogos do Vagalume', tabindex: '0' }, [cab, corpo]);
         janela.addEventListener('keydown', function (ev) { if (ev.key === 'Escape') { ev.stopPropagation(); if (partida && partida.promocao) { partida.promocao = null; desenhar(); } else fechar(); } });
         cab.addEventListener('dblclick', function (ev) { if (!ev.target.closest('button')) alternarMinimizada(); });
         cab.addEventListener('pointerdown', function (ev) {
@@ -325,14 +364,14 @@
       function pintar() {
         if (!janela) return;
         janela.classList.toggle('damas', (partida ? partida.jogo : escolha.jogo) === 'damas');
-        camada.trocar(corpo, partida ? telaPartida() : telaInicio());
+        camada.trocar(corpo, partida ? (partida.jogo === 'pingpong' ? telaPingPong() : telaPartida()) : telaInicio());
       }
 
       // ---------- início: escolher o jogo e o adversário ----------
       function cartaoJogo(id, glifo, texto) {
         return el('button', { type: 'button', class: 'vl-jg-cartao' + (escolha.jogo === id ? ' ativo' : ''), 'aria-pressed': String(escolha.jogo === id), 'data-foco': 'jogo-' + id,
           onclick() { escolha.jogo = id; desenhar(); } }, [
-          el('span', { class: 'vl-jg-mini', 'aria-hidden': 'true', texto: glifo }),
+          el('span', { class: 'vl-jg-mini ' + id, 'aria-hidden': 'true', texto: glifo }),
           el('span', null, [el('b', { texto: NOMES[id] }), el('small', { texto })]),
         ]);
       }
@@ -381,18 +420,18 @@
         const comQual = escolha.cor === 'b' ? 'pretas' : escolha.cor === '?' ? 'brancas ou as pretas, por sorteio' : 'brancas';
         return [
           el('h3', { texto: 'Escolha o jogo' }),
-          el('div', { class: 'vl-jg-escolha' }, JOGOS.map((j) => cartaoJogo(j.id, j.glifo + VS, j.texto))),
+          el('div', { class: 'vl-jg-escolha' }, JOGOS.map((j) => cartaoJogo(j.id, glifoDe(j.id), j.texto))),
           el('div', { class: 'vl-jg-modos' }, [
             el('section', { class: 'vl-jg-modo' }, [
               el('h3', { texto: 'Contra o bot' }),
               el('div', { class: 'vl-jg-linha' }, NIVEIS.map(([id, nome]) => chip(nome, escolha.nivel === id, () => { escolha.nivel = id; desenhar(); }, 'nivel-' + id))),
-              el('div', { class: 'vl-jg-linha' }, [['w', 'Brancas'], ['b', 'Pretas'], ['?', 'Sorteio']].map(([id, nome]) => chip(nome, escolha.cor === id, () => { escolha.cor = id; desenhar(); }, 'cor-' + id))),
+              el('div', { class: 'vl-jg-linha' }, (escolha.jogo === 'pingpong' ? [['w', 'Eu saco'], ['b', 'O outro saca'], ['?', 'Sorteio']] : [['w', 'Brancas'], ['b', 'Pretas'], ['?', 'Sorteio']]).map(([id, nome]) => chip(nome, escolha.cor === id, () => { escolha.cor = id; desenhar(); }, 'cor-' + id))),
               el('button', { type: 'button', class: 'vl-jg-botao forte', 'data-foco': 'bot', texto: 'Jogar contra o bot', onclick() { comecar({ jogo: escolha.jogo, modo: 'bot', nivel: escolha.nivel, minhaCor: corEscolhida() }); } }),
             ]),
             el('section', { class: 'vl-jg-modo' }, [
               el('h3', { texto: 'Contra alguém do quarto' }),
               listaPessoas,
-              el('p', { class: 'vl-jg-nota', texto: 'Quem convida joga com as ' + comQual + '. A outra pessoa precisa usar o Vagalume.' }),
+              el('p', { class: 'vl-jg-nota', texto: (escolha.jogo === 'pingpong' ? 'Primeiro saque: ' + (escolha.cor === 'b' ? 'de quem é convidado' : escolha.cor === '?' ? 'sorteado' : 'de quem convida') : 'Quem convida joga com as ' + comQual) + '. A outra pessoa precisa usar o Vagalume.' }),
             ]),
             el('section', { class: 'vl-jg-modo largo' }, [
               el('h3', { texto: 'Chamar um amigo de outro quarto' }),
@@ -400,7 +439,7 @@
               el('p', { class: 'vl-jg-nota', texto: 'O convite chega no console do amigo e toca como uma chamada; cada um joga do quarto em que está. Ele também precisa usar o Vagalume.' }),
             ]),
           ]),
-          linhaVelocidade(),
+          escolha.jogo === 'pingpong' ? null : linhaVelocidade(),
           el('p', { class: 'vl-jg-aviso', role: 'status', texto: avisoInicio || '' }),
         ];
       }
@@ -408,6 +447,7 @@
 
       // ---------- partida ----------
       function comecar(o) {
+        if (o.jogo === 'pingpong') { comecarPingPong(o); return; }
         const regras = REGRAS[o.jogo];
         partida = {
           jogo: o.jogo, modo: o.modo, nivel: o.nivel, minhaCor: o.minhaCor, oponente: o.oponente || null, sessao: o.sessao || null,
@@ -420,6 +460,44 @@
         abrir();
         desenhar();
         if (o.modo === 'bot' && partida.estado.vez !== partida.minhaCor) setTimeout(vezDoBot, 400);
+      }
+      // Ping-pong: a tela (core/pingpong.js e pingpong-tela.js) roda sozinha; aqui ficam a rede, o fim e os botões.
+      function comecarPingPong(o) {
+        if (!VL.pingPongTela) { camada.aviso('O ping-pong não carregou. Recarregue o hotel.', { tipo: 'erro' }); return; }
+        const p = partida = {
+          jogo: 'pingpong', modo: o.modo, nivel: o.nivel, minhaCor: o.minhaCor, oponente: o.oponente || null, sessao: o.sessao || null,
+          via: o.via || 'quarto', oponenteId: o.oponenteId != null ? String(o.oponenteId) : null, fim: null, historico: [],
+          ppSeq: 0, ppRecebido: 0, ppPendentes: new Map(), ppFila: new Map(),
+        };
+        avisoInicio = '';
+        p.pp = VL.pingPongTela.criar({
+          minhaCor: o.minhaCor, modo: o.modo, nivel: o.nivel, primeiro: 'w',
+          nome: (cor) => nomeDe(cor),
+          cabeca: (cor) => (p.modo === 'bot' && cor !== p.minhaCor ? el('span', { class: 'vl-jg-cabeca', 'aria-hidden': 'true', texto: '🤖' }) : cabeca(nomeDe(cor))),
+          enviar: (dado, confiavel) => ppEnviar(p, dado, confiavel),
+          som: (tipo) => { if (ctx.secao().som !== false && SONS_PP[tipo]) bipes(SONS_PP[tipo], tipo === 'mesa' ? 0.045 : 0.08); },
+          vivo: () => partida === p,
+          encerrado: () => !!p.fim,
+          pausado: () => p.modo === 'bot' && (minimizada || !janela || janela.style.display === 'none'),
+          aoFim(vencedor, pontos) { if (partida === p) encerrar({ fim: true, vencedor, motivo: 'por ' + pontos[vencedor] + ' a ' + pontos[vencedor === 'w' ? 'b' : 'w'] }); },
+        });
+        if (!janela) montarJanela();
+        abrir();
+        desenhar();
+      }
+      function telaPingPong() {
+        const p = partida;
+        const acoes = [];
+        if (!p.fim) acoes.push(el('button', { type: 'button', class: 'vl-jg-botao discreto', texto: 'Desistir', onclick: desistir }));
+        else acoes.push(el('button', { type: 'button', class: 'vl-jg-botao forte', 'data-foco': 'revanche', texto: p.modo === 'bot' ? 'Jogar de novo' : 'Revanche', onclick: revanche }));
+        acoes.push(el('button', { type: 'button', class: 'vl-jg-botao discreto', texto: 'Outro jogo', onclick: sairDaPartida }));
+        // O placar final já aparece na própria mesa; aqui só o fim por desistência ou saída.
+        let fim = null;
+        if (p.fim && !/^por /.test(p.fim.motivo || '')) {
+          const v = p.fim.vencedor;
+          fim = v ? (v === p.minhaCor ? 'Você venceu' : p.modo === 'bot' ? 'O bot venceu' : 'Você perdeu') + ' (' + p.fim.motivo + ').' : 'Partida encerrada: ' + p.fim.motivo + '.';
+        }
+        return [p.pp.elemento, fim ? el('div', { class: 'vl-jg-estado fim', role: 'status', texto: fim }) : null, el('div', { class: 'vl-jg-acoes vl-pp-acoes' }, acoes)];
       }
       function nomeDe(cor) {
         if (!partida) return '';
@@ -809,7 +887,7 @@
         abrir();
       }
       // Chamar um amigo de outro quarto: abre a sala da partida e manda o convite no console dele.
-      const textoDoConvite = (c) => '♟ Bora jogar ' + NOMES[c.jogo] + '? Convite do Vagalume: vl-jogo-' + (c.jogo === 'damas' ? 'd' : 'x') + c.cor + c.sessao;
+      const textoDoConvite = (c) => (c.jogo === 'pingpong' ? '🏓' : '♟') + ' Bora jogar ' + NOMES[c.jogo] + '? Convite do Vagalume: vl-jogo-' + LETRA_JOGO[c.jogo] + c.cor + c.sessao;
       function convidarAmigo(a) {
         if (!meuId() || !eu()) { avisoInicio = 'Ligue a Conexão do jogo para chamar amigos.'; desenhar(); return; }
         if (convidando) cancelarConvite();
@@ -849,6 +927,41 @@
         if (p && p.modo === 'rede' && !p.fim) enviar({ t: 'jg:fim', m: 'saiu' });
         if (canal && canal.id !== canalQueFica) sairDoCanal();
       }
+      // ---------- ping-pong pela rede ----------
+      // Saque, rebatida e ponto vão numerados e confirmados (pp:ok) e são aplicados na ordem; a raquete vai solta.
+      function ppEnviar(p, dado, confiavel) {
+        if (p.modo !== 'rede' || p.fim) return;
+        if (!confiavel) { enviar(dado); return; }
+        const msg = Object.assign({ n: ++p.ppSeq }, dado);
+        p.ppPendentes.set(msg.n, { msg, vezes: 1 });
+        enviar(msg);
+      }
+      function receberPP(p, d) {
+        if (d.t === 'pp:ok') { p.ppPendentes.delete(Number(d.n)); return; }
+        if (d.t === 'pp:raq') { p.pp.receber(d); return; }
+        const n = Number(d.n);
+        if (!Number.isInteger(n) || n < 1 || n > p.ppRecebido + 50) return;
+        enviar({ t: 'pp:ok', n });
+        if (n <= p.ppRecebido || p.ppFila.has(n)) return;
+        p.ppFila.set(n, d);
+        while (p.ppFila.has(p.ppRecebido + 1)) {
+          const e = p.ppFila.get(p.ppRecebido + 1);
+          p.ppFila.delete(p.ppRecebido + 1);
+          p.ppRecebido++;
+          p.pp.receber(e);
+        }
+      }
+      // O que não foi confirmado vai de novo (também depois do fim, para o último ponto chegar).
+      const reenvioPP = setInterval(function () {
+        const p = partida;
+        if (!p || p.jogo !== 'pingpong' || p.modo !== 'rede') return;
+        for (const [n, x] of p.ppPendentes) {
+          if (x.vezes >= 12) { p.ppPendentes.delete(n); continue; }
+          x.vezes++;
+          enviar(x.msg);
+        }
+      }, 700);
+      ctx.aoParar(() => clearInterval(reenvioPP));
       function mandarLance(texto) {
         const p = partida;
         p.pendente = { n: p.ply, l: texto, tentativas: 0, travado: false };
@@ -901,9 +1014,9 @@
         }
         const c = { sessao: o.sessao, cartao: null, relogio: null, pararToque: null };
         c.cartao = el('div', { class: 'vl-jg-chamada', role: 'alertdialog', 'aria-label': 'Convite de ' + o.nome + ' para jogar ' + NOMES[o.jogo] }, [
-          el('div', { class: 'vl-jg-chamada-anel' }, [foto, el('span', { class: 'vl-jg-chamada-jogo', 'aria-hidden': 'true', texto: (o.jogo === 'damas' ? '⛂' : '♞') + VS })]),
+          el('div', { class: 'vl-jg-chamada-anel' }, [foto, el('span', { class: 'vl-jg-chamada-jogo', 'aria-hidden': 'true', texto: glifoDe(o.jogo) })]),
           el('b', { texto: o.nome }),
-          el('p', { texto: 'Chamou você para jogar ' + NOMES[o.jogo] + '. Você joga com as ' + COR_NOME[o.minhaCor] + '.' }),
+          el('p', { texto: 'Chamou você para jogar ' + NOMES[o.jogo] + '. ' + (o.jogo === 'pingpong' ? (o.minhaCor === 'w' ? 'Você saca primeiro.' : 'Quem chamou saca primeiro.') : 'Você joga com as ' + COR_NOME[o.minhaCor] + '.') }),
           el('div', { class: 'vl-jg-acoes' }, [
             el('button', { type: 'button', class: 'vl-jg-botao recusar', texto: 'Recusar', onclick() { fecharChamada(); o.recusar(); } }),
             el('button', { type: 'button', class: 'vl-jg-botao aceitar', texto: 'Aceitar', onclick() { fecharChamada(); o.aceitar(); } }),
@@ -931,7 +1044,7 @@
         const m = d && CODIGO_CONVITE.exec(String(d.texto || ''));
         if (!m || d.de == null) return;
         const de = { via: 'canal', nome: d.autor || 'Um amigo', id: String(d.de) };
-        const jogo = m[1] === 'd' ? 'damas' : 'xadrez', minhaCor = m[2] === 'w' ? 'b' : 'w', sessao = m[3];
+        const jogo = JOGO_DA_LETRA[m[1]], minhaCor = m[2] === 'w' ? 'b' : 'w', sessao = m[3];
         if ((partida && partida.sessao === sessao) || (chamada && chamada.sessao === sessao)) return;
         mostrarChamada({ sessao, nome: de.nome, jogo, minhaCor, recusar() { recusarAmigo(de, sessao); }, aceitar() { aceitarAmigo(de, sessao, jogo, minhaCor); } });
       });
@@ -958,7 +1071,7 @@
       }
       // Mensagem da partida, venha do quarto ou da sala com o amigo (de: { via, nome, id }).
       function receber(de, d) {
-        if (!/^jg:/.test(String(d.t || '')) || !sessaoValida(d.s)) return;
+        if (!/^(jg|pp):/.test(String(d.t || '')) || !sessaoValida(d.s)) return;
         if (d.t === 'jg:convite') { if (NOMES[d.j] && (d.c === 'w' || d.c === 'b')) conviteDireto(de, d); return; }
         if (d.t === 'jg:resposta') {
           const c = convidando;
@@ -978,7 +1091,9 @@
         }
         const p = partida;
         if (!p || p.modo !== 'rede' || p.sessao !== d.s || !mesmaPessoa(adversario(p), de)) return;
+        if (/^pp:/.test(d.t)) { if (p.jogo === 'pingpong' && p.pp) receberPP(p, d); return; }
         const regras = REGRAS[p.jogo];
+        if (!regras && /^jg:(lance|ok|pedirEstado|estado)$/.test(d.t)) return;
         if (d.t === 'jg:lance') {
           const n = Number(d.n);
           if (n <= p.ply) { enviar({ t: 'jg:ok', n }); return; } // repetido: só confirma de novo
@@ -1046,11 +1161,12 @@
 
       ctx.comando({
         nome: 'jogos',
-        apelidos: ['xadrez', 'damas'],
+        apelidos: ['xadrez', 'damas', 'pingpong', 'pong'],
         uso: 'jogos',
-        descricao: 'Abre o xadrez e as damas do Vagalume (também pela aba Jogos do painel ou com dois cliques num tabuleiro de xadrez do quarto): contra o bot, contra quem usa o Vagalume no quarto ou chamando um amigo de outro quarto.',
+        descricao: 'Abre os jogos do Vagalume: xadrez, damas e ping-pong (também pela aba Jogos do painel; xadrez e damas também com dois cliques num tabuleiro de xadrez do quarto). Contra o bot, contra quem usa o Vagalume no quarto ou chamando um amigo de outro quarto.',
         executar(pedido) {
-          if (pedido && /^(xadrez|damas)$/.test(pedido.nome)) escolha.jogo = pedido.nome;
+          const qual = { xadrez: 'xadrez', damas: 'damas', pingpong: 'pingpong', pong: 'pingpong' }[pedido && pedido.nome];
+          if (qual) escolha.jogo = qual;
           abrir();
         },
       });
@@ -1065,7 +1181,7 @@
             if (!partida || partida.fim) { if (partida) sairDaPartida(); escolha.jogo = j.id; }
             abrir();
           } }, [
-            el('span', { class: 'vl-jg-mini', 'aria-hidden': 'true', texto: j.glifo + VS }),
+            el('span', { class: 'vl-jg-mini ' + j.id, 'aria-hidden': 'true', texto: glifoDe(j.id) }),
             el('span', null, [el('b', { texto: NOMES[j.id] }), el('small', { texto: j.texto })]),
             el('span', { class: 'vl-jg-botao forte vl-jg-jogar', 'aria-hidden': 'true', texto: 'Jogar' }),
           ]));
@@ -1074,7 +1190,7 @@
             el('span', null, [el('b', { texto: 'Mais jogos em breve' }), el('small', { texto: 'Os próximos jogos vão aparecer aqui.' })]),
           ]));
           alvo.replaceChildren(el('div', { class: 'vl-jg-pagina' }, [
-            el('p', { class: 'vl-nota', texto: 'Jogue contra o bot, contra quem usa o Vagalume no quarto ou chame um amigo de outro quarto. Dois cliques num tabuleiro de xadrez do quarto também abrem o jogo.' }),
+            el('p', { class: 'vl-nota', texto: 'Jogue contra o bot, contra quem usa o Vagalume no quarto ou chame um amigo de outro quarto. Dois cliques num tabuleiro de xadrez do quarto também abrem o xadrez e as damas.' }),
             el('div', { class: 'vl-jg-lista' }, cartoes),
           ]));
         },

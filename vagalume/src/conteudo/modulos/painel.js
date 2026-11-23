@@ -1377,7 +1377,7 @@
         inicio: 'Ligue e ajuste cada função', 'efeitos-itens': 'Efeitos e itens de mão', conexoes: 'Miniperfil e contas confirmadas',
         quarto: 'Ações rápidas no quarto', historico: 'Tudo o que foi falado', mencoes: 'Quem chamou você',
         comandos: 'Todos os comandos', macros: 'Falas automáticas', 'grupos-voz': 'Chamadas com amigos',
-        captura: 'Prints do quarto', construcao: 'Mover, girar e empilhar', inventario: 'Seus mobis', wired: 'Copiar e colar wired', jogos: 'Xadrez e damas com amigos',
+        captura: 'Prints do quarto', construcao: 'Mover, girar e empilhar', inventario: 'Seus mobis', wired: 'Copiar e colar wired', jogos: 'Xadrez, damas e ping-pong',
       };
       const PADRAO_MAIS_USADOS = ['construcao', 'efeitos-itens', 'grupos-voz', 'conexoes', 'captura', 'quarto'];
       function montarCasa(alvo) {
