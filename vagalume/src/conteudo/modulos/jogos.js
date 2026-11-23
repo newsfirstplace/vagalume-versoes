@@ -74,8 +74,8 @@
   .vl-jg-pessoas { display: flex; flex-direction: column; gap: 6px; max-height: 190px; overflow: auto; }
   .vl-jg-pessoa { display: flex; align-items: center; gap: 9px; padding: 6px 8px; border-radius: 10px; background: rgba(255,255,255,.04); }
   .vl-jg-pessoa > span:not(.vl-jg-cabeca) { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .vl-jg-cabeca { width: 30px; height: 30px; border-radius: 50%; overflow: hidden; flex: none; background: rgba(214,242,74,.15); display: grid; place-items: center; font-weight: 700; color: #d6f24a; }
-  .vl-jg-cabeca img { width: 54px; height: 78px; margin-top: 10px; object-fit: none; image-rendering: pixelated; }
+  .vl-jg-cabeca { position: relative; width: 30px; height: 30px; border-radius: 50%; overflow: hidden; flex: none; background: rgba(214,242,74,.15); display: grid; place-items: center; font-weight: 700; color: #d6f24a; }
+  .vl-jg-cabeca img { position: absolute; width: 90px; height: 130px; left: 50%; top: 50%; transform: translate(-50%, -53%) scale(.8); image-rendering: pixelated; }
   .vl-jg-nota { color: #9aa6b8; margin: 8px 0 0; }
   .vl-jg-aviso { margin-top: 10px; color: #f2ffc0; min-height: 18px; }
   .vl-jg-partida { display: flex; gap: 16px; align-items: flex-start; }
