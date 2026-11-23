@@ -27,7 +27,7 @@
   const CSS = `
   .vl-jg { pointer-events: auto; position: fixed; z-index: 30; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(820px, calc(100vw - 24px));
     max-height: calc(100vh - 24px); display: flex; flex-direction: column; color: #e9eef7; font: 13px/1.4 system-ui, 'Segoe UI', sans-serif;
-    background: linear-gradient(180deg, rgba(26,31,43,.97), rgba(16,19,27,.97)); border: 1px solid rgba(214,242,74,.35);
+    background: linear-gradient(180deg, #1a1f2b, #10131b); border: 1px solid rgba(214,242,74,.35);
     border-radius: 16px; box-shadow: 0 18px 60px rgba(0,0,0,.55), 0 0 0 1px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.06); overflow: hidden; outline: none; }
   .vl-jg-cab { display: flex; align-items: center; gap: 10px; padding: 10px 14px; cursor: grab; user-select: none;
     background: linear-gradient(90deg, rgba(214,242,74,.16), rgba(214,242,74,0)); border-bottom: 1px solid rgba(214,242,74,.18); }
