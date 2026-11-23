@@ -256,12 +256,35 @@
 
     // Eventos de mouse: calibração (cliques), arraste da câmera do jogo e a seleção (que segura os eventos).
     function sobreOCanvas(ev) { const c = canvas(); return c && ev.target === c ? c : null; }
+    // Escolher um piso com um clique (modo espelho): aoPassar(piso) enquanto o mouse anda, aoEscolher(piso ou null).
+    let escolhaPiso = null;
+    let pisoSobMouse = null;
+    function escolherPiso(aoEscolher, aoPassar) {
+      if (!calibrado()) return false;
+      escolhaPiso = { aoEscolher, aoPassar };
+      pisoSobMouse = null;
+      document.documentElement.setAttribute('data-vl-selecionando', '');
+      ctx.emitir('painel:fechar');
+      return true;
+    }
+    function encerrarEscolhaPiso(p) {
+      const e = escolhaPiso;
+      escolhaPiso = null;
+      document.documentElement.removeAttribute('data-vl-selecionando');
+      if (e) e.aoEscolher(p);
+    }
     ctx.escutar(window, 'pointerdown', function (ev) {
       if (!ev.isTrusted || ev.button !== 0 || camada.contem(ev)) return;
       const c = sobreOCanvas(ev);
       if (!c) return;
       if (selecionandoMotor) return; // o motor trata o arraste e informa os pisos exatos
       const local = paraLocal(c, ev.clientX, ev.clientY);
+      if (escolhaPiso && calibrado()) {
+        ev.stopImmediatePropagation(); ev.preventDefault();
+        ignorarCliqueAte = Date.now() + 500;
+        encerrarEscolhaPiso(pisoDoLocal(local));
+        return;
+      }
       if (modoDestino && calibrado()) {
         ev.stopImmediatePropagation(); ev.preventDefault();
         const p = pisoDoLocal(local);
@@ -286,7 +309,7 @@
       ultimoClique = { local, quando: Date.now() };
       arraste = { inicio: local, ultimo: local };
     }, true);
-    ctx.escutar(window, 'mousedown', function (ev) { if (!selecionandoMotor && sobreOCanvas(ev) && ((selecionando && arrastandoSelecao) || modoDestino || Date.now() < ignorarCliqueAte)) { ev.stopImmediatePropagation(); ev.preventDefault(); } }, true);
+    ctx.escutar(window, 'mousedown', function (ev) { if (!selecionandoMotor && sobreOCanvas(ev) && ((selecionando && arrastandoSelecao) || modoDestino || escolhaPiso || Date.now() < ignorarCliqueAte)) { ev.stopImmediatePropagation(); ev.preventDefault(); } }, true);
     ctx.escutar(window, 'pointermove', function (ev) {
       const c = canvas();
       if (!c) return;
@@ -296,6 +319,12 @@
         const local = paraLocal(c, ev.clientX, ev.clientY);
         const p = pisoDoLocal(local);
         if (p.x !== arrastandoSelecao.fim.x || p.y !== arrastandoSelecao.fim.y) { arrastandoSelecao.fim = p; desenhar(); avisarArea({ x1: arrastandoSelecao.inicio.x, y1: arrastandoSelecao.inicio.y, x2: p.x, y2: p.y }); }
+        return;
+      }
+      if (escolhaPiso && calibrado()) {
+        if (!sobreOCanvas(ev)) return;
+        const p = pisoDoLocal(paraLocal(c, ev.clientX, ev.clientY));
+        if (!pisoSobMouse || pisoSobMouse.x !== p.x || pisoSobMouse.y !== p.y) { pisoSobMouse = p; if (escolhaPiso.aoPassar) escolhaPiso.aoPassar(p); }
         return;
       }
       if (modoDestino && calibrado()) {
@@ -342,9 +371,10 @@
     ctx.escutar(window, 'pointerup', soltar, true);
     ctx.escutar(window, 'mouseup', soltar, true);
     let ignorarCliqueAte = 0;
-    ctx.escutar(window, 'click', function (ev) { if (!selecionandoMotor && ((selecionando && calibrado()) || modoDestino || Date.now() < ignorarCliqueAte) && sobreOCanvas(ev)) { ev.stopImmediatePropagation(); ev.preventDefault(); } }, true);
+    ctx.escutar(window, 'click', function (ev) { if (!selecionandoMotor && ((selecionando && calibrado()) || modoDestino || escolhaPiso || Date.now() < ignorarCliqueAte) && sobreOCanvas(ev)) { ev.stopImmediatePropagation(); ev.preventDefault(); } }, true);
     ctx.escutar(document, 'keydown', function (ev) {
       if (ev.key !== 'Escape') return;
+      if (escolhaPiso) { ev.stopImmediatePropagation(); encerrarEscolhaPiso(null); return; }
       if (selecionando) { ev.stopImmediatePropagation(); pararSelecao(); return; }
       if (modoDestino) { ev.stopImmediatePropagation(); pedirMotor('cancelar'); modoDestino = null; destinoPreview = null; document.documentElement.removeAttribute('data-vl-selecionando'); atualizarJanela(); desenhar(); return; }
       if (escolhendo) { ev.stopImmediatePropagation(); escolhendo = false; atualizarJanela(); return; }
@@ -767,6 +797,6 @@
     ctx.aoParar(function () { pedirMotor('desativar'); });
     ctx.aoParar(function () { document.documentElement.removeAttribute('data-vl-ferramenta-integrada'); });
 
-    return { definirGuia, abrirJanela, comecarSelecao, selecionarIguais, selecionarPilha, limparSelecao, montarPainel, previaColocacao, alturasPisos };
+    return { escolherPiso, definirGuia, abrirJanela, comecarSelecao, selecionarIguais, selecionarPilha, limparSelecao, montarPainel, previaColocacao, alturasPisos };
   };
 })(typeof globalThis !== 'undefined' ? globalThis : this);
