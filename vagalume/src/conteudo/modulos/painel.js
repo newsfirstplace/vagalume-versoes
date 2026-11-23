@@ -923,14 +923,14 @@
       const ASSUNTOS = [
         { id: 'conversa', nome: 'Chat e conversa', desc: 'Menções, links nas falas, silenciar, histórico, comandos, macros e avisos.', modulos: ['chat', 'digitando', 'mencoes', 'silenciar', 'agrupar', 'historico', 'apelidos', 'comandos', 'macros', 'notificacoes'] },
         { id: 'pessoas', nome: 'Pessoas e amigos', desc: 'Amigos, imagens, áudios, chamada de voz e a comunidade Vagalume.', modulos: ['amigos', 'midia', 'comunidade'] },
-        { id: 'quarto', nome: 'Quarto e avatar', desc: 'Conexão do jogo, andar com setas, voltar ao quarto, visual, efeitos e zoom.', modulos: ['conexao', 'visual', 'zoom'] },
+        { id: 'quarto', nome: 'Quarto e avatar', desc: 'Conexão do jogo, andar com setas, voltar ao quarto, visual, efeitos e zoom.', modulos: ['conexao', 'visual', 'zoom', 'jogos'] },
         { id: 'construcao', nome: 'Construção e wired', desc: 'Mover e girar mobis, áreas, copiar quarto e wired.', modulos: ['construcao', 'wired'] },
         { id: 'loja', nome: 'Loja e inventário', desc: 'Comprar, repor, carrinho, Feira Livre e excluir em massa.', modulos: ['loja'] },
         { id: 'aparencia', nome: 'Aparência', desc: 'Tema Vagalume, janelas, barra de baixo e CSS próprio.', modulos: ['interface', 'janelas', 'estilo'] },
         { id: 'desempenho', nome: 'Desempenho', desc: 'Jogo fluido, FPS e ping no canto, limitar quadros e bloquear anúncios.', modulos: ['fluido', 'contador', 'fps', 'anuncios', 'medicao'] },
         { id: 'sistema', nome: 'Painel e captura', desc: 'Este painel, atalho de teclado e captura de tela.', modulos: ['painel', 'captura'] },
       ];
-      const PRECISA_CONEXAO = new Set(['construcao', 'amigos', 'loja', 'visual', 'wired', 'comunidade', 'musica', 'midia']);
+      const PRECISA_CONEXAO = new Set(['jogos', 'construcao', 'amigos', 'loja', 'visual', 'wired', 'comunidade', 'musica', 'midia']);
       // Palavras que as pessoas usam para procurar -> palavras que estão nos módulos.
       const SINONIMOS = {
         spotify: 'musica lastfm', lastfm: 'musica', 'last.fm': 'musica', som: 'musica volume', cancao: 'musica',

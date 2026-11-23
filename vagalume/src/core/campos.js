@@ -60,6 +60,9 @@
       { tipo: 'chave', chave: 'sugestoes', rotulo: 'Sugerir comandos enquanto você digita', nota: 'A lista aparece acima do chat; Tab completa a primeira sugestão.' },
       { tipo: 'chave', chave: 'novidades', rotulo: 'Mostrar as novidades uma vez quando o Vagalume for atualizado' },
     ],
+    jogos: [
+      { tipo: 'chave', chave: 'som', rotulo: 'Som dos lances', nota: 'Um estalo baixinho a cada lance e um pouco mais grave nas capturas.' },
+    ],
     notificacoes: [
       { tipo: 'chave', chave: 'ocultarCompras', rotulo: 'Esconder o aviso "Você comprou…" depois de cada compra', nota: 'O aviso some do canto da tela, mas continua no histórico (comando notificacoes).' },
       { tipo: 'chave', chave: 'ocultarConquistas', rotulo: 'Esconder os avisos de conquista', nota: 'Continuam no histórico (comando notificacoes).' },

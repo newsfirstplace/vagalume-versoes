@@ -55,6 +55,7 @@
     'modulo:captura': { jogo: 'camera' },
     'modulo:contador': { jogo: 'game' },
     'modulo:fluido': { mobi: 'Raio_Nattura' },
+    'modulo:jogos': { mobi: 'ngh_chessboard' },
     'modulo:fps': { mobi: 'Raio_Nattura' },
     'modulo:anuncios': { jogo: 'sign-skull' },
     'modulo:medicao': { jogo: 'sign-skull' },

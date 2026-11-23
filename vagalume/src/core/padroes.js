@@ -35,6 +35,7 @@
       comunidade: true,
       musica: true,
       midia: true,
+      jogos: true,
     },
     painel: { atalho: 'Alt+V', mostrarBotao: true },
     comandos: { prefixo: '/', sugestoes: true, novidades: true },
@@ -46,6 +47,7 @@
     notificacoes: { ocultarCompras: false, ocultarConquistas: false },
     silenciar: { apelidos: [], termos: [], modo: 'esconder', minimoPontos: 0, ocultarPessoas: false, ocultarBots: false, ocultarPets: false, excetoMeus: true, excetoAmigos: true },
     agrupar: { janela: 5 },
+    jogos: { som: true },
     wired: { copiarAoSalvar: true, enterSalva: true, naoAndarAoClicar: false, avancadasAbertas: false },
     loja: { repor: false, reporLimite: 2, reporQuantidade: 10, reporSoWired: false, reporSemTeleporte: true, quantidadePadrao: 1, pularConfirmacao: true, confirmarOutraMoeda: true, marcarCustom: true },
     comunidade: { entrarNoGrupo: true, selo: true, aparecer: true },
@@ -103,6 +105,7 @@
     { id: 'loja', nome: 'Loja e inventário', grupo: 'avancado', resumo: 'Comprar wireds até ter N de cada, repor mobis que acabam, quantidade padrão, pular confirmação e excluir mobis em massa. Gasta moedas e apaga mobis só depois de confirmar. Precisa da conexão do jogo.' },
     { id: 'visual', nome: 'Visual e avatar', grupo: 'avancado', resumo: 'Tudo sobre o seu visual: gera visuais novos no seu estilo (com temas e combinando com alguém), veste o visual de quem está no quarto, copia códigos, lista os visuais salvos e escolhe efeitos e itens de mão pelo nome.' },
     { id: 'wired', nome: 'Wired', grupo: 'avancado', resumo: 'Copiar, colar, exportar e importar configurações de wired; Enter salva a janela de wired; opção de não andar ao clicar em mobis. Precisa da conexão do jogo.' },
+    { id: 'jogos', nome: 'Xadrez e damas', grupo: 'chat', resumo: 'Dois cliques num tabuleiro de xadrez do quarto abrem o xadrez e as damas do Vagalume: contra o bot (três níveis) ou contra quem usa o Vagalume no quarto. Também com /jogos. Precisa da conexão do jogo.' },
     { id: 'medicao', nome: 'Bloquear medição', grupo: 'desempenho', resumo: 'Bloqueia o script de estatísticas de terceiros da página.', recarregar: true },
   ];
 
