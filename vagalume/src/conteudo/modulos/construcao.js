@@ -1733,6 +1733,16 @@
           else escolherEspelho();
         },
       });
+      // :up do jogo com altura negativa: a prévia de colocar some (o mapa de alturas do servidor não guarda
+      // número abaixo de 0). Acompanha o :up que sai (seu ou do Vagalume) e liga a prévia nessa altura; :up sem
+      // número, positivo ou zero volta ao normal.
+      cancelar.push(conexao.ouvir('saida', SAIDA.FALAR, function (l) {
+        const m = /^\s*:up(?:\s+(-?\d+(?:[.,]\d+)?))?\s*$/i.exec(String(l.texto()));
+        if (!m) return;
+        const n = m[1] == null ? null : Number(m[1].replace(',', '.'));
+        if (ferramenta && ferramenta.alturaForcada) ferramenta.alturaForcada(n != null && n < 0 ? n : null);
+      }));
+      ctx.aoParar(function () { if (ferramenta && ferramenta.alturaForcada) ferramenta.alturaForcada(null); });
       // Teleporte do jogo (:tele): com direitos no quarto, clicar num piso leva o avatar direto para lá.
       let teleporteLigado = false;
       function alternarTeleporte() {

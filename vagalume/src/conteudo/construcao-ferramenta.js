@@ -797,6 +797,8 @@
     ctx.aoParar(function () { pedirMotor('desativar'); });
     ctx.aoParar(function () { document.documentElement.removeAttribute('data-vl-ferramenta-integrada'); });
 
-    return { escolherPiso, definirGuia, abrirJanela, comecarSelecao, selecionarIguais, selecionarPilha, limparSelecao, montarPainel, previaColocacao, alturasPisos };
+    // :up negativo: a prévia nativa de colocar e mover mostra o mobi nessa altura (null volta ao normal).
+    function alturaForcada(altura) { return pedirMotor('alturaForcada', { altura }); }
+    return { alturaForcada, escolherPiso, definirGuia, abrirJanela, comecarSelecao, selecionarIguais, selecionarPilha, limparSelecao, montarPainel, previaColocacao, alturasPisos };
   };
 })(typeof globalThis !== 'undefined' ? globalThis : this);

@@ -255,6 +255,29 @@
     }
     return { topos: lista.map((p) => ler(pilha, p[0], p[1])), chaos: lista.map((p) => ler(chao, p[0], p[1])), alturaMobi };
   }
+  // :up com altura negativa (pedido do usuário em 2026-11-22): a prévia de colocar e mover usa o mapa de pilhas do
+  // jogo, que vem do servidor com alturas de 0 a 63 (o formato não guarda número abaixo de 0; o piso chega como
+  // bloqueado) e some. Com a altura conhecida, o mapa responde essa altura e aceita qualquer piso do chão, só na
+  // tela; quem decide onde o mobi fica continua sendo o servidor.
+  let alturaForcada = null;
+  const remendados = new WeakSet();
+  function remendarPilha() {
+    const pilha = motor && motor.getFurnitureStackingHeightMap && motor.getFurnitureStackingHeightMap(motor.activeRoomId);
+    if (!pilha) return false;
+    const proto = Object.getPrototypeOf(pilha);
+    if (remendados.has(proto)) return true;
+    if (typeof proto.validateLocation !== 'function' || typeof proto.getTileHeight !== 'function') return false;
+    const altura = proto.getTileHeight, validar = proto.validateLocation;
+    const doChao = (m, x, y) => x >= 0 && y >= 0 && x < m._width && y < m._height && !!(m._isRoomTile && m._isRoomTile[y * m._width + x]);
+    proto.getTileHeight = function (x, y) { return alturaForcada != null && doChao(this, x, y) ? alturaForcada : altura.apply(this, arguments); };
+    proto.validateLocation = function (x, y, largura, comprimento) {
+      if (alturaForcada == null) return validar.apply(this, arguments);
+      for (let j = y; j < y + Math.max(1, comprimento); j++) for (let i = x; i < x + Math.max(1, largura); i++) if (!doChao(this, i, j)) return false;
+      return true;
+    };
+    remendados.add(proto);
+    return true;
+  }
   // Os objetos entram no quarto no quadro seguinte: só então dá para deixá-los translúcidos.
   function clarearColocacao() {
     if (!colocacao || !colocacao.novos.length) return;
@@ -286,7 +309,7 @@
       quarto = motor.activeRoomId; ultimaGeometria = '';
       responder({ tipo: 'quarto', quarto });
     }
-    try { informarMapa(); desenharPrevia(); clarearColocacao(); } catch (e) { pararSelecao(); pararPrevia(); }
+    try { informarMapa(); desenharPrevia(); clarearColocacao(); if (alturaForcada != null) remendarPilha(); } catch (e) { pararSelecao(); pararPrevia(); }
     quadro = requestAnimationFrame(ciclo);
   }
 
@@ -308,6 +331,11 @@
         // Falha na prévia não pode derrubar a seleção de área em andamento.
         case 'colocacao': try { ok = mostrarColocacao(d); } catch (e) { ok = false; try { pararColocacao(); } catch (e2) { colocacao = null; } } break;
         case 'alturas': extra = alturasDosPisos(d.pontos); ok = !!extra; break;
+        case 'alturaForcada':
+          alturaForcada = Number.isFinite(d.altura) && d.altura < 0 && d.altura >= -100 ? d.altura : null;
+          if (!motor) preparar();
+          ok = alturaForcada == null || remendarPilha();
+          break;
         case 'cancelar': pararSelecao(); pararPrevia(); break;
         case 'desativar':
           ativo = false; pararSelecao(); pararPrevia(); pararColocacao();
