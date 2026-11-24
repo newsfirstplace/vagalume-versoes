@@ -213,6 +213,25 @@
   .vl-jg-rodape .vl-jg-seg { flex: 0 1 300px; }
   .vl-jg-vel .vl-jg-seg { flex: 1; }
   @media (max-width: 720px) { .vl-jg-partida { flex-direction: column; align-items: center; } .vl-jg-colunas { grid-template-columns: 1fr; } .vl-jg-trocar { position: static; } .vl-jg-heroi { flex-wrap: wrap; } }
+  .vl-jg-casa.pre::before { content: ''; position: absolute; inset: 0; background: rgba(90,160,255,.45); box-shadow: inset 0 0 0 3px rgba(160,205,255,.9); }
+  .vl-jg-casa.presel::before { content: ''; position: absolute; inset: 0; background: rgba(90,160,255,.6); }
+  .vl-jg-setas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 3; overflow: visible; }
+  .vl-jg-revisao { display: flex; gap: 4px; align-items: center; }
+  .vl-jg-revisao button { flex: 1; min-width: 0; padding: 5px 0; border-radius: 8px; border: 1px solid rgba(214,242,74,.25); background: rgba(0,0,0,.25); color: #e9eef7; font: 600 14px system-ui, sans-serif; cursor: pointer; }
+  .vl-jg-revisao button:hover:not(:disabled) { border-color: #d6f24a; color: #d6f24a; }
+  .vl-jg-revisao button:disabled { opacity: .35; cursor: default; }
+  .vl-jg-revendo { font: 600 12px system-ui, sans-serif; color: #9fc4ff; text-align: center; }
+  .vl-jg-lances span[data-ply] { cursor: pointer; border-radius: 4px; padding: 0 3px; } .vl-jg-lances span[data-ply]:hover { background: rgba(214,242,74,.15); }
+  .vl-jg-lances .vendo { background: rgba(90,160,255,.35); color: #fff; }
+  .vl-jg-festa { position: absolute; inset: 0; z-index: 40; pointer-events: none; overflow: hidden; border-radius: inherit; }
+  .vl-jg-festa canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .vl-jg-festa-faixa { position: absolute; left: 50%; top: 42%; transform: translate(-50%, -50%); text-align: center; animation: vl-jg-faixa 3.6s cubic-bezier(.2,1.4,.4,1) forwards; }
+  .vl-jg-festa-faixa b { display: block; font: 900 56px system-ui, sans-serif; letter-spacing: 2px; color: #d6f24a; text-shadow: 0 0 18px rgba(214,242,74,.9), 0 0 42px rgba(214,242,74,.5), 0 4px 0 #2c3a06; }
+  .vl-jg-festa-faixa small { display: block; margin-top: 6px; font: 700 15px system-ui, sans-serif; color: #fff; text-shadow: 0 2px 6px #000; }
+  .vl-jg-festa.perdeu .vl-jg-festa-faixa b { color: #c9d1e0; text-shadow: 0 0 14px rgba(120,140,170,.6), 0 4px 0 #1a2030; }
+  .vl-jg-festa.empate .vl-jg-festa-faixa b { color: #ffe27a; text-shadow: 0 0 14px rgba(255,220,100,.6), 0 4px 0 #3a3006; }
+  @keyframes vl-jg-faixa { 0% { opacity: 0; transform: translate(-50%, -50%) scale(.3); } 12% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); } 20% { transform: translate(-50%, -50%) scale(1); } 82% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -60%) scale(1); } }
+  @media (prefers-reduced-motion: reduce) { .vl-jg-festa-faixa { animation: none; } }
   @media (prefers-reduced-motion: reduce) { .vl-jg-peca.nova, .vl-jg-disco.nova, .vl-jg-chamada, .vl-jg-chamada-anel::before, .vl-jg-chamada-anel::after { animation: none; } }
   `;
 
@@ -248,6 +267,94 @@
         t += d * 0.9;
       }
     } catch (e) { /* sem som */ }
+  }
+  // Fanfarra do fim da partida: vitória sobe num acorde brilhante com eco; derrota desce; empate fica no meio.
+  function fanfarra(resultado) {
+    try {
+      audio = audio || new (raiz.AudioContext || raiz.webkitAudioContext)();
+      const a = audio, t0 = a.currentTime + 0.02;
+      const saida = a.createGain(); saida.gain.value = 0.9;
+      const eco = a.createDelay(); eco.delayTime.value = 0.18;
+      const volta = a.createGain(); volta.gain.value = 0.28;
+      saida.connect(a.destination); saida.connect(eco); eco.connect(volta); volta.connect(eco); volta.connect(a.destination);
+      const nota = (f, ini, dur, vol, tipo) => {
+        for (const [mult, v, tp] of [[1, 1, tipo || 'triangle'], [2, 0.25, 'sine'], [1.003, 0.4, 'sawtooth']]) {
+          const o = a.createOscillator(), g = a.createGain();
+          o.type = tp; o.frequency.value = f * mult;
+          const pico = vol * v * (tp === 'sawtooth' ? 0.18 : 1);
+          g.gain.setValueAtTime(0.0001, t0 + ini);
+          g.gain.exponentialRampToValueAtTime(pico, t0 + ini + 0.015);
+          g.gain.exponentialRampToValueAtTime(0.0001, t0 + ini + dur);
+          o.connect(g).connect(saida);
+          o.start(t0 + ini); o.stop(t0 + ini + dur + 0.05);
+        }
+      };
+      if (resultado === 'venceu') {
+        [[523, 0], [659, 0.11], [784, 0.22], [1047, 0.33]].forEach(([f, i]) => nota(f, i, 0.22, 0.07));
+        [1047, 1319, 1568, 2093].forEach((f, k) => nota(f, 0.5 + k * 0.012, 1.3, 0.05));
+        [2637, 3136, 3520, 2637, 3951].forEach((f, k) => nota(f, 0.62 + k * 0.09, 0.12, 0.02, 'sine')); // brilhinhos
+      } else if (resultado === 'perdeu') {
+        [[392, 0], [330, 0.2], [262, 0.4]].forEach(([f, i]) => nota(f, i, 0.35, 0.05, 'sine'));
+        nota(196, 0.62, 0.9, 0.045, 'sine');
+      } else {
+        [[440, 0], [554, 0.16]].forEach(([f, i]) => nota(f, i, 0.3, 0.05));
+        nota(659, 0.34, 0.8, 0.045);
+      }
+    } catch (e) { /* sem som */ }
+  }
+  // Fogos de vagalumes sobre a janela do jogo (só na vitória); a faixa aparece em qualquer fim.
+  function festejarEm(janela, resultado, titulo, sub) {
+    const velha = janela.querySelector('.vl-jg-festa');
+    if (velha) velha.remove();
+    const camadaFesta = el('div', { class: 'vl-jg-festa ' + resultado, 'aria-hidden': 'true' });
+    const faixa = el('div', { class: 'vl-jg-festa-faixa' }, [el('b', { texto: titulo }), sub ? el('small', { texto: sub }) : null]);
+    let parado = false;
+    try { parado = raiz.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { /* sem matchMedia */ }
+    if (resultado === 'venceu' && !parado) {
+      const tela = el('canvas');
+      camadaFesta.appendChild(tela);
+      const w = tela.width = janela.clientWidth || 800, h = tela.height = janela.clientHeight || 600;
+      const g = tela.getContext('2d');
+      const cores = ['#d6f24a', '#f2ffb0', '#ffe27a', '#ffffff', '#9dff7a', '#ffb4e6'];
+      const pts = [];
+      const explodir = (x, y) => {
+        const cor = cores[Math.floor(Math.random() * cores.length)];
+        for (let k = 0; k < 46; k++) {
+          const ang = (k / 46) * Math.PI * 2 + Math.random() * 0.2, v = 1.6 + Math.random() * 3.4;
+          pts.push({ x, y, vx: Math.cos(ang) * v, vy: Math.sin(ang) * v, vida: 1, cor: Math.random() < 0.25 ? '#ffffff' : cor, r: 1.4 + Math.random() * 1.8 });
+        }
+      };
+      const tiros = [];
+      for (let k = 0; k < 7; k++) tiros.push({ quando: k * 330 + Math.random() * 120, x: w * (0.15 + Math.random() * 0.7), y: h * (0.15 + Math.random() * 0.35) });
+      const inicio = performance.now();
+      let ultimo = inicio;
+      const quadro = (agora) => {
+        if (!camadaFesta.isConnected) return;
+        const dt = Math.min(3, (agora - ultimo) / 16.7); ultimo = agora;
+        const passou = agora - inicio;
+        while (tiros.length && tiros[0].quando <= passou) { const x = tiros.shift(); explodir(x.x, x.y); }
+        if (passou < 3000 && Math.random() < 0.35 * dt) pts.push({ x: Math.random() * w, y: h + 4, vx: (Math.random() - 0.5) * 0.6, vy: -1.2 - Math.random() * 1.6, vida: 1, cor: '#d6f24a', r: 1.5 + Math.random() * 1.5, sobe: true });
+        g.clearRect(0, 0, w, h);
+        g.globalCompositeOperation = 'lighter';
+        for (let k = pts.length - 1; k >= 0; k--) {
+          const p = pts[k];
+          p.x += p.vx * dt; p.y += p.vy * dt;
+          if (!p.sobe) { p.vy += 0.06 * dt; p.vx *= 0.985; p.vy *= 0.985; }
+          p.vida -= (p.sobe ? 0.006 : 0.012) * dt;
+          if (p.vida <= 0) { pts.splice(k, 1); continue; }
+          const brilho = p.sobe ? 0.5 + 0.5 * Math.sin(agora / 120 + k) : 1;
+          g.globalAlpha = Math.max(0, p.vida) * brilho;
+          g.fillStyle = p.cor;
+          g.shadowColor = p.cor; g.shadowBlur = 10;
+          g.beginPath(); g.arc(p.x, p.y, p.r, 0, Math.PI * 2); g.fill();
+        }
+        if (passou < 4200 || pts.length) raiz.requestAnimationFrame(quadro);
+      };
+      raiz.requestAnimationFrame(quadro);
+    }
+    camadaFesta.appendChild(faixa);
+    janela.appendChild(camadaFesta);
+    setTimeout(() => camadaFesta.remove(), 4300);
   }
   const SONS_PP = { bate: [[1175, 0.05]], mesa: [[700, 0.03]], rede: [[180, 0.09]], saque: [[880, 0.06]], ponto: [[392, 0.12], [294, 0.18]], fim: [[523, 0.11], [659, 0.11], [784, 0.22]] };
   const novaSessao = () => Array.from(crypto.getRandomValues(new Uint8Array(8)), (b) => b.toString(16).padStart(2, '0')).join('');
@@ -367,7 +474,14 @@
         ]);
         corpo = el('div', { class: 'vl-jg-corpo' });
         janela = el('div', { class: 'vl-jg', role: 'dialog', 'aria-label': 'Jogos do Vagalume', tabindex: '0' }, [cab, corpo]);
-        janela.addEventListener('keydown', function (ev) { if (ev.key === 'Escape') { ev.stopPropagation(); if (partida && partida.promocao) { partida.promocao = null; desenhar(); } else fechar(); } });
+        janela.addEventListener('keydown', function (ev) {
+          if ((ev.key === 'ArrowLeft' || ev.key === 'ArrowRight') && partida && partida.jogo !== 'pingpong' && !/^(INPUT|TEXTAREA|SELECT)$/.test(ev.target.tagName)) {
+            ev.preventDefault(); ev.stopPropagation();
+            const p = partida, atual = p.ver != null ? p.ver : p.historico.length;
+            verLance(atual + (ev.key === 'ArrowLeft' ? -1 : 1));
+            return;
+          }
+          if (ev.key === 'Escape') { ev.stopPropagation(); if (partida && partida.promocao) { partida.promocao = null; desenhar(); } else fechar(); } });
         cab.addEventListener('dblclick', function (ev) { if (!ev.target.closest('button')) alternarMinimizada(); });
         cab.addEventListener('pointerdown', function (ev) {
           if (ev.button !== 0 || ev.target.closest('button')) return;
@@ -398,6 +512,15 @@
         janela.querySelector('.vl-jg-ic').textContent = glifoDe(jogo);
         janela.querySelector('.vl-jg-voltar').hidden = !!(partida && !partida.fim);
         camada.trocar(corpo, partida ? (partida.jogo === 'pingpong' ? telaPingPong() : telaPartida()) : telaInicio());
+        if (partida && partida.fim && !partida.festejado && !partida.animando) { partida.festejado = true; festejar(partida); }
+      }
+      function festejar(p) {
+        const v = p.fim.vencedor;
+        const resultado = !v ? 'empate' : v === p.minhaCor ? 'venceu' : 'perdeu';
+        if (ctx.secao().som !== false) fanfarra(resultado);
+        if (p.jogo === 'pingpong' || minimizada || janela.style.display === 'none') return; // o ping-pong tem a festa dele na mesa
+        const titulo = resultado === 'venceu' ? 'Vitória!' : resultado === 'perdeu' ? (p.modo === 'bot' ? 'O bot venceu' : 'Derrota') : 'Empate';
+        festejarEm(janela, resultado, titulo, p.jogo === 'pingpong' ? '' : String(p.fim.motivo || ''));
       }
 
       // ---------- início: escolher o jogo e o adversário ----------
@@ -508,6 +631,7 @@
           estado: o.posicao ? regras.dePosicao(o.posicao) : regras.novo(), estados: [], historico: [], ultimo: [], sel: null, caminho: null, promocao: null, fim: null,
           ply: 0, tomou: { w: 0, b: 0 }, pendente: null, empateProposto: null, virado: o.minhaCor === 'b', pensando: false,
           via: o.via || 'quarto', oponenteId: o.oponenteId != null ? String(o.oponenteId) : null, animando: false, fila: [], job: null, mostrado: null,
+          pre: null, preSel: null, setas: [], circulos: [], ver: null,
         };
         avisoInicio = '';
         if (!janela) montarJanela();
@@ -529,7 +653,7 @@
           nome: (cor) => nomeDe(cor),
           cabeca: (cor) => (p.modo === 'bot' && cor !== p.minhaCor ? el('span', { class: 'vl-jg-cabeca', 'aria-hidden': 'true', texto: '🤖' }) : cabeca(nomeDe(cor))),
           enviar: (dado, confiavel) => ppEnviar(p, dado, confiavel),
-          som: (tipo) => { if (ctx.secao().som !== false && SONS_PP[tipo]) bipes(SONS_PP[tipo], tipo === 'mesa' ? 0.045 : 0.08); },
+          som: (tipo) => { if (tipo !== 'fim' && ctx.secao().som !== false && SONS_PP[tipo]) bipes(SONS_PP[tipo], tipo === 'mesa' ? 0.045 : 0.08); },
           vivo: () => partida === p,
           encerrado: () => !!p.fim,
           pausado: () => p.modo === 'bot' && (minimizada || !janela || janela.style.display === 'none'),
@@ -562,7 +686,7 @@
         const p = partida;
         const regras = REGRAS[p.jogo];
         const antes = p.estado;
-        p.historico.push({ nota: regras.nota(antes, lance), cor: antes.vez });
+        p.historico.push({ nota: regras.nota(antes, lance), cor: antes.vez, ultimo: regras.ultimo(lance) });
         p.estados.push(antes);
         p.estado = regras.jogar(antes, lance);
         if (lance.capturas) p.tomou[antes.vez] += lance.capturas.length;
@@ -610,7 +734,7 @@
         p.job = job; p.mostrado = job.depois; p.ultimo = regras.ultimo(lance); p.animando = true;
         pintar(); // o tabuleiro já com o lance; as peças que andam ficam escondidas até pousar
         const tab = corpo && corpo.querySelector('.vl-jg-tab');
-        if (!tab || typeof tab.animate !== 'function' || semMovimento() || minimizada || janela.style.display === 'none') {
+        if (p.ver != null || !tab || typeof tab.animate !== 'function' || semMovimento() || minimizada || janela.style.display === 'none') {
           if (som) tocar(capturou);
           if (promoveu) p.novaCasa = destino;
           p.job = null;
@@ -670,6 +794,13 @@
         p.animando = false;
         p.mostrado = null;
         pintar();
+        if (p.pre && minhaVez() && p.ver == null) {
+          const pre = p.pre;
+          p.pre = null;
+          const m = X.lances(p.estado).filter((x) => x.de === pre.de && x.para === pre.para);
+          if (m.length) { aplicar(m.find((x) => !x.promo || x.promo.toLowerCase() === 'q') || m[0], true); return; }
+          pintar();
+        }
         if (!p.fim && p.modo === 'bot' && p.estado.vez !== p.minhaCor) setTimeout(vezDoBot, tempos().pausa);
       }
       function vezDoBot() {
@@ -690,6 +821,9 @@
 
       // Clique numa casa: escolhe a peça e depois o destino (xadrez) ou cada pouso do caminho (damas).
       function clicarCasa(i) {
+        const p = partida;
+        if (!p || p.ver != null) return;
+        if (p.jogo === 'xadrez' && !p.fim && p.estado.vez !== p.minhaCor) { escolherPre(i); return; }
         if (!minhaVez()) return;
         const regras = REGRAS[partida.jogo];
         const todos = regras.lances(partida.estado);
@@ -722,12 +856,100 @@
         desenhar();
       }
 
+      // Pré-lance (só xadrez): escolhe a peça e a casa enquanto o outro joga; ao chegar a sua vez, ele sai sozinho.
+      function escolherPre(i) {
+        const p = partida;
+        const e = p.mostrado || p.estado;
+        const minha = (k) => e.tab[k] && X.corDe(e.tab[k]) === p.minhaCor;
+        if (p.preSel != null && i !== p.preSel && !minha(i)) { p.pre = { de: p.preSel, para: i }; p.preSel = null; }
+        else if (minha(i) && p.preSel !== i) { p.preSel = i; p.pre = null; }
+        else { p.preSel = null; p.pre = null; }
+        marcarExtras();
+      }
+      // Marcas que só existem na sua tela: pré-lance e setas. Mexem só nas classes e no desenho por cima do tabuleiro,
+      // então funcionam também no meio da animação.
+      function marcarExtras() {
+        const p = partida;
+        const tab = corpo && corpo.querySelector('.vl-jg-tab');
+        if (!p || !tab) return;
+        for (let i = 0; i < 64; i++) {
+          const c = tab.children[naTela(p, i)];
+          if (!c || !c.classList.contains('vl-jg-casa')) continue;
+          c.classList.toggle('pre', !!p.pre && (p.pre.de === i || p.pre.para === i));
+          c.classList.toggle('presel', p.preSel === i);
+        }
+        let svg = tab.querySelector('.vl-jg-setas');
+        if (!svg) {
+          svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+          svg.setAttribute('class', 'vl-jg-setas');
+          svg.setAttribute('viewBox', '0 0 8 8');
+          tab.appendChild(svg);
+        }
+        const ns = 'http://www.w3.org/2000/svg';
+        const novo = (tag, at) => { const n = document.createElementNS(ns, tag); for (const k in at) n.setAttribute(k, at[k]); return n; };
+        const centro = (i) => { const k = naTela(p, i); return [(k & 7) + 0.5, (k >> 3) + 0.5]; };
+        const filhos = [];
+        const defs = novo('defs', {});
+        const ponta = novo('marker', { id: 'vl-jg-ponta', viewBox: '0 0 4 4', refX: '1.6', refY: '2', markerWidth: '3.2', markerHeight: '3.2', orient: 'auto' });
+        ponta.appendChild(novo('path', { d: 'M0,0 L4,2 L0,4 Z', fill: 'rgba(255,170,0,.85)' }));
+        defs.appendChild(ponta);
+        filhos.push(defs);
+        for (const i of p.circulos) { const [x, y] = centro(i); filhos.push(novo('circle', { cx: x, cy: y, r: '.44', fill: 'none', stroke: 'rgba(255,170,0,.85)', 'stroke-width': '.08' })); }
+        for (const a of p.setas) {
+          const [x0, y0] = centro(a.de), [x1, y1] = centro(a.para);
+          const d = Math.hypot(x1 - x0, y1 - y0), fim = (d - 0.42) / d;
+          filhos.push(novo('line', { x1: x0, y1: y0, x2: x0 + (x1 - x0) * fim, y2: y0 + (y1 - y0) * fim, stroke: 'rgba(255,170,0,.8)', 'stroke-width': '.17', 'stroke-linecap': 'round', 'marker-end': 'url(#vl-jg-ponta)' }));
+        }
+        svg.replaceChildren(...filhos);
+      }
+      // Botão direito: arrastar de uma casa a outra desenha uma seta; na mesma casa, um círculo. Clique comum apaga.
+      function ligarSetas(tab) {
+        const casaDe = (ev) => { const c = ev.target.closest && ev.target.closest('[data-i]'); return c ? Number(c.dataset.i) : null; };
+        let inicio = null;
+        tab.addEventListener('contextmenu', (ev) => ev.preventDefault());
+        tab.addEventListener('pointerdown', (ev) => {
+          const p = partida;
+          if (!p) return;
+          if (ev.button === 2) { inicio = casaDe(ev); ev.preventDefault(); return; }
+          if (ev.button === 0 && (p.setas.length || p.circulos.length)) { p.setas = []; p.circulos = []; marcarExtras(); }
+        });
+        tab.addEventListener('pointerup', (ev) => {
+          const p = partida;
+          if (!p || ev.button !== 2 || inicio == null) return;
+          const fim = casaDe(ev), de = inicio;
+          inicio = null;
+          if (fim == null) return;
+          if (p.pre || p.preSel != null) { p.pre = null; p.preSel = null; } // botão direito também cancela o pré-lance
+          if (fim === de) {
+            const k = p.circulos.indexOf(de);
+            if (k >= 0) p.circulos.splice(k, 1); else p.circulos.push(de);
+          } else {
+            const k = p.setas.findIndex((a) => a.de === de && a.para === fim);
+            if (k >= 0) p.setas.splice(k, 1); else p.setas.push({ de, para: fim });
+          }
+          marcarExtras();
+        });
+      }
+      // Revisão: mostra a posição depois de n lances (null = ao vivo). Só na sua tela.
+      function verLance(n) {
+        const p = partida;
+        if (!p || p.jogo === 'pingpong') return;
+        const total = p.historico.length;
+        n = n == null ? null : Math.max(0, Math.min(total, n));
+        p.ver = n === total ? null : n;
+        p.sel = null; p.caminho = null; p.preSel = null;
+        if (p.ver == null && p.pre) p.pre = null;
+        if (!p.animando) pintar();
+        if (p.ver == null && !p.animando && p.pre == null && !p.fim && p.modo === 'bot' && p.estado.vez !== p.minhaCor && !p.pensando) setTimeout(vezDoBot, 200);
+      }
       function telaPartida() {
         const p = partida;
         const regras = REGRAS[p.jogo];
-        const e = p.mostrado || p.estado; // durante a animação, a posição do lance que está na tela
+        const revendo = p.ver != null;
+        const e = revendo ? (p.ver < p.estados.length ? p.estados[p.ver] : p.estado) : p.mostrado || p.estado; // durante a animação, a posição do lance que está na tela
+        const ultimoLance = revendo ? (p.ver ? p.historico[p.ver - 1].ultimo || [] : []) : p.ultimo;
         const lado = 'min(448px, calc(100vh - 170px), calc(100vw - 80px))';
-        const todos = minhaVez() ? regras.lances(e) : [];
+        const todos = minhaVez() && !revendo ? regras.lances(e) : [];
         // Casas marcadas: destinos da peça escolhida (xadrez) ou próximos pousos (damas).
         const alvos = new Map();
         if (p.jogo === 'xadrez' && p.sel != null) for (const m of todos) if (m.de === p.sel) alvos.set(m.para, !!m.captura);
@@ -740,7 +962,7 @@
           const i = p.virado ? (7 - lin) * 8 + (7 - col) : k;
           const escura = ((i >> 3) + (i & 7)) % 2 === 1;
           const classes = ['vl-jg-casa', escura ? 'escura' : 'clara'];
-          if (p.ultimo.includes(i)) classes.push('ultimo');
+          if (ultimoLance.includes(i)) classes.push('ultimo');
           if ((p.jogo === 'xadrez' && p.sel === i) || (p.jogo === 'damas' && p.caminho && p.caminho[p.caminho.length - 1] === i)) classes.push('selecionada');
           if (i === reiEmXeque) classes.push('xeque');
           if (alvos.has(i)) classes.push(p.jogo === 'damas' ? 'passo' : 'alvo', alvos.get(i) ? 'come' : 'livre');
@@ -759,11 +981,13 @@
             rotulo += ', ' + (D.ehDama(peca) ? 'dama' : 'pedra') + ' das ' + COR_NOME[cor];
           }
           const clicavel = alvos.has(i) || podeMexer.has(i);
-          casas.push(el('div', { class: classes.join(' '), role: 'button', tabindex: clicavel ? '0' : '-1', 'aria-label': rotulo, onclick() { clicarCasa(i); },
+          casas.push(el('div', { class: classes.join(' '), 'data-i': String(i), role: 'button', tabindex: clicavel ? '0' : '-1', 'aria-label': rotulo, onclick() { clicarCasa(i); },
             onkeydown(ev) { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); clicarCasa(i); } } }, filhos));
         }
         p.novaCasa = null;
         const tab = el('div', { class: 'vl-jg-tab', style: '--lado: ' + lado }, casas);
+        ligarSetas(tab);
+        setTimeout(marcarExtras, 0);
         if (p.promocao) {
           const cor = e.vez;
           tab.appendChild(el('div', { class: 'vl-jg-promo' }, [el('div', null, p.promocao.map((m) => el('button', { type: 'button', title: NOME_PECA[m.promo.toLowerCase()], 'aria-label': 'Promover a ' + NOME_PECA[m.promo.toLowerCase()],
@@ -771,25 +995,41 @@
         }
         const eu = p.minhaCor;
         const tomadas = (cor) => el('div', { class: 'vl-jg-tomadas ' + (cor === 'w' ? 'pretas' : 'brancas'), title: 'Peças tomadas', texto: tomadasPor(cor) });
-        const jogador = (cor) => el('div', { class: 'vl-jg-jogador' + (!p.fim && e.vez === cor ? ' vez' : '') }, [
+        const vez = (p.mostrado || p.estado).vez; // a vez de verdade, mesmo revendo lances antigos
+        const jogador = (cor) => el('div', { class: 'vl-jg-jogador' + (!p.fim && vez === cor ? ' vez' : '') }, [
           p.modo === 'bot' && cor !== eu ? el('span', { class: 'vl-jg-cabeca', 'aria-hidden': 'true', texto: '🤖' }) : cabeca(nomeDe(cor)),
-          el('span', { class: 'nome' }, [el('b', { texto: nomeDe(cor) }), el('small', { texto: (cor === 'w' ? 'Brancas' : 'Pretas') + (!p.fim && e.vez === cor ? ' · jogando' : '') })]),
+          el('span', { class: 'nome' }, [el('b', { texto: nomeDe(cor) }), el('small', { texto: (cor === 'w' ? 'Brancas' : 'Pretas') + (!p.fim && vez === cor ? ' · jogando' : '') })]),
           el('span', { class: 'vl-jg-cor ' + cor, 'aria-hidden': 'true' }),
         ]);
         let estado;
         if (p.fim) estado = regras.motivoFim(p.fim, p.minhaCor, p.modo);
         else if (p.pensando) estado = 'O bot está pensando…';
-        else if (e.vez === eu) estado = (reiEmXeque >= 0 ? 'Xeque! ' : '') + (p.pendente && p.pendente.travado ? 'Sem resposta de ' + p.oponente + '…' : 'Sua vez.') + (p.jogo === 'damas' && todos.length && todos[0].capturas.length ? ' Captura obrigatória: ' + todos[0].capturas.length + (todos[0].capturas.length > 1 ? ' peças.' : ' peça.') : '');
-        else estado = (reiEmXeque >= 0 ? 'Xeque! ' : '') + 'Vez de ' + nomeDe(e.vez) + '.';
+        else if (vez === eu) estado = (!revendo && reiEmXeque >= 0 ? 'Xeque! ' : '') + (p.pendente && p.pendente.travado ? 'Sem resposta de ' + p.oponente + '…' : 'Sua vez.') + (p.jogo === 'damas' && todos.length && todos[0].capturas.length ? ' Captura obrigatória: ' + todos[0].capturas.length + (todos[0].capturas.length > 1 ? ' peças.' : ' peça.') : '');
+        else estado = (!revendo && reiEmXeque >= 0 ? 'Xeque! ' : '') + 'Vez de ' + nomeDe(vez) + '.';
         if (p.empateProposto === 'deles' && !p.fim) estado += ' ' + p.oponente + ' propôs empate.';
+        if (p.pre && !revendo) estado += ' Pré-lance marcado.';
+        const total = p.historico.length, vendo = revendo ? p.ver : total;
+        const itemLance = (k) => {
+          if (!p.historico[k]) return el('span', { texto: '' });
+          const cls = (k === total - 1 ? 'ult' : '') + (revendo && k === p.ver - 1 ? ' vendo' : '');
+          return el('span', { class: cls, 'data-ply': String(k + 1), title: 'Ver a posição depois deste lance', texto: p.historico[k].nota, onclick() { verLance(k + 1); } });
+        };
         const lances = [];
-        for (let k = 0; k < p.historico.length; k += 2) {
+        for (let k = 0; k < total; k += 2) {
           lances.push(el('span', { class: 'n', texto: (k / 2 + 1) + '.' }));
-          lances.push(el('span', { class: k === p.historico.length - 1 ? 'ult' : '', texto: p.historico[k].nota }));
-          lances.push(el('span', { class: k + 1 === p.historico.length - 1 ? 'ult' : '', texto: p.historico[k + 1] ? p.historico[k + 1].nota : '' }));
+          lances.push(itemLance(k));
+          lances.push(itemLance(k + 1));
         }
         const listaLances = el('div', { class: 'vl-jg-lances', 'aria-label': 'Lances' }, lances);
-        setTimeout(() => { listaLances.scrollTop = listaLances.scrollHeight; }, 0);
+        setTimeout(() => { const v = listaLances.querySelector('.vendo'); if (v) v.scrollIntoView({ block: 'nearest' }); else listaLances.scrollTop = listaLances.scrollHeight; }, 0);
+        const bRev = (txt, titulo, n, off) => el('button', { type: 'button', title: titulo, 'aria-label': titulo, texto: txt, disabled: off, onclick() { verLance(n); } });
+        const revisao = el('div', { class: 'vl-jg-revisao' }, [
+          bRev('⏮', 'Início da partida', 0, vendo === 0),
+          bRev('◀', 'Lance anterior (←)', vendo - 1, vendo === 0),
+          bRev('▶', 'Próximo lance (→)', vendo + 1, !revendo),
+          bRev('⏭', 'Voltar ao jogo', null, !revendo),
+        ]);
+        const avisoRevisao = revendo ? el('div', { class: 'vl-jg-revendo', texto: 'Revendo: ' + (p.ver ? 'depois do lance ' + p.ver : 'início') + ' de ' + total + '. Só você vê.' }) : null;
         const acoes = [];
         if (!p.fim) {
           if (p.modo === 'bot') acoes.push(el('button', { type: 'button', class: 'vl-jg-botao discreto', texto: 'Voltar lance', disabled: !p.estados.length || p.pensando || p.animando, onclick: voltarLance }));
@@ -811,6 +1051,7 @@
             jogador(p.virado ? 'w' : 'b'), tomadas(p.virado ? 'w' : 'b'),
             el('div', { class: 'vl-jg-estado' + (p.fim ? ' fim' : ''), role: 'status', 'aria-live': 'polite', texto: estado }),
             listaLances,
+            revisao, avisoRevisao,
             tomadas(p.virado ? 'b' : 'w'), jogador(p.virado ? 'b' : 'w'),
             el('div', { class: 'vl-jg-acoes' }, acoes),
             linhaVelocidade(),
@@ -840,7 +1081,7 @@
           p.historico.pop();
           p.ply--;
         } while (p.estados.length && p.estado.vez !== p.minhaCor);
-        p.fim = null; p.sel = null; p.caminho = null; p.ultimo = [];
+        p.fim = null; p.sel = null; p.caminho = null; p.ultimo = []; p.pre = null; p.preSel = null; p.ver = null; p.festejado = false;
         desenhar();
         if (p.estado.vez !== p.minhaCor) setTimeout(vezDoBot, 200);
       }
