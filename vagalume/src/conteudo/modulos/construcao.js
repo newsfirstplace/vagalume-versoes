@@ -375,6 +375,99 @@
         });
       }
 
+      // ---------- ocultar mobis (pedido do usuário em 2026-11-26) ----------
+      // Esconde mobis só na tela (o motor do jogo os deixa transparentes), para ver a construção sem sombras,
+      // luzes ou um piso. Guarda o que foi escondido: por categoria/tipo (vale também para os que chegam
+      // depois) e por id. Some ao trocar de quarto.
+      const ocultos = { tipos: new Set(), ids: new Set(), rotulos: [] };
+      let estadoOcultos = null;
+      let chipOcultos = null;
+      function idsOcultos() {
+        const ids = new Set(ocultos.ids);
+        if (ocultos.tipos.size) for (const m of mobis.values()) if (ocultos.tipos.has(m.tipo)) ids.add(m.id);
+        return [...ids];
+      }
+      function aplicarOcultos() {
+        const ids = idsOcultos();
+        if (!ferramenta || !ferramenta.ocultarMobis || !ferramenta.ocultarMobis(ids)) {
+          if (ids.length) camada.aviso('Não consegui falar com o desenho do quarto. Recarregue o hotel e tente de novo.', { tipo: 'erro' });
+          return 0;
+        }
+        pintarOcultos(ids.length);
+        return ids.length;
+      }
+      function pintarOcultos(n) {
+        const total = n != null ? n : idsOcultos().length;
+        const texto = ocultos.rotulos.length ? 'Ocultos: ' + ocultos.rotulos.join(', ') + ' (' + total + ' mobis).' : 'Nenhum mobi oculto.';
+        if (estadoOcultos && estadoOcultos.isConnected) {
+          estadoOcultos.replaceChildren(el('span', { texto }), ocultos.rotulos.length ? el('button', { type: 'button', class: 'vl-botao primario', texto: 'Mostrar tudo', onclick: mostrarOcultos }) : null);
+        }
+        // Lembrete na tela enquanto houver algo escondido, com o botão para desfazer.
+        if (ocultos.rotulos.length) {
+          if (!chipOcultos) {
+            chipOcultos = el('div', { class: 'vl-chip-ocultos', role: 'status' });
+            camada.area().appendChild(chipOcultos);
+          }
+          chipOcultos.replaceChildren(el('span', { texto: '👁 ' + total + ' mobis ocultos' }), el('button', { type: 'button', texto: 'Mostrar tudo', onclick: mostrarOcultos }));
+        } else if (chipOcultos) { chipOcultos.remove(); chipOcultos = null; }
+      }
+      function mostrarOcultos() {
+        ocultos.tipos.clear(); ocultos.ids.clear(); ocultos.rotulos = [];
+        if (ferramenta && ferramenta.ocultarMobis) ferramenta.ocultarMobis([]);
+        pintarOcultos(0);
+      }
+      function adicionarRotulo(r) { if (!ocultos.rotulos.includes(r)) ocultos.rotulos.push(r); }
+      async function ocultarCategoria(nome) {
+        if (!conexao.disponivel()) { exigir(); return; }
+        if (!VL.loja || !VL.loja.classesDaCategoria) { camada.aviso('Ligue o módulo "Loja e inventário" para ocultar por categoria.', { tipo: 'erro' }); return; }
+        camada.aviso('Procurando a categoria "' + nome + '" na loja…');
+        try {
+          const classes = await VL.loja.classesDaCategoria(nome);
+          let noQuarto = 0;
+          for (const c of classes) ocultos.tipos.add(c);
+          for (const m of mobis.values()) if (classes.has(m.tipo)) noQuarto++;
+          adicionarRotulo(nome);
+          aplicarOcultos();
+          camada.aviso(noQuarto ? noQuarto + ' mobis de "' + nome + '" ocultos.' : 'Nenhum mobi de "' + nome + '" neste quarto (os que chegarem também ficam ocultos).');
+        } catch (erro) { camada.aviso(String(erro.message || erro), { tipo: 'erro' }); }
+      }
+      function ocultarClicado(iguais) {
+        const m = exigir();
+        if (!m) return;
+        const d = dadosMobis ? dadosMobis.chao.get(m.tipo) : null;
+        const nome = (d && d.nome) || ('tipo ' + m.tipo);
+        if (iguais) { ocultos.tipos.add(m.tipo); adicionarRotulo('iguais a ' + nome); } else { ocultos.ids.add(m.id); adicionarRotulo(nome); }
+        const n = aplicarOcultos();
+        if (n) camada.aviso(iguais ? 'Todos os "' + nome + '" ocultos.' : '"' + nome + '" oculto.');
+      }
+      function ocultarMarcados() {
+        const ids = ferramenta && ferramenta.idsMarcados ? ferramenta.idsMarcados() : [];
+        if (!ids.length) { camada.aviso('Marque uma área no chão primeiro (aba Área).', { tipo: 'erro' }); return; }
+        for (const id of ids) ocultos.ids.add(id);
+        adicionarRotulo(ids.length + ' marcados');
+        if (aplicarOcultos() && ferramenta.limparSelecao) ferramenta.limparSelecao();
+      }
+      // Mobis que chegam depois (colocados ou trocados de lugar) do tipo oculto também somem.
+      cancelar.push(conexao.ouvir('entrada', ENTRADA.MOBI_COLOCADO, function () { if (ocultos.tipos.size) setTimeout(aplicarOcultos, 60); }));
+      cancelar.push(conexao.ouvir('entrada', ENTRADA.MOBIS_DO_QUARTO, function () { if (ocultos.tipos.size) setTimeout(aplicarOcultos, 300); }));
+      cancelar.push(conexao.ouvir('entrada', ENTRADA.QUARTO_PRONTO, function () { if (ocultos.rotulos.length) { ocultos.tipos.clear(); ocultos.ids.clear(); ocultos.rotulos = []; pintarOcultos(0); } }));
+      ctx.aoParar(function () { if (chipOcultos) chipOcultos.remove(); chipOcultos = null; });
+      ctx.comando({
+        nome: 'ocultar',
+        uso: 'ocultar <categoria da loja> | clicado | iguais | marcados | nada',
+        descricao: 'Esconde mobis só na sua tela, para ver a construção: uma categoria da loja (ex.: /ocultar sombras, /ocultar iluminação), o mobi clicado, os iguais a ele, os marcados na área. /ocultar nada mostra tudo de novo.',
+        executar(pedido) {
+          const termo = pedido.args.join(' ').trim();
+          const t = codigos.semAcento(termo);
+          if (!t) { camada.aviso('Diga o que ocultar: uma categoria da loja, clicado, iguais ou marcados.', { tipo: 'erro' }); return; }
+          if (/^(nada|tudo de volta|mostrar|limpar|cancelar)$/.test(t)) mostrarOcultos();
+          else if (t === 'clicado') ocultarClicado(false);
+          else if (t === 'iguais') ocultarClicado(true);
+          else if (t === 'marcados' || t === 'area') ocultarMarcados();
+          else ocultarCategoria(termo);
+        },
+      });
+
       let ferramenta = null;
       let subAba = 'area';
       ctx.aba({
@@ -433,6 +526,16 @@
           ]);
           const geralAcoes = grade([congelar, tele, espelhoBotao]);
           const geral = el('div', { class: 'vl-cons-geral' }, [secao('Ferramentas do quarto', [geralAcoes])]);
+          const fimOcultar = secao('Ocultar mobis (só na sua tela)', [grade([
+            acao('◐', 'Sombras', 'Esconde os mobis da categoria Sombras da loja.', function () { ocultarCategoria('Sombras'); }),
+            acao('✺', 'Iluminação', 'Esconde os mobis da categoria Iluminação da loja.', function () { ocultarCategoria('Iluminação'); }),
+            acao('⌕', 'Outra categoria', 'Escreva no chat o nome de uma página da loja.', function () { escreverNoChat('ocultar '); }),
+            acao('◎', 'O mobi clicado', 'Esconde só o último mobi que você clicou.', function () { ocultarClicado(false); }),
+            acao('◎', 'Iguais ao clicado', 'Esconde todos os mobis do mesmo tipo do clicado (ex.: um piso).', function () { ocultarClicado(true); }),
+            acao('▭', 'Os marcados', 'Esconde os mobis da área marcada em Área.', function () { ocultarMarcados(); }),
+          ]), el('div', { class: 'vl-ocultos-estado' }), el('p', { class: 'vl-nota', texto: 'Nada muda para os outros nem no servidor. Volta ao normal com "Mostrar tudo", ao trocar de quarto ou ao recarregar.' })]);
+          estadoOcultos = fimOcultar.querySelector('.vl-ocultos-estado');
+          pintarOcultos();
           const fimGeral = secao('Quarto inteiro', [grade([
             acao('☷', 'Lista de mobis', 'Todos os mobis do chão deste quarto.', function () { listar(); }),
             acao('⧉', 'Copiar quarto', 'Guarda onde está cada mobi.', function () { copiarQuarto(); }),
@@ -457,7 +560,7 @@
           }
           mostrar();
           alvo.replaceChildren(el('div', { class: 'vl-cons-subabas', role: 'tablist', 'aria-label': 'Construção' }, botoesAba), area, mobi, geral);
-          const fechos = () => { area.appendChild(fimArea); geral.appendChild(fimGeral); };
+          const fechos = () => { area.appendChild(fimArea); geral.appendChild(fimOcultar); geral.appendChild(fimGeral); };
           const montarFerramenta = () => { const desmontar = ferramenta.montarPainel({ area, mobi, geral: geralAcoes }); fechos(); return desmontar; };
           let desmontarFerramenta = ferramenta && ferramenta.montarPainel ? montarFerramenta() : null;
           const aguardarFerramenta = !desmontarFerramenta ? setTimeout(function () {
@@ -500,9 +603,65 @@
           if (pedir) pedir();
         });
       }
+      // ---------- permissão do dono para copiar o quarto (pedido do usuário em 2026-11-26) ----------
+      // Quem quer copiar manda um pedido ao dono (pelo canal direto entre Vagalumes do quarto); só copia se ele
+      // aceitar. O próprio dono copia sem pedir. O dono precisa estar no quarto e usar o Vagalume.
+      const esperasCopia = new Map(); // quarto -> função que recebe a resposta
+      const pedidosRecebidos = new Map(); // apelido -> último pedido (evita enxurrada)
+      function souDono(dono) {
+        const meuId = VL.pessoas && VL.pessoas.meuId ? VL.pessoas.meuId() : null;
+        const eu = VL.pessoas && VL.pessoas.eu ? String(VL.pessoas.eu() || '').toLowerCase() : '';
+        return !!dono && ((dono.id > 0 && meuId != null && dono.id === meuId) || (!!eu && dono.nome.toLowerCase() === eu));
+      }
+      async function pedirPermissaoCopia() {
+        const quarto = VL.pessoas && VL.pessoas.quartoAtual ? VL.pessoas.quartoAtual() : null;
+        const dono = VL.pessoas && VL.pessoas.quartoDono ? VL.pessoas.quartoDono() : null;
+        if (!dono || !dono.nome) { camada.aviso('Não sei quem é o dono deste quarto. Saia e entre de novo e tente outra vez.', { tipo: 'erro' }); return false; }
+        if (souDono(dono)) return true;
+        const presente = VL.pessoas.lista && VL.pessoas.lista().some((n) => String(n).toLowerCase() === dono.nome.toLowerCase());
+        if (!presente || !VL.comunidade || !VL.comunidade.usaVagalume(dono.nome)) {
+          camada.aviso('Para copiar este quarto, o dono (' + dono.nome + ') precisa estar aqui e usar o Vagalume para autorizar.', { tipo: 'erro', duracaoMs: 8000 });
+          return false;
+        }
+        camada.aviso('Pedido enviado a ' + dono.nome + '. Esperando ele aceitar (até 40 s)…', { duracaoMs: 6000 });
+        const resposta = new Promise(function (resolver) {
+          const relogio = setTimeout(function () { esperasCopia.delete(String(quarto)); resolver(null); }, 40000);
+          esperasCopia.set(String(quarto), function (ok) { clearTimeout(relogio); esperasCopia.delete(String(quarto)); resolver(ok); });
+        });
+        const r = await VL.comunidade.direto(dono.nome, { t: 'copia:pedido', q: quarto });
+        if (r && r.ok === false) { esperasCopia.delete(String(quarto)); camada.aviso('Não consegui mandar o pedido a ' + dono.nome + '.', { tipo: 'erro' }); return false; }
+        const ok = await resposta;
+        if (ok === true) return true;
+        camada.aviso(ok === false ? dono.nome + ' não autorizou copiar o quarto.' : dono.nome + ' não respondeu ao pedido.', { tipo: 'erro' });
+        return false;
+      }
+      if (VL.comunidade && VL.comunidade.aoAcao) ctx.aoParar(VL.comunidade.aoAcao(receberCopia));
+      else {
+        // A Comunidade pode iniciar depois deste módulo: tenta de novo por um minuto.
+        let tentativas = 0, parado = false;
+        const tentar = function () { if (parado) return; if (VL.comunidade && VL.comunidade.aoAcao) ctx.aoParar(VL.comunidade.aoAcao(receberCopia)); else if (++tentativas < 60) setTimeout(tentar, 1000); };
+        setTimeout(tentar, 1000);
+        ctx.aoParar(function () { parado = true; });
+      }
+      function receberCopia(m) {
+        if (!m || m.de !== 'sala' || m.tipo !== 'presenca:direto' || !m.dado || typeof m.dado !== 'object') return;
+        const d = m.dado, nome = String(m.nome || '').slice(0, 40);
+        const quarto = VL.pessoas && VL.pessoas.quartoAtual ? VL.pessoas.quartoAtual() : null;
+        if (String(d.q) !== String(quarto) || !nome) return;
+        if (d.t === 'copia:resposta') { const fn = esperasCopia.get(String(quarto)); if (fn) fn(d.ok === true); return; }
+        if (d.t !== 'copia:pedido') return;
+        const dono = VL.pessoas.quartoDono ? VL.pessoas.quartoDono() : null;
+        if (!souDono(dono)) return; // só o dono responde
+        const agora = Date.now();
+        if (agora - (pedidosRecebidos.get(nome.toLowerCase()) || 0) < 10000) return;
+        pedidosRecebidos.set(nome.toLowerCase(), agora);
+        camada.confirmar(nome + ' quer copiar este quarto (' + (VL.pessoas.quartoNome() || 'seu quarto') + '). Com a cópia, ' + nome + ' pode montar um quarto igual com os mobis dele.', { titulo: 'Pedido para copiar o quarto', sim: 'Permitir', nao: 'Recusar' })
+          .then(function (sim) { VL.comunidade.direto(nome, { t: 'copia:resposta', q: quarto, ok: sim }); });
+      }
       async function copiarQuarto() {
         if (!conexao.disponivel()) { exigir(); return; }
         if (!mobis.size && !mobisParede.size) { camada.aviso('Nenhum mobi neste quarto para copiar.', { tipo: 'erro' }); return; }
+        if (!(await pedirPermissaoCopia())) return;
         copiaQuarto = codigos.copiaDoQuarto([...mobis.values()], [...mobisParede.values()]);
         extrasCopia = {};
         // Floor: o mapa vem ao entrar no quarto; a porta é pedida agora (o editor de chão do jogo faz igual).
@@ -1740,7 +1899,7 @@
         const m = /^\s*:up(?:\s+(-?\d+(?:[.,]\d+)?))?\s*$/i.exec(String(l.texto()));
         if (!m) return;
         const n = m[1] == null ? null : Number(m[1].replace(',', '.'));
-        if (ferramenta && ferramenta.alturaForcada) ferramenta.alturaForcada(n != null && n < 0 ? n : null);
+        if (ferramenta && ferramenta.alturaForcada) ferramenta.alturaForcada(n != null && n < 0 ? n : alturaColocar);
       }));
       ctx.aoParar(function () { if (ferramenta && ferramenta.alturaForcada) ferramenta.alturaForcada(null); });
       // Teleporte do jogo (:tele): com direitos no quarto, clicar num piso leva o avatar direto para lá.
@@ -2078,6 +2237,63 @@
           ferramenta.previaColocacao(tipo, 0, comAltura(plano.colocar.concat(plano.pendentes || []), 'pilha').map((m) => ({ x: m.x, y: m.y, z: m.altura })));
         });
       }
+      // Altura ao colocar (pedido do usuário em 2026-11-26): escolhe a altura antes de pôr o mobi, sem :up (que
+      // dá mute por flood). Liga a "Altura fixa" da ferramenta do jogo (pacote 397, a mesma do pincel) e a prévia
+      // de colocar e mover passa a mostrar o mobi nessa altura. Vale até desligar ou trocar de quarto.
+      let alturaColocar = null;
+      let alturaEscolhida = 1;
+      async function definirAlturaColocar(h) {
+        const ajustes = ajustesFerramenta.slice();
+        ajustes[0] = h != null;
+        if (h != null) ajustes[1] = Math.round(h * 100);
+        if (!conexao.disponivel() || !(await mandar(SAIDA.FERRAMENTA_CONSTRUCAO, tiposFerramenta.map((tipo, i) => [tipo, ajustes[i]])))) return false;
+        alturaColocar = h;
+        ajustesFerramenta = ajustes;
+        if (ferramenta && ferramenta.alturaForcada) ferramenta.alturaForcada(h);
+        document.querySelectorAll('.vl-altura-colocar').forEach(pintarAlturaColocar);
+        return true;
+      }
+      cancelar.push(conexao.ouvir('entrada', ENTRADA.QUARTO_PRONTO, function () {
+        if (alturaColocar == null) return;
+        alturaColocar = null;
+        if (ferramenta && ferramenta.alturaForcada) ferramenta.alturaForcada(null);
+        document.querySelectorAll('.vl-altura-colocar').forEach(pintarAlturaColocar);
+      }));
+      ctx.aoParar(function () { if (alturaColocar != null) definirAlturaColocar(null); });
+      function pintarAlturaColocar(barra) {
+        const ligada = alturaColocar != null;
+        barra.classList.toggle('ligada', ligada);
+        barra.querySelector('.vl-ac-valor').value = String(ligada ? alturaColocar : alturaEscolhida).replace('.', ',');
+        const chave = barra.querySelector('.vl-ac-ligar');
+        chave.textContent = ligada ? 'Fixada' : 'Fixar';
+        chave.setAttribute('aria-pressed', String(ligada));
+      }
+      function barraAlturaColocar() {
+        const barra = document.createElement('div');
+        barra.className = 'vl-altura-colocar';
+        barra.title = 'O mobi vai para esta altura ao colocar ou mover (a prévia mostra onde ele fica). Sem :up, sem mute.';
+        const rotulo = document.createElement('span');
+        rotulo.textContent = 'Altura';
+        const botao = (texto, titulo, fn) => { const b = document.createElement('button'); b.type = 'button'; b.textContent = texto; b.title = titulo; b.addEventListener('click', function (ev) { ev.stopPropagation(); fn(); }); return b; };
+        const valor = document.createElement('input');
+        valor.className = 'vl-ac-valor';
+        valor.inputMode = 'decimal';
+        valor.setAttribute('aria-label', 'Altura ao colocar');
+        const mudar = (h) => {
+          h = Math.round(Math.max(0, Math.min(63, h)) * 100) / 100;
+          alturaEscolhida = h;
+          if (alturaColocar != null) definirAlturaColocar(h); else pintarAlturaColocar(barra);
+        };
+        valor.addEventListener('keydown', function (ev) { ev.stopPropagation(); if (ev.key === 'Enter') valor.blur(); });
+        valor.addEventListener('change', function () { const h = Number(valor.value.replace(',', '.')); if (Number.isFinite(h)) mudar(h); else pintarAlturaColocar(barra); });
+        const ligar = botao('Fixar', 'Ligar ou desligar a altura ao colocar', function () {
+          definirAlturaColocar(alturaColocar != null ? null : alturaEscolhida).then(function (ok) { if (!ok) camada.aviso('Entre num quarto com a Conexão ligada para fixar a altura.', { tipo: 'erro' }); });
+        });
+        ligar.className = 'vl-ac-ligar';
+        barra.append(rotulo, botao('−', 'Descer 0,5', () => mudar(alturaEscolhida - 0.5)), valor, botao('+', 'Subir 0,5', () => mudar(alturaEscolhida + 0.5)), ligar);
+        pintarAlturaColocar(barra);
+        return barra;
+      }
       let vigiaInventario = 0;
       function botaoColocarVarios() {
         vigiaInventario = 0;
@@ -2094,15 +2310,22 @@
         // Um embaixo do outro, cada um com a largura toda (só um atributo no pai: o React continua dono dos nós).
         if (nativo.parentElement) nativo.parentElement.setAttribute('data-vl-pilha-botoes', '');
         nativo.after(b);
+        b.after(barraAlturaColocar());
       }
       if (camada.estiloPagina) ctx.aoParar(camada.estiloPagina('colocar-varios',
         '[data-vl-pilha-botoes] { flex-wrap: wrap !important; row-gap: 6px !important; }'
-        + ' [data-vl-pilha-botoes] > .btn-success, [data-vl-pilha-botoes] > .vl-colocar-varios { flex: 1 0 100% !important; width: 100% !important; max-width: none !important; margin-left: 0 !important; margin-right: 0 !important; white-space: nowrap; }'));
+        + ' [data-vl-pilha-botoes] > .btn-success, [data-vl-pilha-botoes] > .vl-colocar-varios { flex: 1 0 100% !important; width: 100% !important; max-width: none !important; margin-left: 0 !important; margin-right: 0 !important; white-space: nowrap; }'
+        + ' .vl-altura-colocar { flex: 1 0 100%; display: flex; align-items: center; gap: 4px; padding: 3px 6px; border-radius: 6px; background: rgba(0,0,0,.12); font-size: 12px; font-weight: 600; }'
+        + ' .vl-altura-colocar > span { margin-right: auto; }'
+        + ' .vl-altura-colocar button { min-width: 24px; height: 24px; padding: 0 6px; border: 1px solid rgba(0,0,0,.35); border-radius: 5px; background: #fff; color: #222; font-weight: 700; cursor: pointer; }'
+        + ' .vl-altura-colocar .vl-ac-valor { width: 46px; height: 24px; text-align: center; border: 1px solid rgba(0,0,0,.35); border-radius: 5px; font-weight: 700; }'
+        + ' .vl-altura-colocar.ligada { background: #d6f24a; color: #1c260a; box-shadow: 0 0 0 1px #7fa312; }'
+        + ' .vl-altura-colocar.ligada .vl-ac-ligar { background: #1c260a; color: #d6f24a; border-color: #1c260a; }'));
       ctx.aoParar(function () { document.querySelectorAll('[data-vl-pilha-botoes]').forEach((e) => e.removeAttribute('data-vl-pilha-botoes')); });
       if (typeof MutationObserver === 'function' && document.body) {
         const observaInventario = new MutationObserver(function () { if (!vigiaInventario) vigiaInventario = requestAnimationFrame(botaoColocarVarios); });
         observaInventario.observe(document.body, { childList: true, subtree: true });
-        ctx.aoParar(function () { observaInventario.disconnect(); cancelAnimationFrame(vigiaInventario); document.querySelectorAll('.vl-colocar-varios').forEach((e) => e.remove()); });
+        ctx.aoParar(function () { observaInventario.disconnect(); cancelAnimationFrame(vigiaInventario); document.querySelectorAll('.vl-colocar-varios, .vl-altura-colocar').forEach((e) => e.remove()); });
       }
 
       ctx.comando({

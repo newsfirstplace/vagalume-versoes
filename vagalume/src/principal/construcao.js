@@ -299,17 +299,38 @@
       it.sprite.scale.set(c.scale);
     }
   }
+  // Ocultar mobis (pedido do usuário em 2026-11-26): só na tela, por um tempo. O jogo pode refazer a
+  // transparência quando o mobi muda, então ela é posta de novo a cada poucos quadros.
+  let ocultos = new Set();
+  let quadrosOcultos = 0;
+  function aplicarOcultos(forcar) {
+    if (!motor || !ocultos.size || (!forcar && ++quadrosOcultos % 10)) return;
+    for (const id of ocultos) {
+      const o = motor.getRoomObject(motor.activeRoomId, id, 10);
+      if (o) motor.objectEventHandler.setFurnitureAlphaMultiplier(o, 0);
+    }
+  }
+  function ocultar(ids) {
+    const novos = new Set((Array.isArray(ids) ? ids : []).filter((id) => Number.isInteger(id) && id > 0).slice(0, 5000));
+    if (motor) for (const id of ocultos) if (!novos.has(id)) {
+      const o = motor.getRoomObject(motor.activeRoomId, id, 10);
+      if (o) motor.objectEventHandler.setFurnitureAlphaMultiplier(o, 1);
+    }
+    ocultos = novos;
+    aplicarOcultos(true);
+    return true;
+  }
   function ciclo() {
     quadro = 0;
     if (!ativo) return;
     // O renderer pode terminar de carregar depois do document_idle da extensão.
     if (!motor && !desfazerSonda && Date.now() - ultimaSonda > 2500) preparar();
     if (motor && motor.activeRoomId !== quarto) {
-      pararSelecao(); pararPrevia(); colocacao = null;
+      pararSelecao(); pararPrevia(); colocacao = null; ocultos = new Set();
       quarto = motor.activeRoomId; ultimaGeometria = '';
       responder({ tipo: 'quarto', quarto });
     }
-    try { informarMapa(); desenharPrevia(); clarearColocacao(); if (alturaForcada != null) remendarPilha(); } catch (e) { pararSelecao(); pararPrevia(); }
+    try { informarMapa(); desenharPrevia(); clarearColocacao(); aplicarOcultos(false); if (alturaForcada != null) remendarPilha(); } catch (e) { pararSelecao(); pararPrevia(); }
     quadro = requestAnimationFrame(ciclo);
   }
 
@@ -332,13 +353,14 @@
         case 'colocacao': try { ok = mostrarColocacao(d); } catch (e) { ok = false; try { pararColocacao(); } catch (e2) { colocacao = null; } } break;
         case 'alturas': extra = alturasDosPisos(d.pontos); ok = !!extra; break;
         case 'alturaForcada':
-          alturaForcada = Number.isFinite(d.altura) && d.altura < 0 && d.altura >= -100 ? d.altura : null;
+          alturaForcada = Number.isFinite(d.altura) && d.altura >= -100 && d.altura < 64 ? d.altura : null;
           if (!motor) preparar();
           ok = alturaForcada == null || remendarPilha();
           break;
+        case 'ocultar': if (!motor) preparar(); ok = !!motor && ocultar(d.ids); break;
         case 'cancelar': pararSelecao(); pararPrevia(); break;
         case 'desativar':
-          ativo = false; pararSelecao(); pararPrevia(); pararColocacao();
+          ativo = false; pararSelecao(); pararPrevia(); pararColocacao(); ocultar([]);
           if (desfazerSonda) desfazerSonda();
           cancelAnimationFrame(quadro); quadro = 0; ultimaGeometria = '';
           document.documentElement.removeAttribute('data-vl-motor-construcao');

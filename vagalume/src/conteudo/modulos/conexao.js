@@ -30,6 +30,8 @@
       const quartos = [];                // { id, modelo, quando }, mais recente no fim
       const presentes = new Map();       // índice -> id do usuário, no quarto atual
       const nomes = new Map();           // índice -> apelido, no quarto atual
+      let listaInicialRecebida = false;
+      let audioVisitantes = null;
       const tituloOriginal = document.title;
       let meuNome = '';
       const sairam = new Set();          // apelidos (minúsculas) de quem saiu do quarto atual
@@ -58,12 +60,13 @@
         minhaPosicao = null;
         presentes.clear();
         nomes.clear();
+        listaInicialRecebida = false;
         sairam.clear();
         document.querySelectorAll('[' + MARCA_SAIU + ']').forEach((no) => no.removeAttribute(MARCA_SAIU));
         const ultimo = quartos[quartos.length - 1];
         if (!ultimo || ultimo.id !== id) {
           const sabido = infoQuartos.get(id) || {};
-          const q = { id, modelo, quando: Date.now(), nome: sabido.nome || '', dono: sabido.dono || '', foto: sabido.foto || '' };
+          const q = { id, modelo, quando: Date.now(), nome: sabido.nome || '', dono: sabido.dono || '', donoId: sabido.donoId || 0, foto: sabido.foto || '' };
           quartos.push(q);
           if (quartos.length > LIMITE_QUARTOS) quartos.shift();
           // O nome aparece por alguns segundos no aviso do jogo ao entrar (.nitro-room-tools-info, primeiro texto).
@@ -98,15 +101,15 @@
             l.booleano();
             const id = l.inteiro();
             const nome = l.texto();
-            l.inteiro();
+            const donoId = l.inteiro();
             const dono = l.texto();
             l.inteiro(); l.inteiro(); l.inteiro(); l.texto(); l.inteiro(); l.inteiro(); l.inteiro(); l.inteiro();
             const nTags = l.inteiro();
             for (let i = 0; i < nTags && i < 20; i++) l.texto();
             const mascara = l.inteiro();
             const foto = mascara & 1 ? l.texto() : '';
-            for (const q of quartos) if (q.id === id) { q.nome = String(nome).slice(0, 60); q.dono = String(dono).slice(0, 40); if (foto) q.foto = foto; }
-            infoQuartos.set(id, { nome: String(nome).slice(0, 60), dono: String(dono).slice(0, 40), foto });
+            for (const q of quartos) if (q.id === id) { q.nome = String(nome).slice(0, 60); q.dono = String(dono).slice(0, 40); q.donoId = donoId; if (foto) q.foto = foto; }
+            infoQuartos.set(id, { nome: String(nome).slice(0, 60), dono: String(dono).slice(0, 40), donoId, foto });
           } catch (erro) { /* formato diferente: fica o nome lido da tela */ }
         }),
         conexao.ouvir('saida', SAIDA.FALAR, function (l) { falaPendente = { texto: l.texto(), quando: Date.now() }; }),
@@ -201,8 +204,42 @@
         const alvo = pos && vizinhoDe(pos);
         if (alvo) irAte(alvo, true);
       }, true);
+      function tocarCampainhaVisitante() {
+        if (ctx.secao().somVisitantes) tocarDingDong([[0, 784], [0.23, 587]], 0.42);
+      }
+      // Ding-dong pelo Web Audio (notas [atraso, frequência] e duração de cada uma).
+      function tocarDingDong(notas, duracao) {
+        try {
+          const Contexto = window.AudioContext || window.webkitAudioContext;
+          if (!Contexto) return;
+          if (!audioVisitantes) audioVisitantes = new Contexto();
+          if (audioVisitantes.state === 'suspended') audioVisitantes.resume().catch(function () {});
+          const inicio = audioVisitantes.currentTime + 0.02;
+          for (const [atraso, frequencia] of notas) {
+            const quando = inicio + atraso;
+            for (const [multiplicador, volume] of [[1, 0.055], [2, 0.012]]) {
+              const oscilador = audioVisitantes.createOscillator();
+              const ganho = audioVisitantes.createGain();
+              oscilador.type = 'sine';
+              oscilador.frequency.setValueAtTime(frequencia * multiplicador, quando);
+              ganho.gain.setValueAtTime(0.0001, quando);
+              ganho.gain.exponentialRampToValueAtTime(volume, quando + 0.012);
+              ganho.gain.exponentialRampToValueAtTime(0.0001, quando + duracao);
+              oscilador.connect(ganho);
+              ganho.connect(audioVisitantes.destination);
+              oscilador.start(quando);
+              oscilador.stop(quando + duracao + 0.02);
+            }
+          }
+        } catch (erro) { /* o navegador pode bloquear o áudio até a primeira interação */ }
+      }
+      ctx.aoParar(function () { if (audioVisitantes) audioVisitantes.close().catch(function () {}); });
       sempre.push(conexao.ouvir('entrada', ENTRADA.USUARIOS, function (l) {
+        const primeiraLista = !listaInicialRecebida;
+        if (quartos.length) listaInicialRecebida = true;
+        let visitanteNovo = false;
         for (const u of codigos.lerUsuarios(l).lista) {
+          if (!primeiraLista && !presentes.has(u.indice) && u.tipo === 1 && (!eu || u.id !== eu.id)) visitanteNovo = true;
           const chaveNome = String(u.nome).trim().toLowerCase();
           if (tiposPorNome.size > 3000) tiposPorNome.clear();
           tiposPorNome.set(chaveNome, u.tipo);
@@ -214,6 +251,11 @@
           if (eu && u.id === eu.id && u.tipo === 1) meuIndice = u.indice;
           if (u.indice === meuIndice) atualizarTitulo();
           if (sairam.delete(chaveNome)) remarcarSaidas();
+        }
+        if (visitanteNovo) {
+          const q = quartos[quartos.length - 1];
+          const meuApelido = String(eu && eu.nome || meuNome || '').trim().toLowerCase();
+          if (q && (eu && q.donoId > 0 ? q.donoId === eu.id : !!meuApelido && q.dono.toLowerCase() === meuApelido)) tocarCampainhaVisitante();
         }
       }));
       sempre.push(conexao.ouvir('entrada', ENTRADA.SAIU, function (l) {
@@ -310,7 +352,7 @@
         const amigo = amigos.find((p) => p.visual && String(p.nome || '').trim().toLowerCase() === chave);
         return amigo ? { nome: amigo.nome, visual: amigo.visual, genero: amigo.genero || 'M' } : null;
       }
-      VL.pessoas = { quartoAtual() { const q = quartos[quartos.length - 1]; return q ? q.id : null; }, quartoNome() { const q = quartos[quartos.length - 1]; return q && q.nome ? q.nome : ''; }, lista: listaDoQuarto, meuId() { return eu ? eu.id : null; }, eu() { if (eu) return eu.nome; return meuIndice == null ? null : (nomes.get(meuIndice) || null); }, pontosDe(nome) { const p = pontosPorNome.get(String(nome || '').trim().toLowerCase()); return p == null ? null : p; }, tipoDe(nome) { const t = tiposPorNome.get(String(nome || '').trim().toLowerCase()); return t == null ? null : t; }, visualDe, nivelClube() { return nivelClube; }, chegarPerto, indiceDe, meuIndice() { return meuIndice; }, efeitoDe(indice) { return efeitoPorIndice.get(indice) || 0; }, posicaoDe(indice) { return posicoes.get(indice) || null; }, acompanhando() { return acompanhando ? acompanhando.nome : null; } };
+      VL.pessoas = { quartoAtual() { const q = quartos[quartos.length - 1]; return q ? q.id : null; }, quartoNome() { const q = quartos[quartos.length - 1]; return q && q.nome ? q.nome : ''; }, quartoDono() { const q = quartos[quartos.length - 1]; return q && (q.dono || q.donoId) ? { nome: q.dono || '', id: q.donoId || 0 } : null; }, lista: listaDoQuarto, meuId() { return eu ? eu.id : null; }, eu() { if (eu) return eu.nome; return meuIndice == null ? null : (nomes.get(meuIndice) || null); }, pontosDe(nome) { const p = pontosPorNome.get(String(nome || '').trim().toLowerCase()); return p == null ? null : p; }, tipoDe(nome) { const t = tiposPorNome.get(String(nome || '').trim().toLowerCase()); return t == null ? null : t; }, visualDe, nivelClube() { return nivelClube; }, chegarPerto, indiceDe, meuIndice() { return meuIndice; }, efeitoDe(indice) { return efeitoPorIndice.get(indice) || 0; }, posicaoDe(indice) { return posicoes.get(indice) || null; }, acompanhando() { return acompanhando ? acompanhando.nome : null; } };
       ctx.aoParar(function () { delete VL.pessoas; });
 
       // ---------- congelar o avatar ----------
@@ -643,6 +685,8 @@
         let nome = '';
         try { nome = l.texto(); } catch (erro) { /* formato diferente */ }
         camada.aviso((nome ? nome : 'Alguém') + ' tocou a campainha do quarto.');
+        // O jogo só manda a campainha a quem tem direitos no quarto: toca um ding-dong de porta, mais longo.
+        if (ctx.secao().somCampainha !== false) tocarDingDong([[0, 659], [0.38, 523], [1.1, 659], [1.48, 523]], 0.7);
       }));
       // Direitos chegam pelo 780 e também no estado do próprio avatar ("/flatctrl N/" no 1640).
       // Os que já vêm na entrada não são novidade; avisa uma vez quando passa de 0 para mais.

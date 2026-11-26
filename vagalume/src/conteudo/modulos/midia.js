@@ -28,6 +28,10 @@
     + '@keyframes vl-chat-pulsa { 50% { opacity: .75; } }'
     + '.vl-midia { display: inline-flex; align-items: center; vertical-align: middle; margin: 1px 0 1px 2px; }'
     + '.vl-midia img { display: block; width: auto; height: auto; max-width: 110px; max-height: 68px; object-fit: contain; border-radius: 4px; cursor: zoom-in; }'
+    + '.vl-pm-oculta { display: none !important; }'
+    + '.vl-midia.vl-midia-pm { display: flex; margin: 3px 0; }'
+    + '.vl-midia.vl-midia-pm img { max-width: 190px; max-height: 150px; }'
+    + '.nitro-friends-messenger .vl-pm-botoes { display: inline-flex; align-items: center; gap: 2px; margin: 0 4px; flex: none; }'
     + '.vl-audio { display: inline-flex; align-items: center; gap: 6px; padding: 3px 8px 3px 3px; border-radius: 999px; background: #1b2330; border: 1px solid #3b4a2a; pointer-events: auto; }'
     + '.vl-audio button { all: unset; width: 22px; height: 22px; border-radius: 50%; background: #d6f24a; color: #12161f; display: grid; place-items: center; cursor: pointer; font: 700 10px/1 system-ui, sans-serif; }'
     + '.vl-audio input[type=range] { width: 90px; height: 14px; margin: 0; accent-color: #d6f24a; cursor: pointer; }'
@@ -150,6 +154,7 @@
     cheia: 'A chamada deste quarto está cheia (12 pessoas).',
     conexao: 'Não consegui falar com o servidor do Vagalume.',
     'nao-existe': 'Essa mídia não existe mais (as mídias duram 7 dias).',
+    impropria: 'Essa imagem não passou no filtro do Vagalume (parece ter nudez ou violência). Ela não foi enviada.',
   };
   function mensagemDeErro(e) { const c = String(e && e.message || e); return ERROS[c] || 'Falhou (' + c + ').'; }
 
@@ -160,14 +165,25 @@
   }
 
   // Imagens grandes ficam com até 1280 px no lado maior (WEBP); GIFs vão como estão.
+  // Miniatura JPEG (até 224 px) que o servidor confere no filtro de imagens; no GIF, o primeiro quadro.
+  async function miniaturaDe(bitmap) {
+    const k = Math.min(1, 224 / Math.max(bitmap.width, bitmap.height));
+    const c = new OffscreenCanvas(Math.max(1, Math.round(bitmap.width * k)), Math.max(1, Math.round(bitmap.height * k)));
+    const g = c.getContext('2d');
+    g.fillStyle = '#ffffff';
+    g.fillRect(0, 0, c.width, c.height);
+    g.drawImage(bitmap, 0, 0, c.width, c.height);
+    return new Uint8Array(await (await c.convertToBlob({ type: 'image/jpeg', quality: 0.8 })).arrayBuffer());
+  }
   async function prepararImagem(arquivo) {
     const tipo = String(arquivo.type || '').toLowerCase();
     if (!/^image\/(png|jpeg|gif|webp)$/.test(tipo)) throw new Error('tipo');
     const bytes = new Uint8Array(await arquivo.arrayBuffer());
-    if (tipo === 'image/gif') { if (bytes.length > 6e6) throw new Error('tamanho'); return { bytes, mime: tipo, gif: true }; }
     const bitmap = await createImageBitmap(new Blob([bytes], { type: tipo }));
+    const miniatura = await miniaturaDe(bitmap);
+    if (tipo === 'image/gif') { bitmap.close(); if (bytes.length > 6e6) throw new Error('tamanho'); return { bytes, mime: tipo, gif: true, miniatura }; }
     const lado = Math.max(bitmap.width, bitmap.height);
-    if (lado <= 1280 && bytes.length <= 1.5e6) { bitmap.close(); return { bytes, mime: tipo, gif: false }; }
+    if (lado <= 1280 && bytes.length <= 1.5e6) { bitmap.close(); return { bytes, mime: tipo, gif: false, miniatura }; }
     const k = Math.min(1, 1280 / lado);
     const c = new OffscreenCanvas(Math.round(bitmap.width * k), Math.round(bitmap.height * k));
     c.getContext('2d').drawImage(bitmap, 0, 0, c.width, c.height);
@@ -175,7 +191,7 @@
     const blob = await c.convertToBlob({ type: 'image/webp', quality: 0.85 });
     const novo = new Uint8Array(await blob.arrayBuffer());
     if (novo.length > 4e6) throw new Error('tamanho');
-    return { bytes: novo, mime: 'image/webp', gif: false };
+    return { bytes: novo, mime: 'image/webp', gif: false, miniatura };
   }
 
   function rostoDe(nome, visualReserva) {
@@ -226,7 +242,9 @@
         if (VL.comunidade && VL.comunidade.acao) VL.comunidade.acao({ t: 'midia', k: tipo, id });
         esperarMidia({ autor: String(eu() || ''), tipo, id }); // o servidor não devolve o aviso a quem mandou
       }
+      let destino = 'quarto'; // 'privado' quando a mídia sai pelos botões do bate-papo privado
       function falar(tipo, id) {
+        if (destino === 'privado') { destino = 'quarto'; mandarNoPrivado(tipo, id); return; }
         if (modo === 'visivel') {
           avisarMidia(tipo, id);
           setTimeout(function () { if (!jogo.enviarFala(servidor.TIPOS[tipo])) camada.aviso('Não achei o campo de chat do jogo.', { tipo: 'erro' }); }, 120);
@@ -237,32 +255,37 @@
         conferindo = { tipo, id, ate: Date.now() + 6000 };
       }
 
-      async function mandarArquivo(arquivo) {
+      async function mandarArquivo(arquivo, onde) {
         if (!pronto()) return;
+        const paraPrivado = onde === 'privado';
         try {
           const p = await prepararImagem(arquivo);
           camada.aviso('Enviando ' + (p.gif ? 'GIF' : 'imagem') + '…', { duracaoMs: 2500 });
-          const r = await sala('midia:enviar', { base64: paraBase64(p.bytes), mime: p.mime, autor: meuId() });
+          const r = await sala('midia:enviar', { base64: paraBase64(p.bytes), mime: p.mime, autor: meuId(), miniatura: paraBase64(p.miniatura) });
+          if (paraPrivado) destino = 'privado';
           falar(p.gif ? 'g' : 'i', r.id);
         } catch (e) { camada.aviso(mensagemDeErro(e), { tipo: 'erro' }); }
       }
-      async function confirmarImagem(arquivo) {
+      async function confirmarImagem(arquivo, onde) {
         const url = URL.createObjectURL(arquivo);
+        const privada = onde === 'privado';
         const ok = await camada.dialogo({
           titulo: 'Enviar esta imagem?',
-          texto: 'Quem usa o Vagalume no quarto vê a imagem; quem não usa vê só um emoji. Fica guardada por 7 dias.',
+          texto: privada ? 'Se o seu amigo usa o Vagalume, ele vê a imagem na conversa; se não usa, vê só um emoji. Fica guardada por 7 dias.'
+            : 'Quem usa o Vagalume no quarto vê a imagem; quem não usa vê só um emoji. Fica guardada por 7 dias.',
           conteudo: el('img', { class: 'vl-midia-grande', src: url, alt: '' }),
           botoes: [{ rotulo: 'Cancelar', valor: false }, { rotulo: 'Enviar', valor: true, destaque: true, foco: true }],
         });
         URL.revokeObjectURL(url);
-        if (ok) mandarArquivo(arquivo);
+        if (ok) mandarArquivo(arquivo, onde);
       }
 
       // ---------- botões dentro do campo de chat ----------
       const seletor = document.createElement('input');
       seletor.type = 'file';
       seletor.accept = 'image/png,image/jpeg,image/gif,image/webp';
-      seletor.addEventListener('change', function () { const f = seletor.files && seletor.files[0]; seletor.value = ''; if (f) confirmarImagem(f); });
+      let destinoSeletor = 'quarto';
+      seletor.addEventListener('change', function () { const f = seletor.files && seletor.files[0]; seletor.value = ''; if (f) confirmarImagem(f, destinoSeletor); });
       function botao(titulo, conteudo, acao) {
         const b = document.createElement('button');
         b.type = 'button';
@@ -277,9 +300,10 @@
       const textoGif = document.createElement('span');
       textoGif.className = 'vl-gif-txt';
       textoGif.textContent = 'GIF';
-      const bImagem = botao('Mandar imagem ou GIF do computador', ICONES.imagem(), function () { if (pronto()) seletor.click(); });
-      const bGif = botao('Procurar GIF', textoGif, function () { if (pronto()) buscarGifs(); });
-      const bAudio = botao('Gravar áudio (até 60 s)', ICONES.microfone(), function () { alternarGravacao(); });
+      const bImagem = botao('Mandar imagem ou GIF do computador', ICONES.imagem(), function () { if (pronto()) { destinoSeletor = 'quarto'; seletor.click(); } });
+      const bGif = botao('Procurar GIF', textoGif, function () { if (pronto()) buscarGifs('quarto'); });
+      const bAudio = botao('Gravar áudio (até 60 s)', ICONES.microfone(), function () { alternarGravacao(bAudio, false); });
+      const bAudioQuarto = bAudio;
       const bVoz = botao('Chamada de voz do quarto', ICONES.fone(), function () { alternarPainel(); });
       const grupo = document.createElement('span');
       grupo.className = 'vl-chat-botoes';
@@ -305,15 +329,16 @@
 
       // Colar imagem no campo de chat.
       ctx.escutar(window, 'paste', function (ev) {
-        if (!jogo.ehEntradaChat(ev.target) || !ev.clipboardData) return;
+        const noPrivado = !!(ev.target && ev.target.closest && ev.target.closest('.nitro-friends-messenger:not(.vl-console-grupos)'));
+        if ((!noPrivado && !jogo.ehEntradaChat(ev.target)) || !ev.clipboardData) return;
         const f = [...ev.clipboardData.files].find((x) => /^image\//.test(x.type));
         if (!f) return;
         ev.preventDefault();
-        if (pronto()) confirmarImagem(f);
+        if (pronto()) confirmarImagem(f, noPrivado ? 'privado' : 'quarto');
       }, true);
 
       // ---------- GIFs ----------
-      async function buscarGifs() {
+      async function buscarGifs(onde) {
         const campo = el('input', { type: 'search', class: 'vl-campo', placeholder: 'Procurar GIF… (vazio: os do momento)', 'aria-label': 'Procurar GIF' });
         const grade = el('div', { class: 'vl-gifs' });
         const nota = el('p', { class: 'vl-nota', texto: 'Carregando…' });
@@ -356,6 +381,7 @@
         try {
           camada.aviso('Enviando GIF…', { duracaoMs: 2000 });
           const r = await sala('gifs:salvar', { id: escolhido, autor: meuId() });
+          if (onde === 'privado') destino = 'privado';
           falar('g', r.id);
         } catch (e) { camada.aviso(mensagemDeErro(e), { tipo: 'erro' }); }
       }
@@ -366,9 +392,10 @@
         const ok = await camada.confirmar('O Vagalume precisa do microfone. Abrir a janelinha para permitir?', { titulo: 'Microfone', sim: 'Abrir' });
         if (ok) chrome.runtime.sendMessage({ tipo: 'microfone:permitir' }).catch(function () {});
       }
-      async function alternarGravacao() {
+      async function alternarGravacao(botaoGravacao, paraPrivado) {
         if (!pronto()) return;
         if (gravando) { terminarGravacao(true); return; }
+        const bAudio = botaoGravacao || bAudioQuarto;
         try { await sala('audio:gravar'); } catch (e) {
           if (String(e.message) === 'microfone') pedirMicrofone(); else camada.aviso(mensagemDeErro(e), { tipo: 'erro' });
           return;
@@ -377,25 +404,92 @@
         bAudio.classList.add('gravando');
         const atualizar = () => { const s = Math.floor((Date.now() - inicio) / 1000); bAudio.textContent = '● ' + Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0') + ' enviar'; };
         atualizar();
-        gravando = { relogio: setInterval(atualizar, 250) };
+        gravando = { relogio: setInterval(atualizar, 250), botao: bAudio, privado: !!paraPrivado };
         bAudio.title = 'Clique para enviar · Esc cancela';
       }
       async function terminarGravacao(enviar) {
         if (!gravando) return;
         clearInterval(gravando.relogio);
+        const bAudio = gravando.botao, paraPrivado = gravando.privado;
         gravando = null;
         bAudio.classList.remove('gravando');
         bAudio.replaceChildren(ICONES.microfone());
         bAudio.title = 'Gravar áudio (até 60 s)';
         try {
           const r = await sala('audio:parar', { enviar, autor: meuId() });
-          if (enviar && r.id) falar('a', r.id);
+          if (enviar && r.id) { if (paraPrivado) destino = 'privado'; falar('a', r.id); }
         } catch (e) { if (enviar) camada.aviso(mensagemDeErro(e), { tipo: 'erro' }); }
       }
       ctx.escutar(window, 'keydown', function (ev) {
         if (gravando && ev.key === 'Escape') { ev.preventDefault(); terminarGravacao(false); }
       }, true);
       ctx.aoParar(function () { if (gravando) terminarGravacao(false); });
+
+      // ---------- bate-papo privado: mandar e mostrar mídia ----------
+      // A marca (emoji + caracteres invisíveis com o código) vai como mensagem da conversa, digitada no campo do
+      // jogo (assim ela aparece também na sua tela). Quem não usa o Vagalume vê só o emoji.
+      const SEL_PRIVADO = '.nitro-friends-messenger:not(.vl-console-grupos)';
+      function mandarNoPrivado(tipo, id) {
+        const texto = servidor.marcar(tipo, id);
+        const campo = document.querySelector(SEL_PRIVADO + ' input.chat-input-form');
+        if (campo && jogo.definirValor && jogo.apertarEnter) {
+          const rascunho = campo.value;
+          jogo.definirValor(campo, texto);
+          jogo.apertarEnter(campo);
+          if (rascunho) jogo.definirValor(campo, rascunho);
+          return;
+        }
+        const a = amigoDoBatePapo();
+        if (!a) { camada.aviso('Abra a conversa com o amigo para mandar a mídia.', { tipo: 'erro' }); return; }
+        VL.conexao.enviar(VL.codigos.SAIDA.MENSAGEM_PRIVADA, [['i', a.id], ['s', texto]]);
+      }
+      const pImagem = botao('Mandar imagem ou GIF do computador', ICONES.imagem(), function () { if (pronto()) { destinoSeletor = 'privado'; seletor.click(); } });
+      const textoGifP = document.createElement('span');
+      textoGifP.className = 'vl-gif-txt';
+      textoGifP.textContent = 'GIF';
+      const pGif = botao('Procurar GIF', textoGifP, function () { if (pronto()) buscarGifs('privado'); });
+      const pAudio = botao('Gravar áudio (até 60 s)', ICONES.microfone(), function () { alternarGravacao(pAudio, true); });
+      const grupoPrivado = document.createElement('span');
+      grupoPrivado.className = 'vl-chat-botoes vl-pm-botoes';
+      grupoPrivado.append(pImagem, pGif, pAudio);
+      function encaixarPrivado() {
+        const campo = document.querySelector(SEL_PRIVADO + ' input.chat-input-form');
+        if (!campo) { grupoPrivado.remove(); return; }
+        if (grupoPrivado.previousElementSibling !== campo) campo.after(grupoPrivado);
+      }
+      function midiaNoConsole() {
+        document.querySelectorAll(SEL_PRIVADO + ' .message-bubble .text-break:not([data-vl-pm])').forEach(function (linha) {
+          linha.setAttribute('data-vl-pm', '');
+          const marca = servidor.ler(linha.textContent);
+          if (!marca || !/^[iga]$/.test(marca.tipo) || !servidor.configurado()) return;
+          linha.classList.add('vl-pm-oculta');
+          const caixa = document.createElement('span');
+          caixa.className = 'vl-midia vl-midia-pm';
+          caixa.textContent = '…';
+          caixa.addEventListener('mousedown', function (ev) { ev.stopPropagation(); }, true);
+          linha.after(caixa);
+          if (marca.tipo === 'a') { caixa.replaceChildren(montarPlayer(marca.id)); return; }
+          sala('midia:baixar', { id: marca.id }).then(function (m) {
+            if (!/^data:image\//.test(m.dataUrl)) { caixa.textContent = '(mídia indisponível)'; return; }
+            const img = document.createElement('img');
+            img.alt = '';
+            img.src = m.dataUrl;
+            img.addEventListener('click', function (ev) { ev.stopPropagation(); ampliar(m.dataUrl, marca.id, null); });
+            caixa.replaceChildren(img);
+          }, function () { caixa.textContent = '(mídia indisponível)'; });
+        });
+      }
+      let relogioPrivado = null;
+      const observadorPrivado = new MutationObserver(function () {
+        if (relogioPrivado) return;
+        relogioPrivado = setTimeout(function () { relogioPrivado = null; encaixarPrivado(); midiaNoConsole(); }, 150);
+      });
+      if (document.body) observadorPrivado.observe(document.body, { childList: true, subtree: true });
+      ctx.aoParar(function () {
+        observadorPrivado.disconnect(); clearTimeout(relogioPrivado); grupoPrivado.remove();
+        document.querySelectorAll('.vl-midia-pm').forEach((n) => n.remove());
+        document.querySelectorAll('[data-vl-pm]').forEach((n) => { n.removeAttribute('data-vl-pm'); n.classList.remove('vl-pm-oculta'); });
+      });
 
       // ---------- receber: mídia nos balões ----------
       const bloqueados = () => (ctx.secao().bloqueados || []).map((n) => String(n).toLowerCase());

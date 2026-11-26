@@ -298,7 +298,7 @@
 
   const api = {
     SELETORES, seletor,
-    entradaChat, ehEntradaChat, campoOcupado, segurarModificador, definirValor, limparEntrada, enviarFala,
+    entradaChat, ehEntradaChat, campoOcupado, segurarModificador, definirValor, apertarEnter, limparEntrada, enviarFala,
     lerFala, limparAutor, balaoDe, corpoDoBalao, observarFalas, marcarTrechos,
     janelaDaFrente, fecharJanela, diagnostico,
   };

@@ -397,6 +397,8 @@
   nucleo.definirModulo({
     id: 'jogos',
     iniciar(ctx) {
+      // Mesa de jogos para mais pessoas (Corrida de Digitação e os próximos): conteudo/mesa.js.
+      const mesaApi = VL.mesa ? VL.mesa.iniciar(ctx) : null;
       // ---------- tabuleiros no quarto e os dois cliques ----------
       const tabuleiros = new Set(); // ids dos tabuleiros do quarto atual
       const marcar = (m) => { if (m && TABULEIROS.has(m.tipo)) tabuleiros.add(m.id); };
@@ -1228,11 +1230,17 @@
         if (p.modo !== 'rede' || p.fim) return;
         if (!confiavel) { enviar(dado); return; }
         const msg = Object.assign({ n: ++p.ppSeq }, dado);
-        p.ppPendentes.set(msg.n, { msg, vezes: 1 });
+        p.ppPendentes.set(msg.n, { msg, vezes: 1, enviadoEm: performance.now() });
         enviar(msg);
       }
       function receberPP(p, d) {
-        if (d.t === 'pp:ok') { p.ppPendentes.delete(Number(d.n)); return; }
+        if (d.t === 'pp:ok') {
+          // Ida e volta medida pelas confirmações (só as que saíram uma vez): metade é o atraso de cada mensagem.
+          const x = p.ppPendentes.get(Number(d.n));
+          if (x && x.vezes === 1) { const rtt = Math.min(1500, performance.now() - x.enviadoEm); p.ppRtt = p.ppRtt ? p.ppRtt * 0.7 + rtt * 0.3 : rtt; }
+          p.ppPendentes.delete(Number(d.n));
+          return;
+        }
         if (d.t === 'pp:raq') { p.pp.receber(d); return; }
         const n = Number(d.n);
         if (!Number.isInteger(n) || n < 1 || n > p.ppRecebido + 50) return;
@@ -1243,7 +1251,8 @@
           const e = p.ppFila.get(p.ppRecebido + 1);
           p.ppFila.delete(p.ppRecebido + 1);
           p.ppRecebido++;
-          p.pp.receber(e);
+          // A rebatida do outro aconteceu há meia ida e volta: a tela adianta a bola esse tanto (até 0,25 s).
+          p.pp.receber(Object.assign({}, e, { atraso: Math.min(0.25, (p.ppRtt || 0) / 2000) }));
         }
       }
       // O que não foi confirmado vai de novo (também depois do fim, para o último ponto chegar).
@@ -1479,6 +1488,11 @@
           } }, [
             el('span', { class: 'vl-jg-mini ' + j.id, 'aria-hidden': 'true', texto: glifoDe(j.id) }),
             el('span', null, [el('b', { texto: NOMES[j.id] }), el('small', { texto: j.texto })]),
+            el('span', { class: 'vl-jg-botao forte vl-jg-jogar', 'aria-hidden': 'true', texto: 'Jogar' }),
+          ]));
+          if (mesaApi) for (const [id, j] of Object.entries(VL.mesa.JOGOS)) cartoes.push(el('button', { type: 'button', class: 'vl-jg-cartao', 'aria-label': 'Jogar ' + j.nome, onclick() { mesaApi.abrir(id); } }, [
+            el('span', { class: 'vl-jg-mini mesa', 'aria-hidden': 'true', texto: j.glifo }),
+            el('span', null, [el('b', { texto: j.nome }), el('small', { texto: j.texto })]),
             el('span', { class: 'vl-jg-botao forte vl-jg-jogar', 'aria-hidden': 'true', texto: 'Jogar' }),
           ]));
           cartoes.push(el('div', { class: 'vl-jg-cartao embreve' }, [

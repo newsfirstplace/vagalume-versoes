@@ -99,7 +99,8 @@
         if (!VL.comunidade || !VL.comunidade.acao) return;
         if (!forcar && Date.now() - enviadoEm < 10000) return;
         enviadoEm = Date.now();
-        VL.comunidade.acao({ t: 'digitar', e: meu() });
+        const fala = ctx.ativo('baloes') && ctx.config().baloes ? ctx.config().baloes.estilo : 'jogo';
+        VL.comunidade.acao({ t: 'digitar', e: meu(), b: fala });
       }
       function aoAcao(m) {
         const d = m && m.dado;

@@ -7,8 +7,10 @@
   if (VL.camada) return;
 
   const ID = 'vagalume-camada';
+  // O cliente põe as janelas arrastáveis do jogo a partir de z-index 401.
+  // A camada continua acima do quarto e da barra, mas abaixo dessas janelas.
   const ESTILO_HOST = 'all: initial !important; position: fixed !important; inset: 0 !important; ' +
-    'z-index: 2147483600 !important; pointer-events: none !important; display: block !important;';
+    'z-index: 400 !important; pointer-events: none !important; display: block !important;';
   // Eventos nascidos dentro da camada param no hospedeiro: os ouvintes do jogo na fase de borbulha
   // não ficam sabendo das teclas e dos cliques feitos no painel.
   const EVENTOS_CONTIDOS = ['keydown', 'keyup', 'keypress', 'mousedown', 'mouseup', 'click', 'dblclick',
@@ -137,6 +139,23 @@
 .vl-bv-fim { margin: 0 0 14px; text-align: center; font-size: 15px; font-weight: 600; color: var(--brilho-forte); }
 .vl-bv-acoes { display: flex; justify-content: center; gap: 10px; margin-bottom: 12px; }
 .vl-bv-acoes .vl-botao { padding: 8px 18px; border-radius: 999px; }
+.vl-dialogo.vl-nov-caixa { width: min(520px, 100%); padding: 0; overflow: hidden; display: flex; flex-direction: column; border-color: rgba(214,242,74,.35); box-shadow: 0 18px 50px rgba(0,0,0,.55), 0 0 0 1px rgba(214,242,74,.12), 0 0 40px rgba(214,242,74,.08); }
+.vl-dialogo.vl-nov-caixa > h2 { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.vl-dialogo.vl-nov-caixa > .vl-acoes { display: flex !important; padding: 12px 20px 16px; margin: 0; justify-content: center !important; border-top: 1px solid var(--borda); }
+.vl-dialogo.vl-nov-caixa > .vl-acoes .vl-botao { padding: 9px 28px; border-radius: 999px; white-space: nowrap; flex: none; }
+.vl-nov-topo { position: relative; display: flex; align-items: center; gap: 14px; padding: 20px 22px 16px; background: radial-gradient(120% 140% at 0% 0%, rgba(214,242,74,.18), transparent 60%), linear-gradient(180deg, rgba(214,242,74,.06), transparent); border-bottom: 1px solid var(--borda); }
+.vl-nov-ponto { flex: none; width: 42px; height: 42px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #f5ffc2, var(--brilho) 45%, #7fa312 100%); box-shadow: 0 0 18px rgba(214,242,74,.7), 0 0 42px rgba(214,242,74,.3); animation: vl-nov-pulsa 2.4s ease-in-out infinite; }
+@keyframes vl-nov-pulsa { 50% { box-shadow: 0 0 26px rgba(214,242,74,.95), 0 0 60px rgba(214,242,74,.45); } }
+.vl-nov-titulo { margin: 0; font-size: 19px; font-weight: 700; color: var(--texto); }
+.vl-nov-sub { margin: 3px 0 0; font-size: 12.5px; color: var(--suave); }
+.vl-nov-versao { margin-left: auto; align-self: flex-start; padding: 3px 10px; border-radius: 999px; font: 700 12px var(--mono); color: #12161f; background: var(--brilho); box-shadow: 0 0 12px rgba(214,242,74,.5); }
+.vl-nov-lista { list-style: none; margin: 0; padding: 14px 16px; display: grid; gap: 8px; max-height: min(52vh, 420px); overflow: auto; }
+.vl-nov-item { display: flex; gap: 12px; align-items: flex-start; padding: 10px 12px; border: 1px solid var(--borda); border-radius: 12px; background: rgba(255,255,255,.025); transition: border-color .15s, transform .15s; }
+.vl-nov-item:hover { border-color: rgba(214,242,74,.5); transform: translateX(2px); }
+.vl-nov-num { flex: none; width: 24px; height: 24px; border-radius: 8px; display: grid; place-items: center; font: 700 12px var(--mono); color: var(--brilho); background: rgba(214,242,74,.12); border: 1px solid rgba(214,242,74,.35); }
+.vl-nov-item strong { display: block; color: var(--brilho); font-size: 13px; margin-bottom: 2px; }
+.vl-nov-item div > span { display: block; color: var(--suave); font-size: 12.5px; line-height: 1.5; }
+@media (prefers-reduced-motion: reduce) { .vl-nov-ponto { animation: none; } }
 .vl-bv-nota { margin: 0; text-align: center; color: var(--suave); font-size: 11px; opacity: .8; }
 @media (prefers-reduced-motion: reduce) { .vl-bv, .vl-bv-ponto { animation: none; } }
 .vl-inv-barra { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 8px; }
@@ -181,6 +200,10 @@
 .vl-cons-geral { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--borda); }
 .vl-cons-painel > .vl-cons-secao, .vl-cons-painel > .vl-cons-colunas > .vl-cons-secao, .vl-cons-geral > .vl-cons-secao { padding: 10px 12px; border: 1px solid var(--borda); border-radius: 9px; background: var(--superficie-2); }
 .vl-cons-acoes { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; }
+.vl-ocultos-estado { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 12px; color: var(--suave); }
+.vl-ocultos-estado span { flex: 1; }
+.vl-chip-ocultos { position: fixed; top: 12px; left: 50%; transform: translateX(-50%); z-index: 2147483000; pointer-events: auto; display: flex; align-items: center; gap: 10px; padding: 6px 8px 6px 14px; border-radius: 999px; background: rgba(18,22,31,.92); border: 1px solid rgba(214,242,74,.6); box-shadow: 0 6px 20px rgba(0,0,0,.45), 0 0 14px rgba(214,242,74,.25); color: var(--texto); font: 600 12.5px system-ui, sans-serif; }
+.vl-chip-ocultos button { border: 0; border-radius: 999px; padding: 5px 12px; background: var(--brilho); color: #12161f; font: 700 12px system-ui, sans-serif; cursor: pointer; }
 .vl-cons-acao { display: flex; align-items: flex-start; gap: 9px; padding: 8px 10px; font: inherit; text-align: left; cursor: pointer; color: var(--texto);
   background: var(--superficie); border: 1px solid var(--borda); border-radius: 9px; transition: border-color .15s, background .15s; }
 .vl-cons-acao:hover:not(:disabled) { border-color: rgba(214, 242, 74, .55); }
@@ -842,7 +865,7 @@
       const idTitulo = 'vl-dialogo-' + (++contador);
       const botoes = o.botoes && o.botoes.length ? o.botoes : [{ rotulo: 'Fechar', valor: null, foco: true }];
       const acoes = el('div', { class: 'vl-acoes' });
-      const caixa = el('div', { class: 'vl-dialogo' + (o.largo ? ' largo' : '') + (o.lateral ? ' lateral' : ''), role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': idTitulo }, [
+      const caixa = el('div', { class: 'vl-dialogo' + (o.largo ? ' largo' : '') + (o.lateral ? ' lateral' : '') + (o.classe ? ' ' + o.classe : ''), role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': idTitulo }, [
         el('h2', { id: idTitulo, texto: o.titulo || 'Vagalume' }),
         o.texto ? el('p', { texto: o.texto }) : null,
         o.detalhe ? el('pre', { class: 'vl-detalhe', texto: o.detalhe }) : null,

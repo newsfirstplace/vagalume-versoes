@@ -12,6 +12,7 @@
       apelidos: true,
       mencoes: true,
       chat: true,
+      baloes: true,
       digitando: true,
       janelas: true,
       interface: true,
@@ -44,6 +45,7 @@
     mencoes: { apelido: '', soComArroba: true, termos: [], som: true, volume: 60, destacar: true, corNoBalao: true, sugerirApelidos: true, console: true },
     digitando: { estilo: 'vagalume', animado: true, verDosOutros: true, paraTodos: false },
     chat: { arrastarBaloes: true, botaoCopiar: true, botaoResponder: true, linksClicaveis: true, responderComDireito: false, estiloOutros: -1 },
+    baloes: { estilo: 'jogo' },
     notificacoes: { ocultarCompras: false, ocultarConquistas: false },
     silenciar: { apelidos: [], termos: [], modo: 'esconder', minimoPontos: 0, ocultarPessoas: false, ocultarBots: false, ocultarPets: false, excetoMeus: true, excetoAmigos: true },
     agrupar: { janela: 5 },
@@ -71,7 +73,7 @@
     estilo: { css: '' },
     fps: { limite: 30 },
     contador: { canto: 'sup-esq', mostrarFps: true, mostrarPing: true, intervaloPing: 10 }, // canto: sup-esq, sup-dir, inf-esq, inf-dir
-    conexao: { esconderMeuDigitando: false, ocultarDigitando: false, antiGiro: false, cliqueSemAviso: false, escurecerQuemSaiu: true, setinhas: false, aoEntrar: [], avisarQueda: true, voltarAoRelogar: false, nomeNoTitulo: false, referencias: true, antiAusente: false, simularDireitos: false, avisarCampainha: true, avisarDireitos: true, avisarCurtidas: false, avisarMute: true, placaNoMute: -1, meioAnda: false, iconeVoltar: true, dancasExtras: true },
+    conexao: { esconderMeuDigitando: false, ocultarDigitando: false, antiGiro: false, cliqueSemAviso: false, escurecerQuemSaiu: true, setinhas: false, aoEntrar: [], avisarQueda: true, voltarAoRelogar: false, nomeNoTitulo: false, referencias: true, antiAusente: false, simularDireitos: false, avisarCampainha: true, somCampainha: true, somVisitantes: true, avisarDireitos: true, avisarCurtidas: false, avisarMute: true, placaNoMute: -1, meioAnda: false, iconeVoltar: true, dancasExtras: true },
   };
 
   // grupo: onde o módulo aparece nas telas. recarregar: precisa recarregar o hotel para valer.
@@ -81,6 +83,7 @@
     { id: 'apelidos', nome: 'Apelidos locais', grupo: 'chat', resumo: 'Personalize seu nome e o dos seus amigos só na sua tela.' },
     { id: 'digitando', nome: 'Balão de digitando', grupo: 'chat', resumo: 'Troca o balãozinho de "digitando" em cima do seu avatar por um com as cores do Vagalume; as outros Vagalumes do quarto também veem.' },
     { id: 'chat', nome: 'Atalhos nos balões', grupo: 'chat', resumo: 'Botão de copiar ao lado de cada fala; links das falas ficam azuis e abrem numa aba nova com um clique.' },
+    { id: 'baloes', nome: 'Temas dos balões', grupo: 'chat', resumo: 'Mostra nove temas no seletor de Bubble IDs do Habblet, compartilhados com outros Vagalumes.' },
     { id: 'silenciar', nome: 'Silenciar no chat', grupo: 'chat', resumo: 'Esconde ou apaga as falas de quem você escolher, só na sua tela.' },
     { id: 'notificacoes', nome: 'Histórico de avisos', grupo: 'chat', resumo: 'Guarda os avisos do jogo no canto da tela para rever com o comando notificacoes (só na memória) e pode esconder os de compra e de conquista.' },
     { id: 'agrupar', nome: 'Juntar falas repetidas', grupo: 'chat', resumo: 'Quando alguém repete a mesma fala em poucos segundos (respeitos, recados de wired), mostra uma só com ×2, ×3…' },
@@ -120,14 +123,15 @@
 
   // Novidades mostradas uma vez quando a versão instalada muda (o usuário pode desligar o aviso nas opções do módulo Comandos).
   const NOVIDADES = [
-    'Digite / no chat para ver todos os comandos, e @ para chamar quem está no quarto. Links das falas abrem com um clique.',
-    'Comunidade Vagalume: ponto verde ao lado de quem usa a extensão. /amigos novo, /efeitos, amigos no navegador de quartos e ações no quadro da pessoa.',
-    'Conexão do jogo: setas, anti-giro, quem saiu, volta ao quarto, anti-ausente e simular direitos. O ping agora fica no contador, junto do FPS.',
-    'Construção, Loja e inventário, Amigos e console, Visual e avatar, Zoom e Juntar falas repetidas.',
-    'Busca de funções: /buscar <termo>.',
+    'Jogos em grupo: Corrida de Digitação, Vagacartas, Duelo de Pistas, Ludo e Sinuca, com quem usa o Vagalume no quarto ou com bots (aba Jogos do painel).',
+    'Balões de fala: 15 balões do Vagalume com enfeites, no seletor de balões do jogo.',
+    'Bate-papo privado: mande imagem, GIF e áudio para os amigos. As imagens passam por um filtro automático.',
+    'Construção: altura escolhida antes de colocar (sem :up), ocultar mobis por categoria, e copiar o quarto de outra pessoa só com a permissão do dono.',
+    'Campainha: som de campainha quando alguém toca num quarto em que você tem direitos.',
+    'Ping-pong: a bola não fica mais parada esperando a devolução do outro jogador.',
   ];
 
-  const api = { PADROES, CATALOGO, GRUPOS, NOVIDADES, ESQUEMA: 1, VERSAO: '0.1.2' };
+  const api = { PADROES, CATALOGO, GRUPOS, NOVIDADES, ESQUEMA: 1, VERSAO: '0.1.10' };
   raiz.VL = raiz.VL || {};
   raiz.VL.padroes = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

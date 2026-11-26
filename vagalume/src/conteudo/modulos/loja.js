@@ -14,9 +14,9 @@
   // Páginas de wired da loja do Habblet (rótulos vistos no índice em 2026-11-13).
   const PAGINAS_WIRED = new Set(['Ativadores', 'Efeitos', 'Condições', 'Seletores', 'Add-ons', 'Wired Variáveis', 'Extras Variáveis']);
   const esperar = (ms) => new Promise((r) => setTimeout(r, ms));
-  // Mobis custom (sugestão de usuários do Habblet em 2026-11-22): fundo roxo e um C no canto, pelo ícone do cartão.
-  const CSS_CUSTOM = '.nitro-catalog .layout-grid-item.vl-mobi-custom, .nitro-inventory .layout-grid-item.vl-mobi-custom { position: relative; background-color: rgba(150, 90, 230, .28) !important; box-shadow: inset 0 0 0 2px rgba(180, 120, 255, .9) !important; }'
-    + ' .layout-grid-item.vl-mobi-custom::after { content: "C"; position: absolute; top: 2px; right: 2px; min-width: 13px; height: 13px; border-radius: 7px; background: #9b5cff; color: #fff; font: bold 9px/13px sans-serif; text-align: center; pointer-events: none; z-index: 3; }';
+  // Mobis custom: destaque no verde-limão da Vagalume e um C no canto do cartão.
+  const CSS_CUSTOM = '.nitro-catalog .layout-grid-item.vl-mobi-custom, .nitro-inventory .layout-grid-item.vl-mobi-custom { position: relative; background-color: rgba(214, 242, 74, .16) !important; box-shadow: inset 0 0 0 2px rgba(214, 242, 74, .85) !important; }'
+    + ' .layout-grid-item.vl-mobi-custom::after { content: "C"; position: absolute; top: 2px; right: 2px; min-width: 13px; height: 13px; border-radius: 7px; background: #d6f24a; color: #12161f; font: bold 9px/13px sans-serif; text-align: center; pointer-events: none; z-index: 3; }';
   function marcarCustom(ctx) {
     if (!camada.estiloPagina || typeof MutationObserver === 'undefined' || !document.body) return;
     let porIcone = null, carregando = false, quadro = 0;
@@ -313,7 +313,25 @@
         }
         return false;
       }
-      VL.loja = { comprarTipos, comprarDecoracao };
+      // Classes de mobi de uma categoria da loja (ex.: Sombras, Iluminação), lendo as páginas dela.
+      const categorias = new Map();
+      async function classesDaCategoria(termo) {
+        const chave = codigos.semAcento(termo);
+        if (categorias.has(chave)) return categorias.get(chave);
+        const paginas = indiceVisto || await pedirIndice();
+        if (!paginas) throw new Error('A loja não respondeu. Tente de novo dentro de um quarto.');
+        const achadas = codigos.paginasDaCategoria(paginas, termo, 60);
+        if (!achadas.length) throw new Error('Não achei a categoria "' + termo + '" na loja.');
+        const classes = new Set();
+        for (const p of achadas) {
+          const pagina = await pedirPagina(p.id);
+          if (pagina) for (const o of pagina.ofertas) for (const pr of o.produtos) if (pr.tipo !== 'b') classes.add(pr.classe);
+          await esperar(120);
+        }
+        if (classes.size) categorias.set(chave, classes);
+        return classes;
+      }
+      VL.loja = { comprarTipos, comprarDecoracao, classesDaCategoria };
       ctx.aoParar(function () { if (VL.loja && VL.loja.comprarTipos === comprarTipos) VL.loja = null; });
 
       // ---------- atalhos de páginas da loja ----------

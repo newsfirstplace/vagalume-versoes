@@ -212,6 +212,8 @@
       { tipo: 'chave', chave: 'antiAusente', rotulo: 'Anti-ausente: evita que o jogo te tire do quarto por inatividade', nota: 'A cada minuto sem nenhuma ação sua, manda a expressão "Inativo": o avatar continua com o zzz. Pode contrariar as regras do jogo; use por sua conta.' },
       { tipo: 'chave', chave: 'simularDireitos', rotulo: 'Simular direitos nos quartos onde você não tem', nota: 'Só na sua tela, para ver os menus de quem tem direitos. O servidor continua recusando o que você não pode fazer.' },
       { tipo: 'chave', chave: 'avisarCampainha', rotulo: 'Avisar quem tocou a campainha do quarto' },
+      { tipo: 'chave', chave: 'somCampainha', rotulo: 'Som de campainha quando alguém tocar', nota: 'Vale nos quartos em que você tem direitos (o jogo só avisa a quem pode abrir a porta).' },
+      { tipo: 'chave', chave: 'somVisitantes', rotulo: 'Tocar campainha quando alguém entrar no meu quarto', nota: 'Só toca quando você está no quarto do qual é dono. Não toca para quem já estava lá ao entrar.' },
       { tipo: 'chave', chave: 'avisarDireitos', rotulo: 'Avisar quando você receber direitos no quarto' },
       { tipo: 'chave', chave: 'avisarCurtidas', rotulo: 'Avisar quando o quarto ganhar curtida' },
       { tipo: 'chave', chave: 'avisarMute', rotulo: 'Avisar quando você tomar mute, cair no antiflood ou o quarto for silenciado, com o tempo que falta' },

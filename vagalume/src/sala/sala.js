@@ -163,8 +163,17 @@
     }
     return cache.get(id);
   }
-  async function enviar(bytes, tipo, autor) {
-    const r = await rede('/midia', { method: 'POST', headers: { 'Content-Type': tipo, 'X-Vagalume-Autor': String(autor || '') }, body: bytes });
+  // Com miniatura (filtro de imagens do servidor), ela vai na frente da imagem e o cabeçalho diz o tamanho dela.
+  async function enviar(bytes, tipo, autor, miniatura) {
+    const headers = { 'Content-Type': tipo, 'X-Vagalume-Autor': String(autor || '') };
+    let corpo = bytes;
+    if (miniatura && miniatura.length) {
+      corpo = new Uint8Array(miniatura.length + bytes.length);
+      corpo.set(miniatura, 0);
+      corpo.set(bytes, miniatura.length);
+      headers['X-Vagalume-Miniatura'] = String(miniatura.length);
+    }
+    const r = await rede('/midia', { method: 'POST', headers, body: corpo });
     return r.json();
   }
 
@@ -525,7 +534,7 @@
       return p;
     }
     switch (m.tipo) {
-      case 'midia:enviar': return enviar(deBase64(m.base64), m.mime, m.autor);
+      case 'midia:enviar': return enviar(deBase64(m.base64), m.mime, m.autor, m.miniatura ? deBase64(m.miniatura) : null);
       case 'midia:baixar': return baixar(m.id);
       case 'midia:denunciar': return (await rede('/denunciar/' + m.id, { method: 'POST' })).json();
       case 'gifs:buscar': {
@@ -568,6 +577,16 @@
         if (!presenca || !presenca.ws || presenca.ws.readyState !== 1) return { erro: 'conexao' };
         presenca.ws.send(JSON.stringify({ t: 'acao', dado: m.dado }));
         return { ok: true };
+      case 'presenca:fala': {
+        if (!presenca || !presenca.ws || presenca.ws.readyState !== 1) return { erro: 'conexao' };
+        if (!m.dado || m.dado.t !== 'chat:fala' || !Array.isArray(m.dado.a)) return { erro: 'pedido' };
+        const dado = { t: 'vl:direto', d: m.dado };
+        if (JSON.stringify(dado).length > 600) return { erro: 'tamanho' };
+        for (const id of presenca.pessoas.keys()) {
+          if (id !== presenca.id) presenca.ws.send(JSON.stringify({ t: 'sinal', para: id, dado }));
+        }
+        return { ok: true };
+      }
       case 'presenca:direto': {
         if (!presenca || !presenca.ws || presenca.ws.readyState !== 1) return { erro: 'conexao' };
         const nome = String(m.para || '').trim().toLowerCase();

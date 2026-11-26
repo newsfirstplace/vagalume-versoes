@@ -591,13 +591,21 @@
 
       // Estilo de balão forçado nas falas dos outros: troca a classe bubble-N do balão, só na sua tela.
       const ORIGINAL = 'data-vl-balao-original';
+      function restaurarEstilo(b) {
+        const antigo = b.getAttribute(ORIGINAL);
+        if (!antigo) return;
+        [...b.classList].filter((c) => /^bubble-\d+$/.test(c)).forEach((c) => b.classList.remove(c));
+        b.classList.add(antigo);
+        b.removeAttribute(ORIGINAL);
+      }
       function forcarEstilo(fala) {
         const n = ctx.secao().estiloOutros;
-        if (!Number.isInteger(n) || n < 0 || !fala || !fala.el) return;
+        if (!fala || !fala.el) return;
         const eu = VL.pessoas && VL.pessoas.eu();
         if (eu && String(eu).toLowerCase() === String(fala.autor || '').toLowerCase()) return;
         const balao = fala.el.matches && fala.el.matches('.chat-bubble') ? fala.el : fala.el.querySelector && fala.el.querySelector('.chat-bubble');
         if (!balao) return;
+        if (!Number.isInteger(n) || n < 0) { restaurarEstilo(balao); return; }
         const atual = [...balao.classList].find((c) => /^bubble-\d+$/.test(c));
         if (!atual || atual === 'bubble-' + n) return;
         if (!balao.hasAttribute(ORIGINAL)) balao.setAttribute(ORIGINAL, atual);
@@ -605,12 +613,15 @@
         balao.classList.add('bubble-' + n);
       }
       ctx.aoParar(jogo.observarFalas(forcarEstilo));
-      ctx.aoParar(function () {
-        document.querySelectorAll('[' + ORIGINAL + ']').forEach(function (b) {
-          [...b.classList].filter((c) => /^bubble-\d+$/.test(c)).forEach((c) => b.classList.remove(c));
-          b.classList.add(b.getAttribute(ORIGINAL));
-          b.removeAttribute(ORIGINAL);
+      ctx.aoConfig(function (secao) {
+        if (secao !== 'chat') return;
+        document.querySelectorAll('.nitro-chat-widget .bubble-container').forEach(function (b) {
+          const fala = jogo.lerFala(b);
+          if (fala) forcarEstilo(fala);
         });
+      });
+      ctx.aoParar(function () {
+        document.querySelectorAll('[' + ORIGINAL + ']').forEach(restaurarEstilo);
       });
     },
   });

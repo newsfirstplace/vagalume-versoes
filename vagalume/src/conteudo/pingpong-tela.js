@@ -150,6 +150,10 @@
         if (!b) return;
         s.bola = b; novaJogada(ele); s.fase = 'jogo';
         if (d.t === 'pp:bate') { anel(b, false); o.som('bate'); } else o.som('saque');
+        // Compensa o atraso da rede: a bola anda na hora o que andou do lado de lá enquanto a mensagem vinha,
+        // em vez de parecer que o outro demorou para devolver.
+        let resta = Number.isFinite(d.atraso) ? Math.max(0, Math.min(0.25, d.atraso)) : 0;
+        while (resta > 1e-6 && s.fase === 'jogo' && s.bola && !s.segura) { const h = Math.min(PASSO, resta); resta -= h; fisica(h); }
         return;
       }
       if (d.t === 'pp:ponto' && (d.a === 'w' || d.a === 'b')) {

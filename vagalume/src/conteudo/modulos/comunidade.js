@@ -86,8 +86,9 @@
       }
       const ouvintesAcao = new Set();
       function acao(dado) { return chrome.runtime.sendMessage({ tipo: 'sala:presenca:acao', dado }).catch(function () { return null; }); }
+      function fala(dado) { return chrome.runtime.sendMessage({ tipo: 'sala:presenca:fala', dado }).catch(function () { return null; }); }
       function direto(para, dado) { return chrome.runtime.sendMessage({ tipo: 'sala:presenca:direto', para, dado }).catch(function () { return null; }); }
-      VL.comunidade = { usaVagalume, GRUPO: GRUPO_VAGALUME, acao, direto, aoAcao(fn) { ouvintesAcao.add(fn); return function () { ouvintesAcao.delete(fn); }; } };
+      VL.comunidade = { usaVagalume, GRUPO: GRUPO_VAGALUME, acao, fala, direto, aoAcao(fn) { ouvintesAcao.add(fn); return function () { ouvintesAcao.delete(fn); }; } };
       const tirarCssPerfil = camada.estiloPagina('comunidade-perfil', CSS_PERFIL);
       ctx.aoParar(tirarCssPerfil);
 

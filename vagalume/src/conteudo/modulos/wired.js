@@ -22,6 +22,7 @@
       let copiado = null;  // { cabecalho, dados: [bytes sem o id] }
       let ultimo = null;   // última configuração salva no jogo
       let selecionado = null;
+      let organizador = null;
 
       const cancelar = Object.keys(SALVAR).map(function (cab) {
         return conexao.ouvir('saida', Number(cab), function (l, bytes) {
@@ -31,7 +32,7 @@
           atualizarAba();
         });
       });
-      cancelar.push(conexao.ouvir('saida', SAIDA.CLICAR_MOBI, function (l) { selecionado = l.inteiro(); atualizarAba(); }));
+      cancelar.push(conexao.ouvir('saida', SAIDA.CLICAR_MOBI, function (l) { selecionado = l.inteiro(); atualizarAba(); if (organizador) organizador.atualizarSelecao(); }));
       ctx.aoParar(function () { cancelar.forEach((fn) => fn()); });
 
       // Não andar ao clicar em mobis: o jogo manda "clicar no mobi" (355) e logo depois "andar" (3320).
@@ -116,6 +117,7 @@
       const el = camada.el;
       let situacao = null;
       let botaoMarcadores = null;
+      organizador = VL.wiredToolNotas ? VL.wiredToolNotas.iniciar(ctx, function () { return selecionado; }) : null;
       function atualizarAba() {
         if (situacao && situacao.isConnected) situacao.textContent = 'Copiado: ' + descrever(copiado) + '. Último salvo: ' + descrever(ultimo) + '. Wired selecionado: ' + (selecionado || 'nenhum') + '. Marcadores: ' + (VL.wiredsQuarto && VL.wiredsQuarto.visivel() ? 'visíveis' : 'desligados') + '.';
         if (botaoMarcadores) botaoMarcadores.textContent = VL.wiredsQuarto && VL.wiredsQuarto.visivel() ? 'Esconder marcadores' : 'Ver wireds ocultos';
@@ -142,6 +144,10 @@
           alvo.replaceChildren(
             situacao,
             el('div', { class: 'vl-linha' }, [
+              el('button', { type: 'button', class: 'vl-botao destaque', texto: '✦ Organizar Wired Tool', onclick() { if (organizador) organizador.abrir(); } }),
+              el('span', { class: 'vl-nota', texto: 'Nomes de antenas, pilhas e anotações compartilhadas no quarto.' }),
+            ]),
+            el('div', { class: 'vl-linha' }, [
               botaoMarcadores,
               el('button', { type: 'button', class: 'vl-botao', texto: 'Copiar último salvo', onclick() { if (ultimo) { copiado = ultimo; atualizarAba(); } else camada.aviso('Salve um wired primeiro.'); } }),
               el('button', { type: 'button', class: 'vl-botao primario', texto: 'Colar no selecionado', onclick: colar }),
@@ -158,6 +164,7 @@
       ctx.comando({ nome: 'copiarwired', uso: 'copiarwired', descricao: 'Copia a configuração do último wired salvo.', executar() { if (ultimo) { copiado = ultimo; camada.aviso('Copiado: ' + descrever(copiado) + '.', { tipo: 'ok' }); } else camada.aviso('Salve um wired primeiro.', { tipo: 'erro' }); } });
       ctx.comando({ nome: 'colarwired', apelidos: ['clonarwired'], uso: 'colarwired', descricao: 'Cola a configuração copiada no wired selecionado (o último clicado).', executar: colar });
       ctx.comando({ nome: 'exportarwired', uso: 'exportarwired', descricao: 'Baixa a configuração copiada num arquivo.', executar: exportar });
+      ctx.comando({ nome: 'wirednotas', uso: 'wirednotas', descricao: 'Abre nomes e anotações do Wired Tool para o quarto.', executar() { if (organizador) organizador.abrir(); } });
     },
   });
 })(typeof globalThis !== 'undefined' ? globalThis : this);

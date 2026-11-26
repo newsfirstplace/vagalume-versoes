@@ -378,13 +378,35 @@
         },
       });
 
+      // Janela de novidades: cada item 'Título: texto' vira um cartão numerado.
+      function mostrarNovidades(versao) {
+        const itens = VL.padroes.NOVIDADES.map(function (n, i) {
+          const k = n.indexOf(':');
+          const titulo = k > 0 && k < 40 ? n.slice(0, k) : '';
+          const texto = titulo ? n.slice(k + 1).trim() : n;
+          return el('li', { class: 'vl-nov-item' }, [
+            el('span', { class: 'vl-nov-num', 'aria-hidden': 'true', texto: String(i + 1) }),
+            el('div', null, [titulo ? el('strong', { texto: titulo }) : null, el('span', { texto: texto.charAt(0).toUpperCase() + texto.slice(1) })]),
+          ]);
+        });
+        const conteudo = el('div', null, [
+          el('div', { class: 'vl-nov-topo' }, [
+            el('span', { class: 'vl-nov-ponto', 'aria-hidden': 'true' }),
+            el('div', null, [el('p', { class: 'vl-nov-titulo', texto: 'Novidades do Vagalume' }), el('p', { class: 'vl-nov-sub', texto: 'Veja o que chegou nesta atualização.' })]),
+            el('span', { class: 'vl-nov-versao', texto: 'v' + versao }),
+          ]),
+          el('ul', { class: 'vl-nov-lista' }, itens),
+        ]);
+        camada.dialogo({ titulo: 'Novidades do Vagalume ' + versao, conteudo, classe: 'vl-nov-caixa', botoes: [{ rotulo: 'Entendi, vamos lá!', valor: null, foco: true, destaque: true }] });
+      }
+
       // Novidades: uma vez por versão nova (não na primeira instalação).
       try {
         const versao = chrome.runtime.getManifest().version;
         chrome.storage.local.get('vl.versaoVista').then(function (r) {
           const vista = r && r['vl.versaoVista'];
           if (vista && vista !== versao && ctx.secao().novidades && VL.padroes.NOVIDADES.length) {
-            camada.dialogo({ titulo: 'Vagalume ' + versao, texto: 'Novidades desta versão:', detalhe: VL.padroes.NOVIDADES.map((n) => '• ' + n).join('\n') });
+            mostrarNovidades(versao);
           }
           if (vista !== versao) chrome.storage.local.set({ 'vl.versaoVista': versao });
         }).catch(function () { /* sem armazenamento: sem aviso */ });

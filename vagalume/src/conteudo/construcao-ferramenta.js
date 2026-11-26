@@ -799,6 +799,7 @@
 
     // :up negativo: a prévia nativa de colocar e mover mostra o mobi nessa altura (null volta ao normal).
     function alturaForcada(altura) { return pedirMotor('alturaForcada', { altura }); }
-    return { alturaForcada, escolherPiso, definirGuia, abrirJanela, comecarSelecao, selecionarIguais, selecionarPilha, limparSelecao, montarPainel, previaColocacao, alturasPisos };
+    function ocultarMobis(ids) { return pedirMotor('ocultar', { ids }); }
+    return { idsMarcados: idsDaSelecao, alturaForcada, ocultarMobis, escolherPiso, definirGuia, abrirJanela, comecarSelecao, selecionarIguais, selecionarPilha, limparSelecao, montarPainel, previaColocacao, alturasPisos };
   };
 })(typeof globalThis !== 'undefined' ? globalThis : this);
