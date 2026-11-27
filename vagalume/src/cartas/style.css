@@ -1,0 +1,30 @@
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{width:380px;margin:0;font:13px/1.4 system-ui,sans-serif;background:#0d2b1c;color:#eaf5ee}
+header{display:flex;justify-content:space-between;padding:8px 10px;background:#071a11;font-weight:600}
+main{padding:10px}
+#mesa{display:flex;gap:12px;align-items:center;justify-content:center;padding:12px 0}
+.pino{min-width:54px;min-height:78px;border-radius:8px}
+.monte{background:#123d28;border:2px dashed #2f7a52;color:#8fd8ae;font-weight:700;cursor:pointer}
+#log{margin:0 0 8px;padding:0 0 0 16px;min-height:52px;font-size:11px;color:#9fc4b0}
+#hand{display:flex;flex-wrap:wrap;gap:4px;justify-content:center}
+.card{width:44px;height:64px;border-radius:7px;border:2px solid rgba(0,0,0,.35);display:grid;place-items:center;font-weight:800;font-size:15px;color:#fff;background:#333;user-select:none}
+.card.big{width:54px;height:78px;font-size:18px}
+.card.rosa{background:#d63f80}
+.card.laranja{background:#e0761a}
+.card.lima{background:#6f9a12}
+.card.azul{background:#2a73c9}
+.card.wild{background:#2b2b2b}
+.card.playable{cursor:pointer;outline:2px solid #7ef2a8}
+.card.playable:hover{transform:translateY(-6px)}
+.card.dim{opacity:.55}
+footer{padding:0 10px 10px;text-align:center}
+button{font:inherit;padding:6px 12px;border-radius:6px;border:1px solid #2f7a52;background:#123d28;color:#eaf5ee;cursor:pointer}
+#overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:rgba(0,0,0,.78)}
+#colors{display:flex;gap:10px}
+#colors button{width:46px;height:46px;border-radius:50%;border:2px solid #fff}
+#colors .rosa{background:#d63f80}
+#colors .laranja{background:#e0761a}
+#colors .lima{background:#6f9a12}
+#colors .azul{background:#2a73c9}
+#result{font-size:20px;font-weight:800}

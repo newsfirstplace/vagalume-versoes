@@ -20,6 +20,9 @@
   const TABULEIROS = new Set([1356475873, 1356469514, 2100000708, 886652737, 886652738, 886647434, 886634006, 886655528, 1356476911]);
 
   const NOMES = { xadrez: 'Xadrez', damas: 'Damas', pingpong: 'Ping-pong' };
+  // Vagacartas (2026-11-27): o jogo de cartas contra a IA mandado pelo usuário, em ES modules numa página da extensão
+  // (src/cartas/), mostrada num quadro da janela. Fica fora de NOMES, que é a lista de jogos aceitos em convite.
+  const CARTAS = { id: 'cartas', nome: 'Vagacartas', glifo: '🃏', pagina: 'src/cartas/index.html' };
   const NIVEIS = [['facil', 'Fácil'], ['medio', 'Médio'], ['dificil', 'Difícil']];
   const GLIFO = { k: '♚', q: '♛', r: '♜', b: '♝', n: '♞', p: '♟' };
   const NOME_PECA = { k: 'rei', q: 'dama', r: 'torre', b: 'bispo', n: 'cavalo', p: 'peão' };
@@ -71,6 +74,9 @@
   .vl-jg-hub { display: flex; flex-direction: column; gap: 10px; }
   .vl-jg-hub .vl-jg-cartao { width: 100%; }
   .vl-jg-hub h3 { margin: 6px 0 0; }
+  .vl-jg.vl-nativo.tema-cartas { width: auto; }
+  .vl-jg.vl-nativo.tema-cartas .vl-jg-corpo { padding: 0; }
+  .vl-jg-quadro { display: block; width: 380px; height: 300px; border: 0; }
   .vl-jg-cartao small { color: #aab5c7; }
   .vl-jg-botao { padding: 9px 14px; border-radius: 10px; border: 1px solid rgba(214,242,74,.5); background: rgba(214,242,74,.14); color: #f2ffc0; cursor: pointer; font: 600 13px system-ui, sans-serif; }
   .vl-jg-botao:hover:not(:disabled) { background: rgba(214,242,74,.26); }
@@ -552,7 +558,7 @@
   // Regras de cada jogo atrás da mesma cara.
   const glifoDe = (id) => { const j = JOGOS.find((x) => x.id === id); return j ? j.glifo + (j.emoji ? '' : VS) : ''; };
   // Ícone do jogo: a peça desenhada nas damas, o símbolo nos outros.
-  const iconeJogo = (id) => (id === 'damas' ? el('span', { class: 'vl-jg-dama' }) : document.createTextNode(glifoDe(id)));
+  const iconeJogo = (id) => (id === 'damas' ? el('span', { class: 'vl-jg-dama' }) : document.createTextNode(id === CARTAS.id ? CARTAS.glifo : glifoDe(id)));
   const REGRAS = {
     xadrez: {
       novo: X.novo, jogar: X.jogar, lances: X.lances, situacao: X.situacao, melhor: X.melhorLance,
@@ -688,6 +694,14 @@
         camada.area().appendChild(janela);
       }
       ctx.aoParar(function () { if (janela) janela.remove(); janela = null; fecharChamada(); });
+      // A página do Vagacartas avisa a altura dela (src/cartas/altura.js) e o quadro acompanha, como o popup fazia.
+      const quadroCartas = () => el('iframe', { class: 'vl-jg-quadro', title: CARTAS.nome, src: chrome.runtime.getURL(CARTAS.pagina) });
+      function aoAlturaCartas(ev) {
+        const q = corpo && corpo.querySelector('.vl-jg-quadro');
+        if (q && ev.source === q.contentWindow && ev.data && ev.data.vagalume === 'cartas:altura') q.style.height = Math.min(600, Math.max(120, Number(ev.data.h) || 0)) + 'px';
+      }
+      window.addEventListener('message', aoAlturaCartas);
+      ctx.aoParar(() => window.removeEventListener('message', aoAlturaCartas));
 
       function desenhar() {
         if (partida && partida.animando) return; // a tela é refeita quando a peça pousa
@@ -699,10 +713,12 @@
         janela.classList.toggle('damas', jogo === 'damas');
         for (const c of [...janela.classList]) if (c.indexOf('tema-') === 0) janela.classList.remove(c);
         janela.classList.add('vl-nativo', 'tema-' + (jogo || 'hub'));
-        janela.querySelector('.vl-jg-titulo').textContent = jogo ? NOMES[jogo] : 'Jogos';
+        janela.querySelector('.vl-jg-titulo').textContent = jogo === CARTAS.id ? CARTAS.nome : jogo ? NOMES[jogo] : 'Jogos';
         janela.querySelector('.vl-jg-ic').replaceChildren(jogo ? iconeJogo(jogo) : document.createTextNode('🎮'));
         janela.querySelector('.vl-jg-voltar').hidden = !jogo || !!(partida && !partida.fim);
-        camada.trocar(corpo, partida ? (partida.jogo === 'pingpong' ? telaPingPong() : telaPartida()) : jogo ? telaInicio() : telaHub());
+        // O quadro do Vagacartas fica enquanto ele estiver aberto: refazer a tela recarregaria a página e a partida.
+        if (!partida && jogo === CARTAS.id) { if (!corpo.querySelector('.vl-jg-quadro')) camada.trocar(corpo, [quadroCartas()]); }
+        else camada.trocar(corpo, partida ? (partida.jogo === 'pingpong' ? telaPingPong() : telaPartida()) : jogo ? telaInicio() : telaHub());
         if (partida && partida.fim && !partida.festejado && !partida.animando) { partida.festejado = true; festejar(partida); }
       }
       function festejar(p) {
@@ -739,7 +755,7 @@
         damas: 'Regra brasileira, com dama voadora e captura obrigatória.',
         pingpong: 'Mesa em 3D: rebata com o mouse e feche em 11 pontos.',
         corrida: 'Digite a frase certinha antes de todo mundo.',
-        cartas: 'Mesma cor ou número. Esvazie a mão primeiro.',
+        cartas: 'Contra a IA: mesma cor ou número, esvazie a mão.',
         pistas: 'O mestre dá a pista e o time acha as palavras.',
         ludo: 'Tire 6, dê a volta e leve os peões ao centro.',
         sinuca: 'Bola 8 ou bola 9, com efeito e bola na mão.',
@@ -761,6 +777,8 @@
         ]);
         const doisJogadores = JOGOS.map((j) => ({ id: j.id, nome: NOMES[j.id], min: 2, max: 2, bot: true, abrir() { escolha.jogo = j.id; desenhar(); } }));
         const emGrupo = mesaApi ? Object.entries(VL.mesa.JOGOS).map(([id, j]) => ({ id, nome: j.nome, min: j.min || 2, max: j.max || j.min || 2, bot: !!(j.bots && j.bots.length), abrir() { fechar(); mesaApi.abrir(id); } })) : [];
+        // No lugar do antigo Vagacartas da mesa (o segundo da lista).
+        emGrupo.splice(Math.min(1, emGrupo.length), 0, { id: CARTAS.id, nome: CARTAS.nome, min: 2, max: 2, bot: true, abrir() { escolha.jogo = CARTAS.id; desenhar(); } });
         const destaque = emGrupo.find((j) => j.id === 'sinuca') || doisJogadores[0];
         const secao = (titulo, sub, lista, classe) => el('section', { class: 'vl-hub-sec' }, [
           el('header', null, [el('h3', { texto: titulo }), el('small', { texto: sub }), el('em', { texto: lista.length + ' jogos' })]),

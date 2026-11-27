@@ -36,6 +36,7 @@
       "resources": [
         "src/visor/visor.html",
         "src/tela/tela.html",
+        "src/cartas/index.html",
         "icones/aviso-mensagem.gif",
         "icones/conexoes/discord.svg",
         "icones/conexoes/steam.svg",
@@ -170,7 +171,6 @@
         "src/core/damas.js",
         "src/core/pingpong.js",
         "src/core/corrida.js",
-        "src/core/cartas.js",
         "src/core/pistas.js",
         "src/core/ludo.js",
         "src/core/sinuca.js",
@@ -184,7 +184,6 @@
         "src/conteudo/pingpong-tela.js",
         "src/conteudo/mesa.js",
         "src/conteudo/mesa-corrida.js",
-        "src/conteudo/mesa-cartas.js",
         "src/conteudo/mesa-pistas.js",
         "src/conteudo/mesa-ludo.js",
         "src/conteudo/mesa-sinuca.js",

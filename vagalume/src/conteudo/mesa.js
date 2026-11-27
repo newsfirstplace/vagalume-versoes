@@ -18,8 +18,8 @@
   .vl-jg.vl-ms { width: min(900px, calc(100vw - 24px)); }
   .vl-ms .vl-jg-corpo { padding: 14px 16px 16px; }
   .vl-ms-arte { position: absolute; inset: 0; pointer-events: none; }
-  .vl-jg-cartao .vl-jg-mini.corrida, .vl-jg-cartao .vl-jg-mini.cartas, .vl-jg-cartao .vl-jg-mini.pistas, .vl-jg-cartao .vl-jg-mini.ludo, .vl-jg-cartao .vl-jg-mini.sinuca,
-  .vl-jg-arte.corrida, .vl-jg-arte.cartas, .vl-jg-arte.pistas, .vl-jg-arte.ludo, .vl-jg-arte.sinuca { position: relative; overflow: hidden; -webkit-text-stroke: 0; }
+  .vl-jg-cartao .vl-jg-mini.corrida, .vl-jg-cartao .vl-jg-mini.pistas, .vl-jg-cartao .vl-jg-mini.ludo, .vl-jg-cartao .vl-jg-mini.sinuca,
+  .vl-jg-arte.corrida, .vl-jg-arte.pistas, .vl-jg-arte.ludo, .vl-jg-arte.sinuca { position: relative; overflow: hidden; -webkit-text-stroke: 0; }
   .vl-ms-convite-arte { position: relative; overflow: hidden; width: 72px; height: 72px; margin: 0 auto 10px; border-radius: 18px; font-size: 44px; box-shadow: 0 10px 22px rgba(0,0,0,.45); }
   /* Corrida: teclado com um vagalume correndo */
   .vl-jg-cartao .vl-jg-mini.corrida, .vl-jg-arte.corrida, .vl-ms-convite-arte.corrida { background: repeating-linear-gradient(0deg, transparent 0 17%, rgba(214,242,74,.13) 17% 19%), linear-gradient(160deg, #2a3346, #10141d); }
@@ -29,15 +29,6 @@
     background-size: 44% 15%, 86% 19%, 78% 19%; background-position: 50% 84%, 50% 16%, 46% 48%; background-repeat: no-repeat; }
   .vl-ms-arte.corrida .rastro { position: absolute; left: 14%; top: 17%; width: 52%; height: 9%; border-radius: 99px; background: linear-gradient(90deg, transparent, rgba(214,242,74,.75)); }
   .vl-ms-arte.corrida .luz { position: absolute; left: 60%; top: 9%; width: 24%; height: 24%; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #fbffd0, #d6f24a 55%, #6f8f10); box-shadow: 0 0 .3em #d6f24a; }
-  /* Vagacartas: leque de cartas */
-  .vl-jg-cartao .vl-jg-mini.cartas, .vl-jg-arte.cartas, .vl-ms-convite-arte.cartas { background: radial-gradient(circle at 50% 38%, #2f6a4a, #16362a 78%); }
-  .vl-ms-arte.cartas i { position: absolute; left: 50%; bottom: 13%; width: 36%; height: 56%; margin-left: -18%; border-radius: 14% / 10%; border: .045em solid #fff; transform-origin: 50% 100%; box-shadow: 0 .05em .12em rgba(0,0,0,.5); box-sizing: border-box; }
-  .vl-ms-arte.cartas i::after { content: ''; position: absolute; inset: 17% 10%; border-radius: 50%; background: rgba(255,255,255,.92); transform: rotate(-24deg); }
-  .vl-ms-arte.cartas i:nth-child(1) { background: #3a8ee8; transform: rotate(-26deg); }
-  .vl-ms-arte.cartas i:nth-child(2) { background: #f39232; transform: rotate(-9deg); }
-  .vl-ms-arte.cartas i:nth-child(3) { background: #ea5a9e; transform: rotate(9deg); }
-  .vl-ms-arte.cartas i:nth-child(4) { background: #1a1d26; transform: rotate(26deg); }
-  .vl-ms-arte.cartas i:nth-child(4)::after { background: conic-gradient(#b9dc2e 0 25%, #3a8ee8 0 50%, #ea5a9e 0 75%, #f39232 0); }
   /* Duelo de Pistas: grade de palavras */
   .vl-jg-cartao .vl-jg-mini.pistas, .vl-jg-arte.pistas, .vl-ms-convite-arte.pistas { background: linear-gradient(160deg, #2b2340, #141824); }
   .vl-ms-arte.pistas { display: grid; grid-template: repeat(3, 1fr) / repeat(3, 1fr); gap: 7%; padding: 15%; }
@@ -67,7 +58,6 @@
   .vl-ms-arte.sinuca i.b8 { left: 51%; top: 28%; background: radial-gradient(circle at 50% 50%, #fff 0 23%, #2b2b2b 25%, #050505 75%); }
   .vl-ms-arte.sinuca i.b8::after { content: '8'; position: absolute; inset: 0; display: grid; place-items: center; font: 900 .15em/1 system-ui, sans-serif; color: #111; }
   .vl-jg-heroi.corrida { background: linear-gradient(120deg, rgba(214,242,74,.26), rgba(214,242,74,0) 62%), #151a25; }
-  .vl-jg-heroi.cartas { background: linear-gradient(120deg, rgba(234,90,158,.38), rgba(243,146,50,.12) 45%, rgba(0,0,0,0) 70%), #151a25; }
   .vl-jg-heroi.pistas { background: linear-gradient(120deg, rgba(150,110,230,.4), rgba(150,110,230,0) 62%), #151a25; }
   .vl-jg-heroi.ludo { background: linear-gradient(120deg, rgba(58,142,232,.42), rgba(185,220,46,.12) 50%, rgba(0,0,0,0) 72%), #151a25; }
   .vl-jg-heroi.sinuca { background: linear-gradient(120deg, rgba(31,150,88,.5), rgba(31,150,88,0) 62%), #151a25; }
@@ -121,7 +111,6 @@
   // Desenho de cada jogo (cartão da lista de jogos, cabeçalho da sala e convite); escala pelo tamanho da caixa.
   const ARTE = {
     corrida: () => [el('i', { class: 'teclas' }), el('i', { class: 'rastro' }), el('i', { class: 'luz' })],
-    cartas: () => [el('i'), el('i'), el('i'), el('i')],
     pistas: () => ['', 'l', '', 'r', 'b', 'l', '', 'r', ''].map((c) => el('i', { class: c || null })),
     ludo: () => [el('i'), el('i'), el('i'), el('i')],
     sinuca: () => ['b0', 'b1', 'b11', 'b8'].map((c) => el('i', { class: c })),

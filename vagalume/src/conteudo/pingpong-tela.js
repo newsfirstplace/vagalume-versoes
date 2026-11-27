@@ -379,7 +379,8 @@
       const cam = (s.camera = montarCamera(W, H));
       const t = agora();
       ginasio(cam, d, W, H, t);
-      const b = bolaVisivel();
+      // Depois do ponto a bola pode rolar no chão para trás da câmera: aí ela some (a conta da tela daria raio negativo).
+      const b0 = bolaVisivel(), b = b0 && vista(b0.x, b0.y).y > cam.C.y + 0.3 ? b0 : null;
       const bolaEmbaixo = b && escondidaPelaMesa(cam, b);
       sombrasNoChao(cam, d, b);
       if (bolaEmbaixo) bola(cam, b, d);
@@ -849,9 +850,9 @@
       const t = agora();
       const dt = Math.min(0.25, t - antes); // quadros atrasados: a física recupera o tempo (em passos de 1/240 s)
       antes = t;
+      raiz.requestAnimationFrame(quadro); // antes do desenho: um erro ao desenhar não para a partida
       if (!o.encerrado() && s.fase !== 'fim' && !(o.pausado && o.pausado())) atualizar(dt);
       if (raizEl.isConnected) { desenhar(); placar(); }
-      raiz.requestAnimationFrame(quadro);
     }
     raiz.requestAnimationFrame(quadro);
     setTimeout(() => { if (raizEl.isConnected) raizEl.focus(); }, 0);
