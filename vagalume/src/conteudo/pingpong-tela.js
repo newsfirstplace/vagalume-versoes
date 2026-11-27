@@ -1,6 +1,6 @@
 // Vagalume — tela do ping-pong em 3D (pedido do usuário em 2026-11-23, com um vídeo mostrando o estilo): mesa em
 // perspectiva vista de trás de quem joga, bola em arco com sombra e marca do quique, a sua raquete grande na frente
-// seguindo o mouse (para os lados e para a frente) e o adversário no fundo. Cenário: ginásio de campeonato (quadra,
+// seguindo o mouse (para os lados e para a frente) e o adversário no fundo. Cenário: arena de campeonato em tigela (quadra,
 // placas, arquibancada com público e refletores), mesa azul com pés de metal e raquetes com espessura. Regras e física
 // em core/pingpong.js.
 // Contra o bot tudo roda aqui. Entre duas pessoas, quem recebe a bola decide o lance (rebatida, quique, rede, fora) e
@@ -23,16 +23,9 @@
   const MOTIVO = { fora: 'Fora!', rede: 'Na rede!', dois: 'Quicou duas vezes', passou: 'Passou!', proprio: 'Quicou do lado errado' };
   // Ginásio: chão da quadra (altura do piso, em metros abaixo do tampo), placas, arquibancada e público fixos.
   const CHAO = -0.76;
-  const QUADRA = { x: 4.4, y0: -1.4, y1: L + 4.6 };
-  const ARQ = { y0: L + 5.8, degrau: 0.78, alt: 0.46, fileiras: 7 };
-  const CAMISAS = ['#d8473c', '#2f6fd1', '#f0c419', '#e9ecef', '#2a9d5c', '#7b4bc4', '#f08a24', '#1b1f2a', '#4fb3d9', '#c2185b'];
-  const PELES = ['#f1c9a5', '#d9a77c', '#a8714a', '#7a4a2c', '#e8b894'];
-  const PUBLICO = [];
-  for (let k = 0; k < ARQ.fileiras; k++) for (let i = 0; i < 48; i++) {
-    const h = Math.sin(k * 91.7 + i * 12.9898) * 43758.5453, q = h - Math.floor(h);
-    if (q < 0.12) continue; // lugar vazio
-    PUBLICO.push({ k, x: -8.6 + i * 0.36 + (q - 0.5) * 0.08, camisa: CAMISAS[Math.floor(q * 97) % CAMISAS.length], pele: PELES[Math.floor(q * 53) % PELES.length], fase: q * 6.28, alto: 0.9 + q * 0.2 });
-  }
+  const QUADRA = { x: 4.6, y0: -1.4, y1: L + 5 };
+  // Tigela da arena: centro, raios do muro e o arco desenhado (o lado de trás da câmera fica de fora).
+  const ARENA = { cx: 0, cy: MEIO + 1, rx: 8.2, ry: 9.5, ang0: 0.12, ang1: Math.PI - 0.12, segmentos: 44 };
 
   function criar(o) {
     const eu = o.minhaCor, ele = P.outra(eu), bot = o.modo === 'bot';
@@ -44,7 +37,7 @@
       pontos: { w: 0, b: 0 }, fase: 'contagem', ate: agora() + 2.4, saqueDesde: 0,
       bola: null, ultimo: null, quiques: { w: 0, b: 0 }, segura: false,
       raq: { w: raqueteNova('w'), b: raqueteNova('b') },
-      rastro: [], marcas: [], efeitos: [], festa: [], aviso: null, venceu: null,
+      rastro: [], marcas: [], efeitos: [], batidas: {}, festa: [], aviso: null, venceu: null,
       botMira: null, botMiraEm: 0, botSaqueEm: 0, cam: 0, camera: null,
       teclas: new Set(), mouse: null, querSacar: false, enviadoEm: 0, enviado: null,
       mouseVista: null, empurrao: 0, lateral: 0, mira: null, miraQuique: null,
@@ -99,7 +92,7 @@
       s.bola = P.rebater(s.bola, lado, 0.62, -s.bola.x * 0.6, 0);
       novaJogada(lado);
       s.previsao = { desde: agora() };
-      anel(s.bola, false); o.som('bate');
+      anel(s.bola, false, 0.62, lado); o.som('bate');
     }
     // Atraso da rede sem a bola parar (pedido do usuário em 2026-11-26): indo para o outro jogador, a bola anda um pouco
     // mais devagar na minha tela e chega à raquete dele quando a rebatida dele já chegou aqui; voltando, anda um pouco
@@ -149,7 +142,7 @@
       }
       s.bola = P.rebater(s.bola, lado, forca, desvio, efeito);
       novaJogada(lado);
-      anel(s.bola, lado === eu);
+      anel(s.bola, lado === eu, forca, lado);
       o.som('bate');
       if (!bot && lado === eu) { o.enviar(Object.assign({ t: 'pp:bate' }, bolaParaRede(s.bola)), true); escalaIndo(); }
     }
@@ -164,7 +157,12 @@
       else avisar(MOTIVO[motivo] || (ganhou === eu ? 'Ponto seu!' : 'Ponto de ' + o.nome(ganhou)), 1.2);
       if (!bot && !placar) o.enviar({ t: 'pp:ponto', a: ganhou, pw: s.pontos.w, pb: s.pontos.b, m: motivo }, true);
     }
-    function anel(b, meu) { s.efeitos.push({ x: b.x, y: b.y, z: b.z, desde: agora(), meu }); if (s.efeitos.length > 8) s.efeitos.shift(); }
+    function anel(b, meu, forca, lado) {
+      const f = clamp(forca == null ? 0.6 : forca, 0.3, 1.2);
+      s.efeitos.push({ x: b.x, y: b.y, z: b.z, desde: agora(), meu, forca: f, faiscas: Array.from({ length: 8 + Math.round(f * 8) }, () => ({ a: sorteio(0, Math.PI * 2), v: sorteio(0.5, 1.2) })) });
+      if (s.efeitos.length > 8) s.efeitos.shift();
+      if (lado) s.batidas[lado] = agora();
+    }
     function marca(b) { s.marcas.push({ x: b.x, y: b.y, desde: agora() }); if (s.marcas.length > 6) s.marcas.shift(); }
     function festa() { for (let i = 0; i < 70; i++) s.festa.push({ x: 0.5, y: 0.45, vx: sorteio(-0.6, 0.6), vy: sorteio(-0.9, -0.1), desde: agora(), vida: sorteio(1.2, 2.4) }); }
 
@@ -180,7 +178,7 @@
         if (!b) return;
         const previsto = s.previsao && s.bola ? { x: s.bola.x, y: s.bola.y, z: s.bola.z } : null;
         s.bola = b; novaJogada(ele); s.fase = 'jogo';
-        if (d.t === 'pp:bate') { anel(b, false); o.som('bate'); } else o.som('saque');
+        if (d.t === 'pp:bate') { anel(b, false, Math.min(1.2, Math.hypot(b.vx, b.vy, b.vz) / 9), ele); o.som('bate'); } else o.som('saque');
         // Compensa o atraso da rede: a bola anda na hora o que andou do lado de lá enquanto a mensagem vinha,
         // em vez de parecer que o outro demorou para devolver.
         let resta = Number.isFinite(d.atraso) ? Math.max(0, Math.min(0.4, d.atraso)) : 0;
@@ -253,9 +251,8 @@
       const relA = antes.y - rr.py, relD = s.bola.y - rr.y;
       const cruzou = recebe === 'w' ? relA > 0 && relD <= 0 : relA < 0 && relD >= 0;
       const naZona = Math.abs(relD) <= 0.12; // a bola passa bem perto da raquete
-      // Pessoas podem rebater antes do quique (voleio); o bot espera o quique.
-      const pessoa = recebe === eu || !bot;
-      if ((cruzou || naZona) && (s.quiques[recebe] === 1 || (pessoa && s.quiques[recebe] === 0))) {
+      // Como na regra: só dá para rebater depois de a bola quicar uma vez do lado de quem recebe (sem voleio).
+      if ((cruzou || naZona) && s.quiques[recebe] === 1) {
         if (juiz) {
           const alcance = recebe === eu ? 0.25 : RAQUETE.alcance; // a sua raquete pega um pouco além da borda
           if (Math.abs(s.bola.x - rr.x) <= alcance && s.bola.z > -0.02 && s.bola.z < 0.8) { rebaterAqui(recebe); return; }
@@ -341,14 +338,15 @@
     // ---------- câmera ----------
     // Perspectiva de trás da sua ponta da mesa, olhando para a outra; p() projeta (na vista) e plano() faz o caminho
     // de volta (do ponto da tela até a altura z), para a raquete seguir o mouse.
-    function montarCamera(W, H) {
-      const C = { x: s.cam, y: -1.8, z: 1.18 }, T = { x: s.cam * 0.35, y: 1.5, z: -0.2 };
+    function montarCamera(W, H, camX) {
+      const cx = camX == null ? s.cam : camX;
+      const C = { x: cx, y: -1.8, z: 1.18 }, T = { x: cx * 0.35, y: 1.5, z: 0.5 };
       let fx = T.x - C.x, fy = T.y - C.y, fz = T.z - C.z;
       const fl = Math.hypot(fx, fy, fz); fx /= fl; fy /= fl; fz /= fl;
       let rx = fy, ry = -fx;
       const rl = Math.hypot(rx, ry); rx /= rl; ry /= rl;
       const cima = { x: ry * fz, y: -rx * fz, z: rx * fy - ry * fx }; // direita × frente
-      const foco = H * 1.32, ox = W / 2, oy = H * 0.46;
+      const foco = H * 1.05, ox = W / 2, oy = H * 0.36;
       return {
         C,
         p(x, y, z) {
@@ -392,13 +390,33 @@
       for (const lado of ['w', 'b']) { const v = vista(s.raq[lado].x, s.raq[lado].y); itens.push({ y: v.y - (lado === eu ? 0.001 : 0), f: () => raquete(cam, lado, d) }); }
       if (b && !bolaEmbaixo) itens.push({ y: vista(b.x, b.y).y, f: () => bola(cam, b, d) });
       itens.sort((a, c) => c.y - a.y).forEach((i) => i.f());
-      // Anéis das rebatidas.
-      s.efeitos = s.efeitos.filter((e) => t - e.desde < 0.35);
+      // Batidas: clarão no ponto do impacto, duas ondas, faíscas voando (tudo maior numa batida forte).
+      const DUR = 0.45;
+      s.efeitos = s.efeitos.filter((e) => t - e.desde < DUR);
       for (const e of s.efeitos) {
-        const v = vista(e.x, e.y), c = cam.p(v.x, v.y, e.z), f = (t - e.desde) / 0.35;
-        g.strokeStyle = (e.meu ? 'rgba(214,242,74,' : 'rgba(255,255,255,') + (1 - f).toFixed(2) + ')';
-        g.lineWidth = 2.5 * d;
-        g.beginPath(); g.arc(c.x, c.y, (0.03 + f * 0.14) * c.s, 0, Math.PI * 2); g.stroke();
+        const v = vista(e.x, e.y), c = cam.p(v.x, v.y, e.z), f = (t - e.desde) / DUR, tam = 0.7 + e.forca * 0.6;
+        const cor = e.meu ? '214,242,74' : '170,210,255';
+        if (f < 0.35) {
+          const k = f / 0.35, r = (0.05 + 0.13 * k) * c.s * tam;
+          const cl = g.createRadialGradient(c.x, c.y, 0, c.x, c.y, r);
+          cl.addColorStop(0, 'rgba(255,255,255,' + (0.95 * (1 - k)).toFixed(2) + ')'); cl.addColorStop(0.35, 'rgba(' + cor + ',' + (0.6 * (1 - k)).toFixed(2) + ')'); cl.addColorStop(1, 'rgba(' + cor + ',0)');
+          g.fillStyle = cl; g.fillRect(c.x - r, c.y - r, r * 2, r * 2);
+        }
+        for (const atraso of [0, 0.14]) {
+          const k = (f - atraso) / (1 - atraso);
+          if (k < 0 || k > 1) continue;
+          g.strokeStyle = 'rgba(' + (atraso ? '255,255,255' : cor) + ',' + (0.9 * (1 - k)).toFixed(2) + ')';
+          g.lineWidth = Math.max(0.5, (1 - k) * 3.5 * d * tam);
+          g.beginPath(); g.ellipse(c.x, c.y, (0.03 + k * 0.22) * c.s * tam, (0.03 + k * 0.22) * c.s * tam * 0.75, 0, 0, Math.PI * 2); g.stroke();
+        }
+        g.lineCap = 'round';
+        for (const q of e.faiscas) {
+          const dist = (0.03 + f * 0.3 * q.v) * c.s * tam, comp = (1 - f) * 0.07 * c.s * q.v * tam;
+          const cx = Math.cos(q.a), cy = Math.sin(q.a) * 0.8 + f * 0.3; // caem um pouco
+          g.strokeStyle = 'rgba(255,' + (e.meu ? 245 : 235) + ',' + (e.meu ? 170 : 210) + ',' + (1 - f).toFixed(2) + ')';
+          g.lineWidth = Math.max(0.8, (1 - f) * 2.4 * d);
+          g.beginPath(); g.moveTo(c.x + cx * (dist - comp), c.y + cy * (dist - comp)); g.lineTo(c.x + cx * dist, c.y + cy * dist); g.stroke();
+        }
       }
       // Vagalumes da vitória.
       s.festa = s.festa.filter((p) => t - p.desde < p.vida);
@@ -428,93 +446,152 @@
       if (s.fase === 'saque') { const q = sacadorAgora(); const b = P.posicaoDeSaque(q, s.raq[q].x); b.z = 0.24 + Math.sin(agora() * 4) * 0.03; return b; }
       return null;
     }
-    // Ginásio de campeonato: teto escuro com refletores, faixa do torneio, arquibancada com público, placas em volta
-    // da quadra e o piso vermelho de borracha.
-    function ginasio(cam, d, W, H, t) {
-      const fundo = g.createLinearGradient(0, 0, 0, H);
-      fundo.addColorStop(0, '#04060a'); fundo.addColorStop(0.5, '#0e131d'); fundo.addColorStop(1, '#0a0d14');
-      g.fillStyle = fundo; g.fillRect(0, 0, W, H);
-      const dentro = (q) => q.x > -W * 0.1 && q.x < W * 1.1 && q.y > -H * 0.2 && q.y < H * 1.1;
-      // Parede do fundo com a faixa do campeonato.
-      const yParede = ARQ.y0 + ARQ.fileiras * ARQ.degrau, zTopo = CHAO + ARQ.fileiras * ARQ.alt;
-      g.fillStyle = '#121826';
-      poligono([cam.p(-12, yParede, zTopo), cam.p(12, yParede, zTopo), cam.p(12, yParede, zTopo + 4), cam.p(-12, yParede, zTopo + 4)]); g.fill();
-      const fa = [cam.p(-4.6, yParede, zTopo + 0.35), cam.p(4.6, yParede, zTopo + 0.35), cam.p(4.6, yParede, zTopo + 1.05), cam.p(-4.6, yParede, zTopo + 1.05)];
-      const faixa = g.createLinearGradient(fa[0].x, 0, fa[1].x, 0);
-      faixa.addColorStop(0, '#0b2f73'); faixa.addColorStop(0.5, '#1450b8'); faixa.addColorStop(1, '#0b2f73');
-      g.fillStyle = faixa; poligono(fa); g.fill();
-      g.strokeStyle = 'rgba(255,255,255,.35)'; g.lineWidth = 1 * d; g.stroke();
-      const cf = cam.p(0, yParede, zTopo + 0.7);
-      g.font = '800 ' + Math.round(0.36 * cf.s) + 'px system-ui, "Segoe UI", sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
-      g.fillStyle = '#ffffff'; g.fillText('CAMPEONATO VAGALUME DE PING-PONG', cf.x, cf.y);
-      // Arquibancada: de trás para a frente, cada degrau com o piso, a face e o público sentado.
-      const festa = s.aviso && t - s.aviso.desde < 1.6 && s.fase !== 'contagem';
-      for (let k = ARQ.fileiras - 1; k >= 0; k--) {
-        const y = ARQ.y0 + k * ARQ.degrau, z0 = CHAO + k * ARQ.alt, z1 = z0 + ARQ.alt;
-        g.fillStyle = k % 2 ? '#1b2436' : '#202b40';
-        poligono([cam.p(-12, y, z1), cam.p(12, y, z1), cam.p(12, y + ARQ.degrau, z1), cam.p(-12, y + ARQ.degrau, z1)]); g.fill();
-        g.fillStyle = '#121a29';
-        poligono([cam.p(-12, y, z0), cam.p(12, y, z0), cam.p(12, y, z1), cam.p(-12, y, z1)]); g.fill();
-        for (const p of PUBLICO) {
-          if (p.k !== k) continue;
-          const pulo = festa ? 0.08 * Math.max(0, Math.sin(t * 11 + p.fase)) : 0.012 * Math.sin(t * 1.4 + p.fase);
-          const corpo = cam.p(p.x, y + ARQ.degrau * 0.5, z1 + 0.26 * p.alto + pulo);
-          if (!dentro(corpo)) continue;
-          const cab = cam.p(p.x, y + ARQ.degrau * 0.5, z1 + 0.6 * p.alto + pulo);
-          g.fillStyle = p.camisa;
-          g.beginPath(); g.ellipse(corpo.x, corpo.y, 0.15 * corpo.s, 0.2 * corpo.s, 0, 0, Math.PI * 2); g.fill();
-          g.fillStyle = p.pele;
-          g.beginPath(); g.arc(cab.x, cab.y, 0.085 * cab.s, 0, Math.PI * 2); g.fill();
+    // Arena de campeonato em forma de tigela: dois anéis de arquibancada com o público na penumbra, faixas de LED,
+    // escadas iluminadas e refletores no teto. Essa parte é desenhada uma vez numa tela à parte (com a câmera no meio)
+    // e copiada a cada quadro com o deslocamento da câmera; piso, placas e flashes são desenhados ao vivo.
+    let arenaCache = null;
+    function pol(c, pts) { c.beginPath(); pts.forEach((p, i) => (i ? c.lineTo(p.x, p.y) : c.moveTo(p.x, p.y))); c.closePath(); }
+    const ok = (...pts) => pts.every((p) => p.s > 0 && Number.isFinite(p.x) && Number.isFinite(p.y));
+    const tigela = (r, a, z) => ({ x: ARENA.cx + (ARENA.rx + r) * Math.cos(a), y: ARENA.cy + (ARENA.ry + r) * Math.sin(a), z });
+    function pintarArena(c, cam, W, H) {
+      const ceu = c.createLinearGradient(0, 0, 0, H);
+      ceu.addColorStop(0, '#020308'); ceu.addColorStop(0.6, '#070b16'); ceu.addColorStop(1, '#0a0e1a');
+      c.fillStyle = ceu; c.fillRect(0, 0, W, H);
+      // Piso vinho até o muro da tigela.
+      const chao = [cam.p(ARENA.rx + 1, -1.4, CHAO)]; // canto direito, arco da direita para a esquerda, canto esquerdo
+      for (let i = 0; i <= 40; i++) { const a = ARENA.ang0 - 0.1 + i * (ARENA.ang1 - ARENA.ang0 + 0.2) / 40, q = tigela(0.3, a, CHAO), p = cam.p(q.x, q.y, CHAO); if (ok(p)) chao.push(p); }
+      chao.push(cam.p(-ARENA.rx - 1, -1.4, CHAO));
+      const piso = c.createLinearGradient(0, H * 0.3, 0, H);
+      piso.addColorStop(0, '#3a101d'); piso.addColorStop(1, '#6a1f2e');
+      c.fillStyle = piso; pol(c, chao); c.fill();
+      const P3 = (r, a, z) => { const q = tigela(r, a, z); return cam.p(q.x, q.y, z); };
+      const quad = (r0, r1, a0, a1, z0, z1, cor) => { // trecho de superfície entre dois raios/alturas
+        const pts = [P3(r0, a0, z0), P3(r0, a1, z0), P3(r1, a1, z1), P3(r1, a0, z1)];
+        if (!ok(...pts)) return; c.fillStyle = cor; pol(c, pts); c.fill();
+      };
+      const N = ARENA.segmentos, a0 = ARENA.ang0, da = (ARENA.ang1 - ARENA.ang0) / N;
+      const corredor = (i) => i % 7 === 3; // escadas
+      // Teto: treliça escura em anel e as caixas de luz.
+      for (let i = 0; i < 26; i++) {
+        const a = 0.15 + i * (Math.PI - 0.3) / 25, q = { x: Math.cos(a) * 7.5, y: MEIO + 2 + Math.sin(a) * 8.5 }, p = cam.p(q.x, q.y, CHAO + 15);
+        if (!ok(p) || p.y > H * 0.6) continue;
+        const w = 0.9 * p.s, h = 0.32 * p.s;
+        const brilho = c.createRadialGradient(p.x, p.y, 0, p.x, p.y, w * 2.2);
+        brilho.addColorStop(0, 'rgba(235,240,255,.35)'); brilho.addColorStop(1, 'rgba(235,240,255,0)');
+        c.fillStyle = brilho; c.fillRect(p.x - w * 2.2, p.y - w * 2.2, w * 4.4, w * 4.4);
+        c.fillStyle = '#1a1f2c'; c.fillRect(p.x - w * 0.6, p.y - h * 0.65, w * 1.2, h * 1.3);
+        c.fillStyle = '#f6f8ff';
+        for (let k = -1; k <= 1; k++) c.fillRect(p.x + k * w * 0.36 - w * 0.14, p.y - h * 0.35, w * 0.28, h * 0.7);
+      }
+      // Anel de cima (do fundo para a frente), faixa de LED do meio, anel de baixo e o muro.
+      const fileiras = (rIni, zIni, n, alto) => {
+        for (let k = n - 1; k >= 0; k--) {
+          const r = rIni + k * 0.8, z = zIni + k * alto;
+          for (let i = 0; i < N; i++) {
+            const aa = a0 + i * da, ab = aa + da;
+            quad(r, r + 0.8, aa, ab, z, z, corredor(i) ? '#1d2436' : (k % 2 ? '#111725' : '#141b2b'));
+            quad(r, r, aa, ab, z - alto, z, '#0b101c');
+            if (corredor(i)) { const p = P3(r + 0.1, aa + da / 2, z); if (ok(p)) { c.fillStyle = 'rgba(120,200,255,.55)'; c.fillRect(p.x - 1.2, p.y - 0.6, 2.4, 1.2); } continue; }
+            for (let j = 0; j < 4; j++) { // público
+              const h = Math.sin(i * 12.9898 + k * 78.233 + j * 37.719) * 43758.5453, q = h - Math.floor(h);
+              if (q < 0.1) continue;
+              const a = aa + da * (j + 0.5) / 4, corpo = P3(r + 0.42, a, z + 0.28), cab = P3(r + 0.42, a, z + 0.62);
+              if (!ok(corpo, cab)) continue;
+              const luz = 0.3 + 0.35 * (1 - k / n) + q * 0.1; // na penumbra, mais claro perto da quadra
+              c.fillStyle = 'hsl(' + Math.floor(q * 360) + ',' + Math.floor(12 + q * 18) + '%,' + Math.floor(9 + luz * 16) + '%)';
+              c.beginPath(); c.ellipse(corpo.x, corpo.y, 0.12 * corpo.s, 0.16 * corpo.s, 0, 0, Math.PI * 2); c.fill();
+              c.fillStyle = 'hsl(24,' + Math.floor(18 + q * 15) + '%,' + Math.floor(14 + luz * 20) + '%)';
+              c.beginPath(); c.arc(cab.x, cab.y, 0.075 * cab.s, 0, Math.PI * 2); c.fill();
+            }
+          }
         }
+      };
+      const zBaixo = CHAO + 1.05, zCima = zBaixo + 10 * 0.42 + 0.9;
+      fileiras(9.2, zCima, 11, 0.5);
+      // Faixa de LED do meio (como um painel contínuo) com o nome do torneio no centro.
+      for (let i = 0; i < N; i++) {
+        const aa = a0 + i * da, ab = aa + da;
+        const pts = [P3(8.4, aa, zCima - 0.9), P3(8.4, ab, zCima - 0.9), P3(8.4, ab, zCima - 0.2), P3(8.4, aa, zCima - 0.2)];
+        if (!ok(...pts)) continue;
+        const gr = c.createLinearGradient(0, pts[3].y, 0, pts[0].y);
+        gr.addColorStop(0, '#5ee7ff'); gr.addColorStop(0.5, '#1a7fe0'); gr.addColorStop(1, '#0a2f7a');
+        c.fillStyle = gr; pol(c, pts); c.fill();
       }
-      // Sombra geral sobre a arquibancada (a luz forte fica na quadra).
-      const topoArq = cam.p(0, ARQ.y0, CHAO).y;
-      const veu = g.createLinearGradient(0, 0, 0, topoArq);
-      veu.addColorStop(0, 'rgba(4,6,10,.55)'); veu.addColorStop(1, 'rgba(4,6,10,.15)');
-      g.fillStyle = veu; g.fillRect(0, 0, W, topoArq);
-      // Piso: fora da quadra cinza-escuro, dentro borracha vermelha com linha branca em volta.
-      g.fillStyle = '#161b24';
-      poligono([cam.p(-12, -1.4, CHAO), cam.p(12, -1.4, CHAO), cam.p(12, ARQ.y0, CHAO), cam.p(-12, ARQ.y0, CHAO)]); g.fill();
-      const q = [cam.p(-QUADRA.x, QUADRA.y0, CHAO), cam.p(QUADRA.x, QUADRA.y0, CHAO), cam.p(QUADRA.x, QUADRA.y1, CHAO), cam.p(-QUADRA.x, QUADRA.y1, CHAO)];
-      const piso = g.createLinearGradient(0, q[2].y, 0, q[0].y);
-      piso.addColorStop(0, '#7a2a22'); piso.addColorStop(1, '#a8392b');
-      g.fillStyle = piso; poligono(q); g.fill();
+      const mid = P3(8.4, Math.PI / 2, zCima - 0.55);
+      if (ok(mid)) {
+        c.font = '800 ' + Math.round(0.5 * mid.s) + 'px system-ui, "Segoe UI", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+        c.fillStyle = '#ffffff'; c.fillText('VAGALUME OPEN', mid.x, mid.y);
+      }
+      fileiras(0.4, zBaixo + 0.42, 10, 0.42);
+      // Muro da tigela com faixa de LED em cima.
+      for (let i = 0; i < N; i++) {
+        const aa = a0 + i * da, ab = aa + da;
+        quad(0, 0, aa, ab, CHAO, zBaixo, '#0c1222');
+        const pts = [P3(0, aa, zBaixo - 0.3), P3(0, ab, zBaixo - 0.3), P3(0, ab, zBaixo - 0.05), P3(0, aa, zBaixo - 0.05)];
+        if (ok(...pts)) { c.fillStyle = i % 2 ? '#1e88ff' : '#2aa3ff'; pol(c, pts); c.fill(); }
+      }
+      // Névoa de luz sobre a arena.
+      const ar = c.createRadialGradient(W / 2, H * 0.1, 0, W / 2, H * 0.1, H);
+      ar.addColorStop(0, 'rgba(140,170,255,.10)'); ar.addColorStop(1, 'rgba(140,170,255,0)');
+      c.fillStyle = ar; c.fillRect(0, 0, W, H);
+    }
+    // Flashes de câmera na arquibancada: lugares fixos, cada um pisca às vezes.
+    const FLASHES = Array.from({ length: 36 }, (_, i) => { const h = Math.sin(i * 91.17) * 43758.5453, q = h - Math.floor(h); return { r: 1 + q * 16, a: ARENA.ang0 + 0.2 + ((i * 0.618) % 1) * (ARENA.ang1 - ARENA.ang0 - 0.4), z: 0, fase: q * 40 }; });
+    FLASHES.forEach((f) => { f.z = f.r < 8.4 ? CHAO + 1.6 + (f.r / 8) * 4 : CHAO + 7 + ((f.r - 9) / 8) * 5; });
+    function ginasio(cam, d, W, H, t) {
+      const margem = Math.round(W * 0.12);
+      if (!arenaCache || arenaCache.w !== W || arenaCache.h !== H) {
+        const tela = document.createElement('canvas'); tela.width = W + margem * 2; tela.height = H;
+        const ctx = tela.getContext('2d');
+        if (ctx) pintarArena(ctx, montarCamera(W + margem * 2, H, 0), W + margem * 2, H);
+        arenaCache = { w: W, h: H, tela, cam: montarCamera(W + margem * 2, H, 0) };
+      }
+      // Deslocamento da câmera: casa um ponto do fundo da arena entre a câmera fixa e a de agora.
+      const ref = { x: 0, y: ARENA.cy + ARENA.ry + 5, z: CHAO + 5 };
+      const vivo = cam.p(ref.x, ref.y, ref.z), fixo = arenaCache.cam.p(ref.x, ref.y, ref.z);
+      g.drawImage(arenaCache.tela, Math.round(vivo.x - fixo.x) - margem + 0, Math.round(vivo.y - fixo.y));
+      for (const f of FLASHES) {
+        const k = Math.sin(t * 0.7 + f.fase);
+        if (k < 0.985) continue;
+        const q = tigela(f.r, f.a, f.z), p = cam.p(q.x, q.y, f.z);
+        if (!ok(p)) continue;
+        const r = 9 * d * (k - 0.985) / 0.015;
+        const br = g.createRadialGradient(p.x, p.y, 0, p.x, p.y, r);
+        br.addColorStop(0, 'rgba(255,255,255,.95)'); br.addColorStop(1, 'rgba(255,255,255,0)');
+        g.fillStyle = br; g.fillRect(p.x - r, p.y - r, r * 2, r * 2);
+      }
       const cm = cam.p(0, MEIO, CHAO);
-      const reflexo = g.createRadialGradient(cm.x, cm.y, 0, cm.x, cm.y, W * 0.45);
-      reflexo.addColorStop(0, 'rgba(255,240,220,.16)'); reflexo.addColorStop(1, 'rgba(255,240,220,0)');
-      g.fillStyle = reflexo; poligono(q); g.fill();
-      // Placas de publicidade em volta da quadra (fundo e laterais).
-      const hp = 0.72;
-      for (const x of [-QUADRA.x, QUADRA.x]) {
-        g.fillStyle = '#0c2556';
-        poligono([cam.p(x, QUADRA.y0, CHAO), cam.p(x, QUADRA.y1, CHAO), cam.p(x, QUADRA.y1, CHAO + hp), cam.p(x, QUADRA.y0, CHAO + hp)]); g.fill();
-        const a = cam.p(x, QUADRA.y0, CHAO + hp), b = cam.p(x, QUADRA.y1, CHAO + hp);
-        g.strokeStyle = 'rgba(255,255,255,.35)'; g.lineWidth = 1.2 * d; g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke();
-      }
-      const n = 6, larg = (2 * QUADRA.x) / n;
-      for (let i = 0; i < n; i++) {
-        const x0 = -QUADRA.x + i * larg, x1 = x0 + larg;
-        g.fillStyle = i % 2 ? '#0f3b8f' : '#c62f2f';
-        poligono([cam.p(x0, QUADRA.y1, CHAO), cam.p(x1, QUADRA.y1, CHAO), cam.p(x1, QUADRA.y1, CHAO + hp), cam.p(x0, QUADRA.y1, CHAO + hp)]); g.fill();
-        const c = cam.p((x0 + x1) / 2, QUADRA.y1, CHAO + hp / 2);
-        g.font = '800 ' + Math.max(6, Math.round(0.26 * c.s)) + 'px system-ui, "Segoe UI", sans-serif';
-        g.fillStyle = '#ffffff'; g.fillText(i % 2 ? 'VAGALUME' : 'OPEN', c.x, c.y);
-      }
-      const ta = cam.p(-QUADRA.x, QUADRA.y1, CHAO + hp), tb = cam.p(QUADRA.x, QUADRA.y1, CHAO + hp);
-      g.strokeStyle = 'rgba(255,255,255,.4)'; g.lineWidth = 1.2 * d; g.beginPath(); g.moveTo(ta.x, ta.y); g.lineTo(tb.x, tb.y); g.stroke();
-      // Refletores do teto e o brilho deles no ar.
-      for (const y of [-0.6, 1.2, 3.0, 4.8]) for (const x of [-2.4, 2.4]) {
-        const c = cam.p(x, y, 4.4);
-        if (c.s <= 0 || c.y < -H * 0.3 || c.y > H * 0.5) continue;
-        const r = 1.3 * c.s;
-        const luz = g.createRadialGradient(c.x, c.y, 0, c.x, c.y, r);
-        luz.addColorStop(0, 'rgba(255,250,235,.55)'); luz.addColorStop(0.15, 'rgba(255,245,220,.18)'); luz.addColorStop(1, 'rgba(255,245,220,0)');
-        g.fillStyle = luz; g.fillRect(c.x - r, c.y - r, r * 2, r * 2);
-        g.fillStyle = '#fffdf4'; g.fillRect(c.x - 0.22 * c.s, c.y - 0.05 * c.s, 0.44 * c.s, 0.1 * c.s);
-      }
-      const ar = g.createRadialGradient(W / 2, 0, 0, W / 2, 0, H * 0.9);
-      ar.addColorStop(0, 'rgba(255,248,230,.10)'); ar.addColorStop(1, 'rgba(255,248,230,0)');
-      g.fillStyle = ar; g.fillRect(0, 0, W, H);
+      const reflexo = g.createRadialGradient(cm.x, cm.y, 0, cm.x, cm.y, W * 0.5);
+      reflexo.addColorStop(0, 'rgba(255,225,235,.14)'); reflexo.addColorStop(1, 'rgba(255,225,235,0)');
+      g.fillStyle = reflexo; g.fillRect(0, 0, W, H);
+      // Placas em volta da área de jogo: painéis azuis com faixas coloridas e o nome.
+      const hp = 0.8;
+      const painel = (pA, pB, rot) => { // pA, pB: pontas de baixo (x, y) do painel
+        const P = (u, v) => cam.p(pA.x + (pB.x - pA.x) * u, pA.y + (pB.y - pA.y) * u, CHAO + hp * v);
+        const base = [P(0, 0), P(1, 0), P(1, 1), P(0, 1)];
+        if (!ok(...base)) return;
+        const gr = g.createLinearGradient(base[0].x, 0, base[1].x, 0);
+        gr.addColorStop(0, '#0f3fb8'); gr.addColorStop(1, '#2d72f0');
+        g.fillStyle = gr; poligono(base); g.fill();
+        g.save(); poligono(base); g.clip();
+        for (const [u, larg, cor] of [[0.05, 0.12, '#ff3d8b'], [0.2, 0.06, '#22d3ee'], [0.62, 0.1, '#8b5cf6'], [0.78, 0.05, '#ff3d8b']]) {
+          g.fillStyle = cor; poligono([P(u, 0), P(u + larg, 0), P(u + larg + 0.12, 1), P(u + 0.12, 1)]); g.fill();
+        }
+        g.restore();
+        if (rot) {
+          const c = P(0.5, 0.5);
+          g.font = 'italic 800 ' + Math.max(6, Math.round(0.24 * c.s)) + 'px system-ui, "Segoe UI", sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+          g.lineWidth = Math.max(1, 0.05 * c.s); g.strokeStyle = 'rgba(5,20,60,.6)'; g.strokeText(rot, c.x, c.y);
+          g.fillStyle = '#ffffff'; g.fillText(rot, c.x, c.y);
+          const pt = P(0.1, 0.5);
+          g.fillStyle = '#d6f24a'; g.beginPath(); g.arc(pt.x, pt.y, 0.08 * pt.s, 0, Math.PI * 2); g.fill();
+        }
+        const t1 = P(0, 1), t2 = P(1, 1);
+        g.strokeStyle = 'rgba(255,255,255,.5)'; g.lineWidth = 1 * d; g.beginPath(); g.moveTo(t1.x, t1.y); g.lineTo(t2.x, t2.y); g.stroke();
+      };
+      const fx = QUADRA.x, y1 = QUADRA.y1, n = 5, larg = (2 * fx) / n;
+      for (const x of [-fx, fx]) for (let i = 0; i < 4; i++) { const ya = QUADRA.y0 + i * (y1 - QUADRA.y0) / 4, yb = ya + (y1 - QUADRA.y0) / 4; painel({ x, y: ya }, { x, y: yb }, ''); }
+      for (let i = 0; i < n; i++) painel({ x: -fx + i * larg, y: y1 }, { x: -fx + (i + 1) * larg, y: y1 }, i % 2 ? 'OPEN' : 'VAGALUME');
     }
     // A mesa esconde a bola quando ela está abaixo do tampo e a linha da câmera até ela atravessa o tampo.
     function escondidaPelaMesa(cam, b) {
@@ -659,9 +736,11 @@
       const vxVista = eu === 'b' ? -rq.vx : rq.vx;
       const giro = clamp(vxVista * 0.07 + v.x * 0.6, -0.9, 0.9);
       const rx = rb * 0.92 * Math.max(0.4, Math.cos(giro)), ry = rb, esp = rb * 0.24 * Math.sin(giro);
+      const pulso = s.batidas[lado] ? Math.max(0, 1 - (agora() - s.batidas[lado]) / 0.2) : 0;
       g.save();
       g.globalAlpha = minha ? 0.8 : 1;
       g.translate(c.x, c.y);
+      if (pulso) g.scale(1 + 0.12 * pulso, 1 + 0.12 * pulso);
       g.rotate(clamp(vxVista * 0.05, -0.45, 0.45));
       // Cabo: um lado mais escuro (a espessura) e a frente com veios.
       const cabo = (dx, claro) => {
@@ -709,6 +788,7 @@
       g.restore();
       g.strokeStyle = 'rgba(0,0,0,.4)'; g.lineWidth = Math.max(1, rb * 0.025);
       g.beginPath(); g.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2); g.stroke();
+      if (pulso) { g.fillStyle = 'rgba(255,255,255,' + (0.4 * pulso).toFixed(2) + ')'; g.beginPath(); g.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2); g.fill(); }
       g.restore();
     }
     // Bola: rastro, esfera com luz de cima e, quando espera a resposta do outro, um anel pulsando.
