@@ -91,7 +91,6 @@
       let v = null, bolas = [], tiroVisto = null, animacao = null, enviado = false, soltarEnvio = null;
       let mira = 0, puxando = null, forca = 0, giro = { topo: 0, lado: 0 }, colocando = false, brancaLocal = null, colocValida = true;
       let cacapaEscolhida = null, sugestao = null, mouse = null, sujo = true, rodando = false, fundo = null, fundoModo = null;
-      const sprites = new Map();
       let cestaMostrada = [];
 
       // ---------- desenho ----------
@@ -144,26 +143,79 @@
       }
       const perto = (x, y) => [[0, 0], [S.W, 0], [0, S.H], [S.W, S.H]].some(([a, b]) => Math.hypot(x - a, y - b) < 9);
       function arredondado(f, x, y, w, h, r) { f.beginPath(); f.moveTo(x + r, y); f.arcTo(x + w, y, x + w, y + h, r); f.arcTo(x + w, y + h, x, y + h, r); f.arcTo(x, y + h, x, y, r); f.arcTo(x, y, x + w, y, r); f.closePath(); }
-      function sprite(id) {
-        if (sprites.has(id)) return sprites.get(id);
-        const rp = S.R * K, tam = Math.ceil(rp * 2 + 4), c = document.createElement('canvas');
+      // ---------- bolas que rolam ----------
+      // Cada bola guarda onde está o número (q) e o eixo da listra (p), vetores na esfera (z aponta para quem olha).
+      // Andando uma distância d, a bola gira d/R em volta do eixo deitado perpendicular ao caminho: o número e a listra
+      // rolam junto. A bola é pintada ponto a ponto (luz, brilho, faixa, círculo do número) num canvas pequeno.
+      const giros = new Map();
+      const LUZ = (() => { const v = [-0.45, -0.55, 0.7], m = Math.hypot(...v); return v.map((x) => x / m); })();
+      const MEIO = (() => { const v = [LUZ[0], LUZ[1], LUZ[2] + 1], m = Math.hypot(...v); return v.map((x) => x / m); })();
+      const rgb = (hex) => [1, 3, 5].map((k) => parseInt(hex.slice(k, k + 2), 16));
+      const norm = (v) => { const m = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / m, v[1] / m, v[2] / m]; };
+      function orientacao(id) {
+        let o = giros.get(id);
+        if (o) return o;
+        const ang = id * 0.9, q = norm([0.4 * Math.cos(ang), 0.4 * Math.sin(ang), 0.9]);
+        const ref = [Math.cos(ang + 1.3), Math.sin(ang + 1.3), 0];
+        const p = norm([q[1] * ref[2] - q[2] * ref[1], q[2] * ref[0] - q[0] * ref[2], q[0] * ref[1] - q[1] * ref[0]]);
+        const tam = Math.ceil(S.R * K * 2 + 4), c = document.createElement('canvas');
         c.width = c.height = tam;
-        const f = c.getContext('2d'), m = tam / 2;
-        f.save(); f.beginPath(); f.arc(m, m, rp, 0, Math.PI * 2); f.clip();
-        f.fillStyle = id === 0 || listrada(id) ? '#f4f1e6' : corDe(id); f.fillRect(0, 0, tam, tam);
-        if (listrada(id)) { f.fillStyle = corDe(id); f.fillRect(0, m - rp * 0.56, tam, rp * 1.12); }
-        if (id) {
-          f.fillStyle = '#fbfaf5'; f.beginPath(); f.arc(m, m, rp * 0.48, 0, Math.PI * 2); f.fill();
-          f.fillStyle = '#15171c'; f.font = '800 ' + Math.round(rp * (id > 9 ? 0.56 : 0.66)) + 'px system-ui, sans-serif'; f.textAlign = 'center'; f.textBaseline = 'middle'; f.fillText(String(id), m, m + rp * 0.05);
+        const ctx = c.getContext('2d');
+        o = { q, p, versao: 1, feita: 0, c, ctx, img: ctx.createImageData(tam, tam), cor: rgb(corDe(id)) };
+        giros.set(id, o);
+        return o;
+      }
+      function rolar(id, dx, dy) {
+        const d = Math.hypot(dx, dy);
+        if (d < 1e-4) return;
+        const o = orientacao(id), ux = dx / d, uy = dy / d, f = d / S.R, cs = Math.cos(f), sn = Math.sin(f);
+        for (const k of ['q', 'p']) {
+          const v = o[k], vu = v[0] * ux + v[1] * uy, px0 = v[0] - vu * ux, py0 = v[1] - vu * uy;
+          const nu = vu * cs + v[2] * sn, nz = -vu * sn + v[2] * cs;
+          o[k] = norm([px0 + nu * ux, py0 + nu * uy, nz]);
         }
-        const luz = f.createRadialGradient(m - rp * 0.35, m - rp * 0.4, rp * 0.1, m, m, rp * 1.05);
-        luz.addColorStop(0, 'rgba(255,255,255,.35)'); luz.addColorStop(0.45, 'rgba(255,255,255,0)'); luz.addColorStop(0.85, 'rgba(0,0,0,.18)'); luz.addColorStop(1, 'rgba(0,0,0,.5)');
-        f.fillStyle = luz; f.fillRect(0, 0, tam, tam);
-        f.fillStyle = 'rgba(255,255,255,.85)'; f.beginPath(); f.ellipse(m - rp * 0.38, m - rp * 0.42, rp * 0.2, rp * 0.13, -0.6, 0, Math.PI * 2); f.fill();
-        f.restore();
-        f.strokeStyle = 'rgba(0,0,0,.35)'; f.lineWidth = 1; f.beginPath(); f.arc(m, m, rp - 0.5, 0, Math.PI * 2); f.stroke();
-        sprites.set(id, c);
-        return c;
+        o.versao++;
+      }
+      function rolarAte(novas) {
+        const antes = new Map(bolas.map((b) => [b.id, b]));
+        for (const b of novas) {
+          const a = antes.get(b.id);
+          if (!a || a.fora || b.fora) continue;
+          const dx = b.x - a.x, dy = b.y - a.y;
+          if (Math.hypot(dx, dy) < 25) rolar(b.id, dx, dy);
+        }
+      }
+      function desenhoDaBola(id) {
+        const o = orientacao(id);
+        if (o.feita === o.versao) return o.c;
+        const tam = o.c.width, m = tam / 2, r = S.R * K, d = o.img.data, branco = [244, 241, 230], lista = listrada(id);
+        for (let py = 0; py < tam; py++) for (let qx = 0; qx < tam; qx++) {
+          const k = (py * tam + qx) * 4, dx = (qx + 0.5 - m) / r, dy = (py + 0.5 - m) / r, rr = dx * dx + dy * dy;
+          if (rr >= 1) { d[k + 3] = 0; continue; }
+          const nz = Math.sqrt(1 - rr);
+          let base = id === 0 ? branco : o.cor;
+          if (lista && Math.abs(dx * o.p[0] + dy * o.p[1] + nz * o.p[2]) > 0.56) base = branco;
+          const nq = dx * o.q[0] + dy * o.q[1] + nz * o.q[2];
+          if (id !== 0 && nq > 0.9) base = branco;
+          if (id === 0 && nq > 0.975) base = [205, 40, 40]; // ponto vermelho na branca: dá para ver ela rolar
+          const lam = Math.max(0, dx * LUZ[0] + dy * LUZ[1] + nz * LUZ[2]), luz = 0.42 + 0.62 * lam;
+          const brilho = Math.pow(Math.max(0, dx * MEIO[0] + dy * MEIO[1] + nz * MEIO[2]), 46) * 0.95;
+          d[k] = Math.min(255, base[0] * luz + 255 * brilho); d[k + 1] = Math.min(255, base[1] * luz + 255 * brilho); d[k + 2] = Math.min(255, base[2] * luz + 255 * brilho);
+          d[k + 3] = Math.round(255 * Math.max(0, Math.min(1, (1 - Math.sqrt(rr)) * r * 1.6)));
+        }
+        o.ctx.putImageData(o.img, 0, 0);
+        // O número no círculo, achatado conforme o círculo vira para o lado.
+        if (id !== 0 && o.q[2] > 0.3) {
+          const g2 = o.ctx, ang = Math.atan2(o.q[1], o.q[0]);
+          g2.save();
+          g2.translate(m + o.q[0] * r, m + o.q[1] * r);
+          g2.rotate(ang); g2.scale(o.q[2], 1); g2.rotate(-ang);
+          g2.fillStyle = '#15171c'; g2.font = '800 ' + Math.round(r * (id > 9 ? 0.5 : 0.6)) + 'px system-ui, sans-serif'; g2.textAlign = 'center'; g2.textBaseline = 'middle';
+          g2.fillText(String(id), 0, r * 0.04);
+          g2.restore();
+        }
+        o.feita = o.versao;
+        return o.c;
       }
       // Bola que a branca acerta primeiro (ou a tabela) na direção da mira.
       function guia(bs, cx, cy, ang) {
@@ -268,7 +320,7 @@
         }
         for (const b of bs) {
           if (b.fora) continue;
-          const s = sprite(b.id);
+          const s = desenhoDaBola(b.id);
           if (b.id === 0 && vez && colocando) g.globalAlpha = colocValida ? 0.8 : 0.4;
           g.drawImage(s, px(b.x) - s.width / 2, px(b.y) - s.height / 2);
           g.globalAlpha = 1;
@@ -283,7 +335,7 @@
       function quadro(agora) {
         if (!raizEl.isConnected) { rodando = false; return; }
         try {
-          if (animacao) avancar(agora);
+          if (animacao) avancar();
           if (animacao || sujo || (minhaVez() && (v.precisa8 || v.naMao))) pintar();
         } catch (e) { console.error('[Vagalume] sinuca:', e); animacao = null; } // um erro não pode parar o desenho
         requestAnimationFrame(quadro);
@@ -297,11 +349,13 @@
         api.som('taco', tiro.forca);
         ligar();
       }
-      function avancar(agora) {
+      function avancar() {
+        // O quadro vem do relógio agora (o horário do quadro de desenho pode ser um pouco anterior à tacada).
         const a = animacao, n = a.quadros.length;
-        const i = Math.min(n - 1, Math.floor((agora - a.t0) / (1000 / 60)));
+        const i = Math.max(0, Math.min(n - 1, Math.floor((performance.now() - a.t0) / (1000 / 60))));
         if (i - a.visto <= 12) for (let k = Math.max(0, a.visto + 1); k <= i; k++) tocarSons(a.quadros[k].s);
         a.visto = i;
+        rolarAte(a.quadros[i].b);
         bolas = a.quadros[i].b;
         if (i >= n - 1) { animacao = null; bolas = v ? v.bolas : bolas; prepararVez(); textos(); }
       }

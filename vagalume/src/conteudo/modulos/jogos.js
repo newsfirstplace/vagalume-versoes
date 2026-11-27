@@ -249,7 +249,142 @@
   @keyframes vl-jg-faixa { 0% { opacity: 0; transform: translate(-50%, -50%) scale(.3); } 12% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); } 20% { transform: translate(-50%, -50%) scale(1); } 82% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -60%) scale(1); } }
   @media (prefers-reduced-motion: reduce) { .vl-jg-festa-faixa { animation: none; } }
   @media (prefers-reduced-motion: reduce) { .vl-jg-peca.nova, .vl-jg-disco.nova, .vl-jg-chamada, .vl-jg-chamada-anel::before, .vl-jg-chamada-anel::after { animation: none; } }
+  `;  // Cada jogo com cara de jogo de verdade (pedido do usuário em 2026-11-27): janela, barra, capa da tela de abertura,
+  // botões e cores próprios de cada um, sem o visual do painel do Vagalume. As cores ficam em variáveis por tema.
+  const CSS_NATIVO = `
+  .vl-jg.vl-nativo { --n-fundo: #10131b; --n-barra: rgba(0,0,0,.35); --n-borda: rgba(255,255,255,.12); --n-texto: #f3f5fa; --n-suave: #a9b2c3;
+    --n-acento: #d6f24a; --n-acento-texto: #1a2108; --n-acento-sombra: #7d8f1f; --n-cartao: rgba(255,255,255,.05); --n-cartao-borda: rgba(255,255,255,.1);
+    --n-titulo-fonte: 800 15px/1 system-ui, 'Segoe UI', sans-serif; --n-titulo-cor: #fff; --n-logo-fonte: 900 40px/1 system-ui, 'Segoe UI', sans-serif; --n-logo-cor: #fff; --n-logo-sombra: 0 4px 0 rgba(0,0,0,.35);
+    --n-capa: linear-gradient(135deg, #1d2333, #10131b); --n-ultimo: rgba(255,214,90,.45);
+    width: min(960px, calc(100vw - 24px)); background: var(--n-fundo); color: var(--n-texto); border: 1px solid var(--n-borda); border-radius: 20px; box-shadow: 0 30px 90px rgba(0,0,0,.7), 0 0 0 1px rgba(0,0,0,.6); }
+  .vl-jg.vl-nativo .vl-jg-cab { background: var(--n-barra); border-bottom: 1px solid var(--n-borda); padding: 9px 14px; }
+  .vl-jg.vl-nativo .vl-jg-cab b { font: var(--n-titulo-fonte); letter-spacing: 1.5px; text-transform: uppercase; color: var(--n-titulo-cor); }
+  .vl-jg.vl-nativo .vl-jg-cab .vl-jg-ic { width: auto; background: none; box-shadow: none; color: var(--n-titulo-cor); font-size: 20px; }
+  .vl-jg.vl-nativo .vl-jg-cab button { width: 30px; height: 30px; border-radius: 50%; background: rgba(255,255,255,.08); border: 1px solid var(--n-borda); color: var(--n-texto); }
+  .vl-jg.vl-nativo .vl-jg-cab button:hover { background: var(--n-acento); color: var(--n-acento-texto); }
+  .vl-jg.vl-nativo h3, .vl-jg.vl-nativo .vl-jg-nota, .vl-jg.vl-nativo .vl-jg-rotulo, .vl-jg.vl-nativo small { color: var(--n-suave); }
+  .vl-jg.vl-nativo .vl-jg-botao { border-radius: 12px; background: rgba(255,255,255,.07); border: 1px solid var(--n-cartao-borda); color: var(--n-texto); font-weight: 700; }
+  .vl-jg.vl-nativo .vl-jg-botao:hover:not(:disabled) { background: rgba(255,255,255,.14); }
+  .vl-jg.vl-nativo .vl-jg-botao.forte { background: var(--n-acento); border-color: var(--n-acento); color: var(--n-acento-texto); box-shadow: 0 4px 0 var(--n-acento-sombra), 0 10px 20px rgba(0,0,0,.35); text-transform: uppercase; letter-spacing: .6px; font-weight: 900; }
+  .vl-jg.vl-nativo .vl-jg-botao.forte:hover:not(:disabled) { background: var(--n-acento); filter: brightness(1.08); transform: translateY(-1px); }
+  .vl-jg.vl-nativo .vl-jg-botao.forte:active:not(:disabled) { transform: translateY(3px); box-shadow: 0 1px 0 var(--n-acento-sombra); }
+  .vl-jg.vl-nativo .vl-jg-seg { background: rgba(0,0,0,.3); border-color: var(--n-cartao-borda); }
+  .vl-jg.vl-nativo .vl-jg-seg button { color: var(--n-suave); }
+  .vl-jg.vl-nativo .vl-jg-seg button[aria-pressed="true"] { background: var(--n-acento); color: var(--n-acento-texto); box-shadow: 0 2px 0 var(--n-acento-sombra); }
+  .vl-jg.vl-nativo .vl-jg-bloco, .vl-jg.vl-nativo .vl-jg-rodape { background: var(--n-cartao); border-color: var(--n-cartao-borda); border-radius: 18px; }
+  .vl-jg.vl-nativo .vl-jg-bloco-cab .ic { background: rgba(255,255,255,.08); box-shadow: inset 0 0 0 1px var(--n-cartao-borda); }
+  .vl-jg.vl-nativo .vl-jg-bloco-cab h3 { color: var(--n-texto); font-weight: 800; }
+  .vl-jg.vl-nativo .vl-jg-linha-pessoa { background: rgba(255,255,255,.05); }
+  .vl-jg.vl-nativo .vl-jg-fato { background: rgba(0,0,0,.3); border-color: var(--n-cartao-borda); color: var(--n-texto); }
+  .vl-jg.vl-nativo .vl-jg-fato::before { background: var(--n-acento); box-shadow: 0 0 6px var(--n-acento); }
+  .vl-jg.vl-nativo .vl-jg-trocar { color: var(--n-acento); }
+  /* Tela de abertura: a capa do jogo. */
+  .vl-jg.vl-nativo .vl-jg-heroi { min-height: 168px; padding: 22px 26px; border: 0; border-radius: 18px; background: var(--n-capa); box-shadow: inset 0 0 0 1px var(--n-cartao-borda), 0 12px 30px rgba(0,0,0,.35); }
+  .vl-jg.vl-nativo .vl-jg-heroi::after { display: none; }
+  .vl-jg.vl-nativo .vl-jg-heroi h2 { font: var(--n-logo-fonte); color: var(--n-logo-cor); text-shadow: var(--n-logo-sombra); letter-spacing: 1px; text-transform: uppercase; margin: 0 0 10px; }
+  .vl-jg.vl-nativo .vl-jg-heroi p { color: var(--n-texto); opacity: .86; }
+  .vl-jg.vl-nativo .vl-jg-arte { width: 112px; height: 112px; border-radius: 24px; font-size: 70px; }
+  /* Partida: jogadores, relógio, estado, lances, resultado. */
+  .vl-jg.vl-nativo .vl-jg-jogador { background: var(--n-cartao); border-color: var(--n-cartao-borda); }
+  .vl-jg.vl-nativo .vl-jg-jogador.vez { border-color: var(--n-acento); background: color-mix(in srgb, var(--n-acento) 14%, transparent); box-shadow: 0 0 18px color-mix(in srgb, var(--n-acento) 30%, transparent); }
+  .vl-jg.vl-nativo .vl-jg-relogio { background: rgba(0,0,0,.4); border-color: var(--n-cartao-borda); color: var(--n-texto); }
+  .vl-jg.vl-nativo .vl-jg-relogio.ativo { background: var(--n-acento); border-color: var(--n-acento); color: var(--n-acento-texto); }
+  .vl-jg.vl-nativo .vl-jg-estado { color: var(--n-texto); background: rgba(0,0,0,.3); }
+  .vl-jg.vl-nativo .vl-jg-lances { background: rgba(0,0,0,.28); }
+  .vl-jg.vl-nativo .vl-jg-lances .ult { color: var(--n-acento); }
+  .vl-jg.vl-nativo .vl-jg-casa.ultimo::before { background: var(--n-ultimo); }
+  .vl-jg.vl-nativo .vl-jg-casa.selecionada::before { background: var(--n-ultimo); box-shadow: inset 0 0 0 3px rgba(255,255,255,.75); }
+  .vl-jg.vl-nativo .vl-ms-res { background: linear-gradient(180deg, color-mix(in srgb, var(--n-acento) 16%, transparent), transparent); border-color: color-mix(in srgb, var(--n-acento) 45%, transparent); }
+  .vl-jg.vl-nativo .vl-ms-res h3 { color: var(--n-texto); }
+  .vl-jg.vl-nativo .vl-ms-tag { background: color-mix(in srgb, var(--n-acento) 20%, transparent); color: var(--n-texto); border-color: color-mix(in srgb, var(--n-acento) 45%, transparent); }
+  .vl-jg.vl-nativo .vl-ms-espera { background: color-mix(in srgb, var(--n-acento) 10%, transparent); border-color: color-mix(in srgb, var(--n-acento) 35%, transparent); color: var(--n-texto); }
+  .vl-jg.vl-nativo .vl-ms-espera i { background: var(--n-acento); box-shadow: 0 0 10px var(--n-acento); }
+  .vl-jg.vl-nativo .vl-sn-modo { background: var(--n-acento); color: var(--n-acento-texto); }
+  .vl-jg.vl-nativo .vl-sn-jog.vez, .vl-jg.vl-nativo .vl-ld-jog.vez { border-color: var(--n-acento); box-shadow: 0 0 0 1px var(--n-acento), 0 0 18px color-mix(in srgb, var(--n-acento) 35%, transparent); }
+  .vl-jg.vl-nativo .vl-sn-baixo b, .vl-jg.vl-nativo .vl-ld-msg b, .vl-jg.vl-nativo .vl-vc-msg b { color: var(--n-acento); }
+  .vl-jg.vl-nativo .vl-cr-rodada { background: color-mix(in srgb, var(--n-acento) 18%, transparent); border-color: color-mix(in srgb, var(--n-acento) 50%, transparent); color: var(--n-texto); }
+  .vl-jg.vl-nativo .vl-cr-meu b { color: var(--n-acento); text-shadow: 0 0 12px color-mix(in srgb, var(--n-acento) 50%, transparent); }
+  .vl-jg.vl-nativo .vl-pp-pontos { color: var(--n-acento); text-shadow: 0 0 12px color-mix(in srgb, var(--n-acento) 60%, transparent); font-family: ui-monospace, Consolas, monospace; }
+  .vl-jg.vl-nativo .vl-pp-estado { color: var(--n-texto); }
+  /* Lista de jogos: um fliperama com as capas. */
+  .vl-jg.vl-nativo.tema-hub { --n-fundo: radial-gradient(ellipse at 50% -10%, #3b2f7a 0%, #1a1640 45%, #0c0a1f 100%); --n-barra: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,0));
+    --n-borda: rgba(255,207,58,.3); --n-acento: #ffcf3a; --n-acento-texto: #2b1d00; --n-acento-sombra: #b07d00; --n-titulo-fonte: 900 16px/1 system-ui, sans-serif; --n-titulo-cor: #ffe08a; }
+  .vl-jg.vl-nativo.tema-hub .vl-jg-hub { display: grid; grid-template-columns: repeat(auto-fill, minmax(196px, 1fr)); gap: 14px; }
+  .vl-jg.vl-nativo.tema-hub .vl-jg-hub > p, .vl-jg.vl-nativo.tema-hub .vl-jg-hub > h3 { grid-column: 1 / -1; margin: 2px 0 0; }
+  .vl-jg.vl-nativo.tema-hub .vl-jg-hub > h3 { font: 900 13px system-ui, sans-serif; letter-spacing: 2.5px; color: #ffcf3a; }
+  .vl-jg.vl-nativo.tema-hub .vl-jg-cartao { flex-direction: column; align-items: stretch; gap: 0; padding: 0; overflow: hidden; border-radius: 18px; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1); box-shadow: 0 10px 24px rgba(0,0,0,.35); transition: transform .15s, box-shadow .15s; }
+  .vl-jg.vl-nativo.tema-hub .vl-jg-cartao:hover { transform: translateY(-4px) scale(1.02); box-shadow: 0 16px 34px rgba(0,0,0,.5), 0 0 0 2px #ffcf3a; }
+  .vl-jg.vl-nativo.tema-hub .vl-jg-cartao .vl-jg-mini { width: 104px; height: 104px; margin: 16px auto 2px; border-radius: 24px; font-size: 62px; box-shadow: 0 10px 22px rgba(0,0,0,.45), 0 0 0 3px rgba(255,255,255,.14); }
+  .vl-jg.vl-nativo.tema-hub .vl-jg-cartao[data-foco="hub-xadrez"] { background: linear-gradient(180deg, #5a3a22, #1d130a); }
+  .vl-jg.vl-nativo.tema-hub .vl-jg-cartao[data-foco="hub-xadrez"] .vl-jg-mini { background: conic-gradient(#ecd3ab 0 25%, #a97a50 0 50%, #ecd3ab 0 75%, #a97a50 0) 0 0 / 52px 52px; }
+  .vl-jg.vl-nativo.tema-hub .vl-jg-cartao[data-foco="hub-damas"] .vl-jg-mini { background: conic-gradient(#f2dfc0 0 25%, #6e3f26 0 50%, #f2dfc0 0 75%, #6e3f26 0) 0 0 / 52px 52px; }
+  .vl-jg.vl-nativo.tema-hub .vl-jg-cartao[data-foco="hub-damas"] { background: linear-gradient(180deg, #5c2420, #1f0d0a); }
+  .vl-jg.vl-nativo.tema-hub .vl-jg-cartao[data-foco="hub-pingpong"] { background: linear-gradient(180deg, #1f4a8f, #0a1633); }
+  .vl-jg.vl-nativo.tema-hub .vl-jg-cartao[data-foco="hub-corrida"] { background: linear-gradient(180deg, #3a1060, #120724); }
+  .vl-jg.vl-nativo.tema-hub .vl-jg-cartao[data-foco="hub-cartas"] { background: linear-gradient(180deg, #3a2a7a, #140f33); }
+  .vl-jg.vl-nativo.tema-hub .vl-jg-cartao[data-foco="hub-pistas"] { background: linear-gradient(180deg, #2d3f44, #101719); }
+  .vl-jg.vl-nativo.tema-hub .vl-jg-cartao[data-foco="hub-ludo"] { background: linear-gradient(180deg, #3c9be8, #164c92); }
+  .vl-jg.vl-nativo.tema-hub .vl-jg-cartao[data-foco="hub-sinuca"] { background: linear-gradient(180deg, #1f6b43, #0b2416); }
+  .vl-jg.vl-nativo.tema-hub .vl-jg-cartao > span:nth-child(2) { padding: 10px 12px 0; }
+  .vl-jg.vl-nativo.tema-hub .vl-jg-cartao b { font: 900 16px system-ui, sans-serif; color: #fff; }
+  .vl-jg.vl-nativo.tema-hub .vl-jg-cartao small { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 11.5px; }
+  .vl-jg.vl-nativo.tema-hub .vl-jg-cartao .vl-jg-jogar { margin: 10px 12px 12px; text-align: center; }
+  /* Xadrez: clube de madeira e dourado. */
+  .vl-jg.vl-nativo.tema-xadrez { --n-fundo: radial-gradient(ellipse at 50% 0%, #4a2f1a 0%, #24160c 55%, #140c06 100%); --n-barra: linear-gradient(180deg, #5a3a22, #2e1d10); --n-borda: #7a5634;
+    --n-acento: #e0b65a; --n-acento-texto: #2a1806; --n-acento-sombra: #8f6a22; --n-texto: #f6ead2; --n-suave: #c9b48f; --n-cartao: rgba(0,0,0,.28); --n-cartao-borda: rgba(224,182,90,.22);
+    --n-titulo-fonte: 700 16px/1 Georgia, 'Times New Roman', serif; --n-titulo-cor: #f3dca0; --n-logo-fonte: 700 44px/1 Georgia, 'Times New Roman', serif; --n-logo-cor: #f6e3ad; --n-logo-sombra: 0 2px 0 #6b4a1c, 0 0 24px rgba(224,182,90,.35);
+    --n-capa: radial-gradient(circle at 85% 30%, rgba(224,182,90,.25), transparent 50%), repeating-linear-gradient(100deg, rgba(255,255,255,.025) 0 2px, transparent 2px 9px), linear-gradient(135deg, #3d2615, #1e130a); }
+  .vl-jg.vl-nativo.tema-xadrez .vl-jg-casa.clara { background: #ecd3ab; } .vl-jg.vl-nativo.tema-xadrez .vl-jg-casa.escura { background: #a97a50; }
+  .vl-jg.vl-nativo.tema-xadrez .vl-jg-casa.clara .vl-jg-coord { color: #a97a50; } .vl-jg.vl-nativo.tema-xadrez .vl-jg-casa.escura .vl-jg-coord { color: #ecd3ab; }
+  .vl-jg.vl-nativo.tema-xadrez .vl-jg-tab, .vl-jg.vl-nativo.tema-damas .vl-jg-tab { box-shadow: 0 0 0 7px #5a3a22, 0 0 0 9px #26170a, 0 0 0 10px rgba(224,182,90,.35), 0 20px 44px rgba(0,0,0,.6); }
+  .vl-jg.vl-nativo.tema-xadrez .vl-jg-arte { background: conic-gradient(#ecd3ab 0 25%, #a97a50 0 50%, #ecd3ab 0 75%, #a97a50 0) 0 0 / 56px 56px; }
+  /* Damas: madeira vermelha. */
+  .vl-jg.vl-nativo.tema-damas { --n-fundo: radial-gradient(ellipse at 50% 0%, #4a1c18 0%, #24100d 55%, #130807 100%); --n-barra: linear-gradient(180deg, #5c2420, #2e120f); --n-borda: #7a3a2c;
+    --n-acento: #f0a64a; --n-acento-texto: #2b1300; --n-acento-sombra: #9a5c18; --n-texto: #fbe9da; --n-suave: #d4a98d; --n-cartao: rgba(0,0,0,.28); --n-cartao-borda: rgba(240,166,74,.22);
+    --n-titulo-fonte: 700 16px/1 Georgia, serif; --n-titulo-cor: #ffd8a8; --n-logo-fonte: 700 44px/1 Georgia, serif; --n-logo-cor: #ffe2bd; --n-logo-sombra: 0 2px 0 #6b2a14, 0 0 24px rgba(240,166,74,.35);
+    --n-capa: radial-gradient(circle at 85% 30%, rgba(240,166,74,.25), transparent 50%), repeating-linear-gradient(100deg, rgba(255,255,255,.025) 0 2px, transparent 2px 9px), linear-gradient(135deg, #43201a, #1f0d0a); }
+  .vl-jg.vl-nativo.tema-damas .vl-jg-casa.clara { background: #f2dfc0; } .vl-jg.vl-nativo.tema-damas .vl-jg-casa.escura { background: #6e3f26; }
+  .vl-jg.vl-nativo.tema-damas .vl-jg-arte { background: conic-gradient(#f2dfc0 0 25%, #6e3f26 0 50%, #f2dfc0 0 75%, #6e3f26 0) 0 0 / 56px 56px; }
+  /* Ping-pong: arena esportiva. */
+  .vl-jg.vl-nativo.tema-pingpong { --n-fundo: radial-gradient(ellipse at 50% -20%, #1f4a8f 0%, #0d1d40 50%, #060b1c 100%); --n-barra: linear-gradient(180deg, #13306a, #0b1a3c); --n-borda: rgba(120,170,255,.25);
+    --n-acento: #ff8c1a; --n-acento-texto: #2b1300; --n-acento-sombra: #a24f00; --n-texto: #eef4ff; --n-suave: #9fb4d8;
+    --n-titulo-fonte: italic 900 16px/1 system-ui, sans-serif; --n-logo-fonte: italic 900 46px/1 system-ui, sans-serif; --n-logo-sombra: 3px 3px 0 #ff8c1a, 0 0 26px rgba(255,140,26,.45);
+    --n-capa: radial-gradient(ellipse at 20% 120%, rgba(255,140,26,.35), transparent 55%), radial-gradient(ellipse at 80% -20%, rgba(120,170,255,.35), transparent 55%), linear-gradient(160deg, #173a78, #0a1633); }
+  /* Corrida de Digitação: neon. */
+  .vl-jg.vl-nativo.tema-corrida { --n-fundo: linear-gradient(180deg, #160a2e 0%, #0b061a 60%, #05030d 100%); --n-barra: linear-gradient(90deg, rgba(255,62,165,.28), rgba(95,246,255,.22)); --n-borda: rgba(255,62,165,.35);
+    --n-acento: #ff3ea5; --n-acento-texto: #fff; --n-acento-sombra: #8f0e57; --n-texto: #f6eaff; --n-suave: #b9a5d9;
+    --n-titulo-fonte: italic 900 16px/1 system-ui, sans-serif; --n-titulo-cor: #5ff6ff; --n-logo-fonte: italic 900 40px/1 system-ui, sans-serif; --n-logo-cor: #5ff6ff; --n-logo-sombra: 0 0 8px #5ff6ff, 0 0 22px #ff3ea5, 3px 3px 0 #ff3ea5;
+    --n-capa: linear-gradient(transparent 62%, rgba(255,62,165,.5) 62% 63%, transparent 63%), repeating-linear-gradient(90deg, rgba(95,246,255,.12) 0 1px, transparent 1px 40px), linear-gradient(180deg, #2a0d4a, #120724); }
+  .vl-jg.vl-nativo.tema-corrida .vl-cr-frase { background: rgba(10,4,24,.85); border-color: rgba(95,246,255,.4); box-shadow: inset 0 0 26px rgba(255,62,165,.18), 0 0 18px rgba(95,246,255,.12); }
+  .vl-jg.vl-nativo.tema-corrida .vl-cr-frase .ok { color: #5ff6ff; text-shadow: 0 0 6px rgba(95,246,255,.6); }
+  .vl-jg.vl-nativo.tema-corrida .vl-cr-pista { background: linear-gradient(180deg, #1a0b33, #0c0619); box-shadow: inset 0 0 0 1px rgba(255,62,165,.35); }
+  .vl-jg.vl-nativo.tema-corrida .vl-cr-raias { background: rgba(10,4,24,.6); border-color: rgba(255,62,165,.25); }
+  /* Vagacartas: cartas coloridas. */
+  .vl-jg.vl-nativo.tema-cartas { --n-fundo: radial-gradient(ellipse at 50% 0%, #3a2a7a 0%, #1b1440 55%, #0c0920 100%); --n-barra: linear-gradient(90deg, #e6508f, #f08a24, #a6cf26, #2f86e6); --n-borda: rgba(255,255,255,.18);
+    --n-acento: #ffcc33; --n-acento-texto: #2b1d00; --n-acento-sombra: #a8780a; --n-titulo-fonte: 900 16px/1 system-ui, sans-serif;
+    --n-logo-fonte: 900 46px/1 system-ui, sans-serif; --n-logo-sombra: 3px 3px 0 #e6508f, 6px 6px 0 #2f86e6;
+    --n-capa: radial-gradient(circle at 80% 40%, rgba(255,204,51,.25), transparent 45%), linear-gradient(135deg, #2b1f63, #140f33); }
+  .vl-jg.vl-nativo.tema-cartas .vl-jg-cab b { text-shadow: 0 2px 0 rgba(0,0,0,.45); }
+  /* Duelo de Pistas: dossiê de espião. */
+  .vl-jg.vl-nativo.tema-pistas { --n-fundo: radial-gradient(ellipse at 50% 0%, #22343a 0%, #111a1d 60%, #070b0c 100%); --n-barra: linear-gradient(180deg, #2a3d42, #162225); --n-borda: rgba(224,72,72,.35);
+    --n-acento: #e04848; --n-acento-texto: #fff; --n-acento-sombra: #7a1a1a; --n-texto: #eef2ea; --n-suave: #a7b5ae;
+    --n-titulo-fonte: 700 15px/1 'Courier New', Courier, monospace; --n-titulo-cor: #f3eedc; --n-logo-fonte: 700 40px/1 'Courier New', Courier, monospace; --n-logo-cor: #f3eedc; --n-logo-sombra: 0 2px 0 #000;
+    --n-capa: repeating-linear-gradient(0deg, rgba(255,255,255,.02) 0 1px, transparent 1px 22px), linear-gradient(135deg, #2d3f44, #141f22); }
+  .vl-jg.vl-nativo.tema-pistas .vl-jg-heroi h2::after { content: 'CONFIDENCIAL'; display: inline-block; margin-left: 14px; padding: 3px 7px; vertical-align: middle; transform: rotate(-6deg); border: 2px solid #e04848; color: #e04848; font: 700 12px/1 'Courier New', monospace; letter-spacing: 2px; text-shadow: none; }
+  /* Ludo: azul e alegre. */
+  .vl-jg.vl-nativo.tema-ludo { --n-fundo: radial-gradient(ellipse at 50% -10%, #3c9be8 0%, #1d5fb0 50%, #0f3570 100%); --n-barra: rgba(255,255,255,.12); --n-borda: rgba(255,255,255,.3);
+    --n-acento: #ffd23a; --n-acento-texto: #3a2a00; --n-acento-sombra: #b38a00; --n-texto: #ffffff; --n-suave: #d5e6ff; --n-cartao: rgba(255,255,255,.1); --n-cartao-borda: rgba(255,255,255,.22);
+    --n-titulo-fonte: 900 17px/1 system-ui, sans-serif; --n-logo-fonte: 900 54px/1 system-ui, sans-serif;
+    --n-capa: radial-gradient(circle at 12% 22%, rgba(255,255,255,.22) 0 9%, transparent 10%), radial-gradient(circle at 92% 80%, rgba(255,255,255,.16) 0 13%, transparent 14%), linear-gradient(135deg, #46a6f0, #2266bf); }
+  .vl-jg.vl-nativo.tema-ludo .vl-jg-heroi h2 { background: linear-gradient(90deg, #ffe04a, #ff8a3d, #ff5aa0, #7ad7ff); -webkit-background-clip: text; background-clip: text; color: transparent; text-shadow: none; filter: drop-shadow(0 4px 0 #0f3570); }
+  /* Sinuca: salão com a luz em cima da mesa. */
+  .vl-jg.vl-nativo.tema-sinuca { --n-fundo: radial-gradient(ellipse at 50% -15%, rgba(255,226,150,.28) 0%, rgba(255,226,150,0) 45%), radial-gradient(ellipse at 50% 0%, #22302a 0%, #101814 55%, #070a08 100%);
+    --n-barra: linear-gradient(180deg, #2c3a32, #151d18); --n-borda: rgba(232,197,71,.3); --n-acento: #e8c547; --n-acento-texto: #2a2100; --n-acento-sombra: #8f7414; --n-texto: #f2f5ef; --n-suave: #aebba9;
+    --n-titulo-cor: #f4e3a1; --n-logo-fonte: 900 46px/1 system-ui, sans-serif; --n-logo-cor: #f4e3a1; --n-logo-sombra: 0 2px 0 #6b5510, 0 0 26px rgba(232,197,71,.35);
+    --n-capa: radial-gradient(ellipse at 50% -30%, rgba(255,226,150,.4), transparent 60%), linear-gradient(160deg, #1f6b43, #0f3a24); }
+  @media (prefers-reduced-motion: reduce) { .vl-jg.vl-nativo.tema-hub .vl-jg-cartao:hover { transform: none; } }
   `;
+
 
   // Som curto de lance (Web Audio, bem baixo).
   let audio = null;
@@ -445,7 +580,7 @@
       let convidando = null; // convite que eu mandei: { via, nome, id, sessao, jogo, cor, amigo, relogio }
       let chamada = null;    // convite recebido na tela: { sessao, cartao, relogio, pararToque }
       // Um estilo só para a janela, o cartão de convite e a aba Jogos.
-      const estilo = el('style', { texto: CSS });
+      const estilo = el('style', { texto: CSS + CSS_NATIVO });
       camada.area().appendChild(estilo);
       ctx.aoParar(() => estilo.remove());
       // Velocidade das animações (pedido do usuário: rápida ou um pouco mais lenta). A escolha feita aqui vale na
@@ -533,6 +668,8 @@
         if (!janela) return;
         const jogo = partida ? partida.jogo : escolha.jogo;
         janela.classList.toggle('damas', jogo === 'damas');
+        for (const c of [...janela.classList]) if (c.indexOf('tema-') === 0) janela.classList.remove(c);
+        janela.classList.add('vl-nativo', 'tema-' + (jogo || 'hub'));
         janela.querySelector('.vl-jg-titulo').textContent = jogo ? NOMES[jogo] : 'Jogos';
         janela.querySelector('.vl-jg-ic').replaceChildren(jogo ? iconeJogo(jogo) : document.createTextNode('🎮'));
         janela.querySelector('.vl-jg-voltar').hidden = !jogo || !!(partida && !partida.fim);
@@ -705,7 +842,7 @@
           nome: (cor) => nomeDe(cor),
           cabeca: (cor) => (p.modo === 'bot' && cor !== p.minhaCor ? el('span', { class: 'vl-jg-cabeca', 'aria-hidden': 'true', texto: '🤖' }) : cabeca(nomeDe(cor))),
           enviar: (dado, confiavel) => ppEnviar(p, dado, confiavel),
-          atraso: () => Math.min(0.25, (p.ppRtt || 0) / 2000),
+          atraso: () => Math.min(0.4, (p.ppRtt || 0) / 2000),
           som: (tipo) => { if (tipo !== 'fim' && ctx.secao().som !== false && SONS_PP[tipo]) bipes(SONS_PP[tipo], tipo === 'mesa' ? 0.045 : 0.08); },
           vivo: () => partida === p,
           encerrado: () => !!p.fim,
@@ -1343,7 +1480,7 @@
           p.ppFila.delete(p.ppRecebido + 1);
           p.ppRecebido++;
           // A rebatida do outro aconteceu há meia ida e volta: a tela adianta a bola esse tanto (até 0,25 s).
-          p.pp.receber(Object.assign({}, e, { atraso: Math.min(0.25, (p.ppRtt || 0) / 2000) }));
+          p.pp.receber(Object.assign({}, e, { atraso: Math.min(0.4, (p.ppRtt || 0) / 2000) }));
         }
       }
       // O que não foi confirmado vai de novo (também depois do fim, para o último ponto chegar).

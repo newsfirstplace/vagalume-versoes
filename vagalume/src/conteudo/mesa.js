@@ -228,6 +228,8 @@
       if (!janela || !mesa) return;
       const def = JOGOS[mesa.jogo];
       titulo.textContent = def.nome;
+      // Cada jogo com a cara dele (temas no CSS do módulo Jogos).
+      janela.className = String(janela.className || 'vl-jg vl-ms').replace(/\s*\b(tema-[\w-]+|vl-nativo)\b/g, '') + ' vl-nativo tema-' + mesa.jogo;
       icone.textContent = def.glifo;
       voltarBotao.hidden = mesa.fase === 'jogo';
       if (mesa.fase === 'sala') { camada.trocar(corpo, telaSala(def)); return; }

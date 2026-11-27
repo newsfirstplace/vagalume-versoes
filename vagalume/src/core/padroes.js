@@ -123,14 +123,12 @@
 
   // Novidades mostradas uma vez quando a versão instalada muda (o usuário pode desligar o aviso nas opções do módulo Comandos).
   const NOVIDADES = [
-    'Console: os botões de imagem, GIF e áudio ficam dentro do campo do bate-papo privado, e mandar mídia por ele não solta mais um emoji no chat do quarto.',
-    'Sinuca: dê força arrastando o mouse para qualquer lado; com a bola na mão, arraste a branca (ou já tacada). Mesa azul, placar com as bolas de cada grupo e canaleta das encaçapadas.',
-    'Ludo: o dado gira visto de cima e para mostrando só a face de cima.',
-    'Vagacartas: arena nova com raios de luz e vagalumes, jogadores em moldura com o leque refletido, cartas redesenhadas e lances especiais grandes no meio da mesa.',
-    'Ícone de Jogos novo na barra do hotel.',
+    'Jogos com cara de jogo de verdade: cada um com janela, capa, cores e letras próprias (Xadrez de madeira, Ludo colorido, Sinuca de salão, Corrida neon...) e a lista de jogos em capas, como um fliperama.',
+    'Sinuca: a tacada não trava mais (às vezes as bolas ficavam paradas) e as bolas rolam de verdade, com o número e a listra girando.',
+    'Ping-pong: a bola não para mais esperando a devolução do outro; ela volta numa devolução prevista e se ajusta quando a jogada de verdade chega.',
   ];
 
-  const api = { PADROES, CATALOGO, GRUPOS, NOVIDADES, ESQUEMA: 1, VERSAO: '0.1.12' };
+  const api = { PADROES, CATALOGO, GRUPOS, NOVIDADES, ESQUEMA: 1, VERSAO: '0.1.13' };
   raiz.VL = raiz.VL || {};
   raiz.VL.padroes = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

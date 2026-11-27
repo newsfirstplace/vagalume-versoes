@@ -79,7 +79,17 @@
     const sacadorAgora = () => P.sacador(s.pontos, o.primeiro || 'w');
     function avisar(texto, dur) { s.aviso = { texto, desde: agora(), ate: agora() + (dur || 1.1) }; }
     function bolaParaRede(b) { return { x: r4(b.x), y: r4(b.y), z: r4(b.z), vx: r4(b.vx), vy: r4(b.vy), vz: r4(b.vz), e: r4(b.e || 0) }; }
-    function novaJogada(lado) { s.ultimo = lado; s.quiques = { w: 0, b: 0 }; s.botMira = null; s.segura = false; s.mira = null; s.miraQuique = null; s.escala = 1; }
+    function novaJogada(lado) { s.ultimo = lado; s.quiques = { w: 0, b: 0 }; s.botMira = null; s.segura = false; s.mira = null; s.miraQuique = null; s.escala = 1; s.previsao = null; }
+    // A bola chegou à raquete do outro e a rebatida dele ainda não chegou pela rede: em vez de parar, ela volta numa
+    // devolução provável. Quando a rebatida de verdade chega, a bola passa para ela deslizando (sem salto). Enquanto é
+    // só previsão ninguém marca ponto nem rebate aqui.
+    function preverDevolucao(lado) {
+      if (s.previsao || !s.bola) { s.segura = true; return; }
+      s.bola = P.rebater(s.bola, lado, 0.62, -s.bola.x * 0.6, 0);
+      novaJogada(lado);
+      s.previsao = { desde: agora() };
+      anel(s.bola, false); o.som('bate');
+    }
     // Atraso da rede sem a bola parar (pedido do usuário em 2026-11-26): indo para o outro jogador, a bola anda um pouco
     // mais devagar na minha tela e chega à raquete dele quando a rebatida dele já chegou aqui; voltando, anda um pouco
     // mais depressa e alcança o tempo de verdade antes de chegar à minha raquete (eu sou o juiz do meu lado).
@@ -134,7 +144,7 @@
     }
     function ponto(ganhou, placar, motivo) {
       if (placar) s.pontos = placar; else s.pontos[ganhou]++;
-      s.fase = 'ponto'; s.ate = agora() + 1.4; s.segura = false; s.escala = 1;
+      s.fase = 'ponto'; s.ate = agora() + 1.4; s.segura = false; s.escala = 1; s.previsao = null; s.desvio = null;
       s.ultimoPonto = { ganhou, motivo: MOTIVO[motivo] ? motivo : null };
       o.som('ponto');
       const v = P.vencedor(s.pontos);
@@ -157,14 +167,17 @@
       if (d.t === 'pp:saque' || d.t === 'pp:bate') {
         const b = P.bolaValida(d);
         if (!b) return;
+        const previsto = s.previsao && s.bola ? { x: s.bola.x, y: s.bola.y, z: s.bola.z } : null;
         s.bola = b; novaJogada(ele); s.fase = 'jogo';
         if (d.t === 'pp:bate') { anel(b, false); o.som('bate'); } else o.som('saque');
         // Compensa o atraso da rede: a bola anda na hora o que andou do lado de lá enquanto a mensagem vinha,
         // em vez de parecer que o outro demorou para devolver.
-        let resta = Number.isFinite(d.atraso) ? Math.max(0, Math.min(0.25, d.atraso)) : 0;
+        let resta = Number.isFinite(d.atraso) ? Math.max(0, Math.min(0.4, d.atraso)) : 0;
         const c = resta > 0.01 ? P.preverCruzamento(b, s.raq[eu].y, 3) : null;
-        if (c && c.t > resta * 1.5 + 0.08) { s.escala = clamp(c.t / (c.t - resta), 1, 1.6); resta = 0; } // alcança o tempo aos poucos
+        if (c && c.t > resta * 1.5 + 0.08) { s.escala = clamp(c.t / (c.t - resta), 1, 1.8); resta = 0; } // alcança o tempo aos poucos
         while (resta > 1e-6 && s.fase === 'jogo' && s.bola && !s.segura) { const h = Math.min(PASSO, resta); resta -= h; fisica(h); }
+        // Saindo da devolução prevista: a bola desliza até a posição de verdade.
+        if (previsto && s.bola) s.desvio = { x: previsto.x - s.bola.x, y: previsto.y - s.bola.y, z: previsto.z - s.bola.z, desde: agora() };
         return;
       }
       if (d.t === 'pp:ponto' && (d.a === 'w' || d.a === 'b')) {
@@ -213,7 +226,7 @@
       const r = P.passo(antes, h);
       s.bola = r.bola;
       const recebe = P.outra(s.ultimo);
-      const juiz = bot || recebe === eu;
+      const juiz = !s.previsao && (bot || recebe === eu);
       if (r.quique) {
         s.quiques[r.quique]++;
         marca(r.bola);
@@ -235,7 +248,7 @@
         if (juiz) {
           const alcance = recebe === eu ? 0.25 : RAQUETE.alcance; // a sua raquete pega um pouco além da borda
           if (Math.abs(s.bola.x - rr.x) <= alcance && s.bola.z > -0.02 && s.bola.z < 0.8) { rebaterAqui(recebe); return; }
-        } else if (cruzou) { s.segura = true; return; } // chegou à raquete do outro: espera a resposta dele
+        } else if (cruzou && !s.previsao) { preverDevolucao(recebe); return; } // chegou à raquete do outro: devolução provável até a de verdade chegar
       }
       if (s.bola.z < -0.35 || Math.abs(s.bola.x) > 3 || s.bola.y < -2.5 || s.bola.y > L + 2.5) {
         if (juiz) { if (s.quiques[recebe] === 1) ponto(s.ultimo, null, 'passou'); else ponto(recebe, null, 'fora'); } else s.segura = true;
@@ -278,6 +291,7 @@
         const h = Math.min(PASSO, resta);
         resta -= h;
         moverRaquetes(h, t);
+        if (s.previsao && t - s.previsao.desde > 0.9) s.segura = true; // a previsão não passa do meio da mesa
         if (s.fase === 'jogo' && s.bola && !s.segura) fisica(h * (s.escala || 1));
         else if (s.fase === 'ponto' && s.bola && s.bola.z > -1.5) s.bola = P.passo(s.bola, h).bola;
       }
@@ -515,6 +529,11 @@
     }
     // Bola: rastro, esfera com luz de cima e, quando espera a resposta do outro, um anel pulsando.
     function bola(cam, b, d) {
+      if (s.desvio) { // correção da devolução prevista, em 0,22 s
+        const k = 1 - (agora() - s.desvio.desde) / 0.22;
+        if (k <= 0) s.desvio = null;
+        else b = { x: b.x + s.desvio.x * k, y: b.y + s.desvio.y * k, z: b.z + s.desvio.z * k, e: b.e };
+      }
       const girando = Math.abs(b.e || 0) > 0.3;
       s.rastro.forEach((p, i) => {
         const v = vista(p.x, p.y), c = cam.p(v.x, v.y, p.z);
