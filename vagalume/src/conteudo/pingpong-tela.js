@@ -1,7 +1,8 @@
 // Vagalume — tela do ping-pong em 3D (pedido do usuário em 2026-11-23, com um vídeo mostrando o estilo): mesa em
 // perspectiva vista de trás de quem joga, bola em arco com sombra e marca do quique, a sua raquete grande na frente
-// seguindo o mouse (para os lados e para a frente) e o adversário no fundo. Visual próprio: arena noturna com
-// vagalumes, mesa azul e rede com faixa limão. Regras e física em core/pingpong.js.
+// seguindo o mouse (para os lados e para a frente) e o adversário no fundo. Cenário: ginásio de campeonato (quadra,
+// placas, arquibancada com público e refletores), mesa azul com pés de metal e raquetes com espessura. Regras e física
+// em core/pingpong.js.
 // Contra o bot tudo roda aqui. Entre duas pessoas, quem recebe a bola decide o lance (rebatida, quique, rede, fora) e
 // manda a rebatida ou o ponto ao outro (com confirmação, pelo módulo Jogos); a raquete de cada um vai para o outro
 // várias vezes por segundo só para aparecer. Do lado de quem bateu, a bola espera na raquete do outro até a resposta.
@@ -18,10 +19,20 @@
   const r4 = (v) => Math.round(v * 10000) / 10000;
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const sorteio = (a, b) => a + Math.random() * (b - a);
-  // Vagalumes do fundo: posições fixas (fração da tela), cada um piscando no seu ritmo.
   // Por que o ponto aconteceu (aviso grande e linha de baixo).
   const MOTIVO = { fora: 'Fora!', rede: 'Na rede!', dois: 'Quicou duas vezes', passou: 'Passou!', proprio: 'Quicou do lado errado' };
-  const LUZES = Array.from({ length: 28 }, (_, i) => ({ x: (i * 0.6180339 + 0.05) % 1, y: ((i * 0.381966 + 0.11) % 1) * 0.5, f: 0.7 + (i % 5) * 0.23, d: i * 1.7 }));
+  // Ginásio: chão da quadra (altura do piso, em metros abaixo do tampo), placas, arquibancada e público fixos.
+  const CHAO = -0.76;
+  const QUADRA = { x: 4.4, y0: -1.4, y1: L + 4.6 };
+  const ARQ = { y0: L + 5.8, degrau: 0.78, alt: 0.46, fileiras: 7 };
+  const CAMISAS = ['#d8473c', '#2f6fd1', '#f0c419', '#e9ecef', '#2a9d5c', '#7b4bc4', '#f08a24', '#1b1f2a', '#4fb3d9', '#c2185b'];
+  const PELES = ['#f1c9a5', '#d9a77c', '#a8714a', '#7a4a2c', '#e8b894'];
+  const PUBLICO = [];
+  for (let k = 0; k < ARQ.fileiras; k++) for (let i = 0; i < 48; i++) {
+    const h = Math.sin(k * 91.7 + i * 12.9898) * 43758.5453, q = h - Math.floor(h);
+    if (q < 0.12) continue; // lugar vazio
+    PUBLICO.push({ k, x: -8.6 + i * 0.36 + (q - 0.5) * 0.08, camisa: CAMISAS[Math.floor(q * 97) % CAMISAS.length], pele: PELES[Math.floor(q * 53) % PELES.length], fase: q * 6.28, alto: 0.9 + q * 0.2 });
+  }
 
   function criar(o) {
     const eu = o.minhaCor, ele = P.outra(eu), bot = o.modo === 'bot';
@@ -293,7 +304,11 @@
         moverRaquetes(h, t);
         if (s.previsao && t - s.previsao.desde > 0.9) s.segura = true; // a previsão não passa do meio da mesa
         if (s.fase === 'jogo' && s.bola && !s.segura) fisica(h * (s.escala || 1));
-        else if (s.fase === 'ponto' && s.bola && s.bola.z > -1.5) s.bola = P.passo(s.bola, h).bola;
+        else if (s.fase === 'ponto' && s.bola) {
+          const nb = P.passo(s.bola, h).bola;
+          if (nb.z < CHAO + BOLA.raio && nb.vz < 0) { nb.z = CHAO + BOLA.raio; nb.vz = -nb.vz * 0.55; nb.vx *= 0.8; nb.vy *= 0.8; }
+          s.bola = nb;
+        }
       }
       // Fases.
       if (s.fase === 'contagem') {
@@ -335,6 +350,7 @@
       const cima = { x: ry * fz, y: -rx * fz, z: rx * fy - ry * fx }; // direita × frente
       const foco = H * 1.32, ox = W / 2, oy = H * 0.46;
       return {
+        C,
         p(x, y, z) {
           const dx = x - C.x, dy = y - C.y, dz = z - C.z;
           const zc = dx * fx + dy * fy + dz * fz;
@@ -364,30 +380,17 @@
       const W = canvas.width, H = canvas.height, d = dpr();
       const cam = (s.camera = montarCamera(W, H));
       const t = agora();
-      // Arena à noite: degradê, luz no chão embaixo da mesa e vagalumes piscando ao fundo.
-      const ceu = g.createLinearGradient(0, 0, 0, H);
-      ceu.addColorStop(0, '#0a1024'); ceu.addColorStop(0.55, '#151c35'); ceu.addColorStop(1, '#090c16');
-      g.fillStyle = ceu; g.fillRect(0, 0, W, H);
-      const chao = cam.p(0, MEIO, -0.76);
-      const luz = g.createRadialGradient(chao.x, chao.y, 0, chao.x, chao.y, W * 0.5);
-      luz.addColorStop(0, 'rgba(214,242,74,.13)'); luz.addColorStop(1, 'rgba(214,242,74,0)');
-      g.fillStyle = luz; g.fillRect(0, 0, W, H);
-      for (const v of LUZES) {
-        const a = 0.2 + 0.8 * Math.max(0, Math.sin(t * v.f + v.d));
-        const x = v.x * W + Math.sin(t * 0.3 + v.d) * W * 0.02, y = v.y * H + Math.cos(t * 0.27 + v.d) * H * 0.02;
-        const brilho = g.createRadialGradient(x, y, 0, x, y, 7 * d);
-        brilho.addColorStop(0, 'rgba(214,242,74,' + (a * 0.55).toFixed(2) + ')'); brilho.addColorStop(1, 'rgba(214,242,74,0)');
-        g.fillStyle = brilho; g.fillRect(x - 7 * d, y - 7 * d, 14 * d, 14 * d);
-        g.fillStyle = 'rgba(244,255,190,' + a.toFixed(2) + ')';
-        g.beginPath(); g.arc(x, y, 1.3 * d, 0, Math.PI * 2); g.fill();
-      }
+      ginasio(cam, d, W, H, t);
+      const b = bolaVisivel();
+      const bolaEmbaixo = b && escondidaPelaMesa(cam, b);
+      sombrasNoChao(cam, d, b);
+      if (bolaEmbaixo) bola(cam, b, d);
       mesa(cam, d);
       sombras(cam, d);
       // Raquetes, rede e bola na ordem da profundidade (do fundo para a frente).
       const itens = [{ y: MEIO, f: () => rede(cam, d) }];
       for (const lado of ['w', 'b']) { const v = vista(s.raq[lado].x, s.raq[lado].y); itens.push({ y: v.y - (lado === eu ? 0.001 : 0), f: () => raquete(cam, lado, d) }); }
-      const b = bolaVisivel();
-      if (b) itens.push({ y: vista(b.x, b.y).y, f: () => bola(cam, b, d) });
+      if (b && !bolaEmbaixo) itens.push({ y: vista(b.x, b.y).y, f: () => bola(cam, b, d) });
       itens.sort((a, c) => c.y - a.y).forEach((i) => i.f());
       // Anéis das rebatidas.
       s.efeitos = s.efeitos.filter((e) => t - e.desde < 0.35);
@@ -425,28 +428,169 @@
       if (s.fase === 'saque') { const q = sacadorAgora(); const b = P.posicaoDeSaque(q, s.raq[q].x); b.z = 0.24 + Math.sin(agora() * 4) * 0.03; return b; }
       return null;
     }
-    // Mesa: pés, espessura na ponta da frente, tampo azul com brilho e as linhas brancas.
+    // Ginásio de campeonato: teto escuro com refletores, faixa do torneio, arquibancada com público, placas em volta
+    // da quadra e o piso vermelho de borracha.
+    function ginasio(cam, d, W, H, t) {
+      const fundo = g.createLinearGradient(0, 0, 0, H);
+      fundo.addColorStop(0, '#04060a'); fundo.addColorStop(0.5, '#0e131d'); fundo.addColorStop(1, '#0a0d14');
+      g.fillStyle = fundo; g.fillRect(0, 0, W, H);
+      const dentro = (q) => q.x > -W * 0.1 && q.x < W * 1.1 && q.y > -H * 0.2 && q.y < H * 1.1;
+      // Parede do fundo com a faixa do campeonato.
+      const yParede = ARQ.y0 + ARQ.fileiras * ARQ.degrau, zTopo = CHAO + ARQ.fileiras * ARQ.alt;
+      g.fillStyle = '#121826';
+      poligono([cam.p(-12, yParede, zTopo), cam.p(12, yParede, zTopo), cam.p(12, yParede, zTopo + 4), cam.p(-12, yParede, zTopo + 4)]); g.fill();
+      const fa = [cam.p(-4.6, yParede, zTopo + 0.35), cam.p(4.6, yParede, zTopo + 0.35), cam.p(4.6, yParede, zTopo + 1.05), cam.p(-4.6, yParede, zTopo + 1.05)];
+      const faixa = g.createLinearGradient(fa[0].x, 0, fa[1].x, 0);
+      faixa.addColorStop(0, '#0b2f73'); faixa.addColorStop(0.5, '#1450b8'); faixa.addColorStop(1, '#0b2f73');
+      g.fillStyle = faixa; poligono(fa); g.fill();
+      g.strokeStyle = 'rgba(255,255,255,.35)'; g.lineWidth = 1 * d; g.stroke();
+      const cf = cam.p(0, yParede, zTopo + 0.7);
+      g.font = '800 ' + Math.round(0.36 * cf.s) + 'px system-ui, "Segoe UI", sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillStyle = '#ffffff'; g.fillText('CAMPEONATO VAGALUME DE PING-PONG', cf.x, cf.y);
+      // Arquibancada: de trás para a frente, cada degrau com o piso, a face e o público sentado.
+      const festa = s.aviso && t - s.aviso.desde < 1.6 && s.fase !== 'contagem';
+      for (let k = ARQ.fileiras - 1; k >= 0; k--) {
+        const y = ARQ.y0 + k * ARQ.degrau, z0 = CHAO + k * ARQ.alt, z1 = z0 + ARQ.alt;
+        g.fillStyle = k % 2 ? '#1b2436' : '#202b40';
+        poligono([cam.p(-12, y, z1), cam.p(12, y, z1), cam.p(12, y + ARQ.degrau, z1), cam.p(-12, y + ARQ.degrau, z1)]); g.fill();
+        g.fillStyle = '#121a29';
+        poligono([cam.p(-12, y, z0), cam.p(12, y, z0), cam.p(12, y, z1), cam.p(-12, y, z1)]); g.fill();
+        for (const p of PUBLICO) {
+          if (p.k !== k) continue;
+          const pulo = festa ? 0.08 * Math.max(0, Math.sin(t * 11 + p.fase)) : 0.012 * Math.sin(t * 1.4 + p.fase);
+          const corpo = cam.p(p.x, y + ARQ.degrau * 0.5, z1 + 0.26 * p.alto + pulo);
+          if (!dentro(corpo)) continue;
+          const cab = cam.p(p.x, y + ARQ.degrau * 0.5, z1 + 0.6 * p.alto + pulo);
+          g.fillStyle = p.camisa;
+          g.beginPath(); g.ellipse(corpo.x, corpo.y, 0.15 * corpo.s, 0.2 * corpo.s, 0, 0, Math.PI * 2); g.fill();
+          g.fillStyle = p.pele;
+          g.beginPath(); g.arc(cab.x, cab.y, 0.085 * cab.s, 0, Math.PI * 2); g.fill();
+        }
+      }
+      // Sombra geral sobre a arquibancada (a luz forte fica na quadra).
+      const topoArq = cam.p(0, ARQ.y0, CHAO).y;
+      const veu = g.createLinearGradient(0, 0, 0, topoArq);
+      veu.addColorStop(0, 'rgba(4,6,10,.55)'); veu.addColorStop(1, 'rgba(4,6,10,.15)');
+      g.fillStyle = veu; g.fillRect(0, 0, W, topoArq);
+      // Piso: fora da quadra cinza-escuro, dentro borracha vermelha com linha branca em volta.
+      g.fillStyle = '#161b24';
+      poligono([cam.p(-12, -1.4, CHAO), cam.p(12, -1.4, CHAO), cam.p(12, ARQ.y0, CHAO), cam.p(-12, ARQ.y0, CHAO)]); g.fill();
+      const q = [cam.p(-QUADRA.x, QUADRA.y0, CHAO), cam.p(QUADRA.x, QUADRA.y0, CHAO), cam.p(QUADRA.x, QUADRA.y1, CHAO), cam.p(-QUADRA.x, QUADRA.y1, CHAO)];
+      const piso = g.createLinearGradient(0, q[2].y, 0, q[0].y);
+      piso.addColorStop(0, '#7a2a22'); piso.addColorStop(1, '#a8392b');
+      g.fillStyle = piso; poligono(q); g.fill();
+      const cm = cam.p(0, MEIO, CHAO);
+      const reflexo = g.createRadialGradient(cm.x, cm.y, 0, cm.x, cm.y, W * 0.45);
+      reflexo.addColorStop(0, 'rgba(255,240,220,.16)'); reflexo.addColorStop(1, 'rgba(255,240,220,0)');
+      g.fillStyle = reflexo; poligono(q); g.fill();
+      // Placas de publicidade em volta da quadra (fundo e laterais).
+      const hp = 0.72;
+      for (const x of [-QUADRA.x, QUADRA.x]) {
+        g.fillStyle = '#0c2556';
+        poligono([cam.p(x, QUADRA.y0, CHAO), cam.p(x, QUADRA.y1, CHAO), cam.p(x, QUADRA.y1, CHAO + hp), cam.p(x, QUADRA.y0, CHAO + hp)]); g.fill();
+        const a = cam.p(x, QUADRA.y0, CHAO + hp), b = cam.p(x, QUADRA.y1, CHAO + hp);
+        g.strokeStyle = 'rgba(255,255,255,.35)'; g.lineWidth = 1.2 * d; g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke();
+      }
+      const n = 6, larg = (2 * QUADRA.x) / n;
+      for (let i = 0; i < n; i++) {
+        const x0 = -QUADRA.x + i * larg, x1 = x0 + larg;
+        g.fillStyle = i % 2 ? '#0f3b8f' : '#c62f2f';
+        poligono([cam.p(x0, QUADRA.y1, CHAO), cam.p(x1, QUADRA.y1, CHAO), cam.p(x1, QUADRA.y1, CHAO + hp), cam.p(x0, QUADRA.y1, CHAO + hp)]); g.fill();
+        const c = cam.p((x0 + x1) / 2, QUADRA.y1, CHAO + hp / 2);
+        g.font = '800 ' + Math.max(6, Math.round(0.26 * c.s)) + 'px system-ui, "Segoe UI", sans-serif';
+        g.fillStyle = '#ffffff'; g.fillText(i % 2 ? 'VAGALUME' : 'OPEN', c.x, c.y);
+      }
+      const ta = cam.p(-QUADRA.x, QUADRA.y1, CHAO + hp), tb = cam.p(QUADRA.x, QUADRA.y1, CHAO + hp);
+      g.strokeStyle = 'rgba(255,255,255,.4)'; g.lineWidth = 1.2 * d; g.beginPath(); g.moveTo(ta.x, ta.y); g.lineTo(tb.x, tb.y); g.stroke();
+      // Refletores do teto e o brilho deles no ar.
+      for (const y of [-0.6, 1.2, 3.0, 4.8]) for (const x of [-2.4, 2.4]) {
+        const c = cam.p(x, y, 4.4);
+        if (c.s <= 0 || c.y < -H * 0.3 || c.y > H * 0.5) continue;
+        const r = 1.3 * c.s;
+        const luz = g.createRadialGradient(c.x, c.y, 0, c.x, c.y, r);
+        luz.addColorStop(0, 'rgba(255,250,235,.55)'); luz.addColorStop(0.15, 'rgba(255,245,220,.18)'); luz.addColorStop(1, 'rgba(255,245,220,0)');
+        g.fillStyle = luz; g.fillRect(c.x - r, c.y - r, r * 2, r * 2);
+        g.fillStyle = '#fffdf4'; g.fillRect(c.x - 0.22 * c.s, c.y - 0.05 * c.s, 0.44 * c.s, 0.1 * c.s);
+      }
+      const ar = g.createRadialGradient(W / 2, 0, 0, W / 2, 0, H * 0.9);
+      ar.addColorStop(0, 'rgba(255,248,230,.10)'); ar.addColorStop(1, 'rgba(255,248,230,0)');
+      g.fillStyle = ar; g.fillRect(0, 0, W, H);
+    }
+    // A mesa esconde a bola quando ela está abaixo do tampo e a linha da câmera até ela atravessa o tampo.
+    function escondidaPelaMesa(cam, b) {
+      if (b.z >= 0) return false;
+      const v = vista(b.x, b.y), C = cam.C, k = C.z / (C.z - b.z);
+      const x = C.x + (v.x - C.x) * k, y = C.y + (v.y - C.y) * k;
+      return Math.abs(x) <= W2 && y >= 0 && y <= L;
+    }
+    // Sombras no chão do ginásio: a da mesa e a da bola quando ela está fora da mesa.
+    function sombrasNoChao(cam, d, b) {
+      g.save();
+      g.filter = 'blur(' + Math.round(6 * d) + 'px)';
+      g.fillStyle = 'rgba(0,0,0,.55)';
+      poligono([cam.p(-W2 - 0.08, 0.05, CHAO), cam.p(W2 + 0.08, 0.05, CHAO), cam.p(W2 + 0.08, L + 0.1, CHAO), cam.p(-W2 - 0.08, L + 0.1, CHAO)]); g.fill();
+      g.restore();
+      if (!b || (b.z >= 0 && Math.abs(b.x) <= W2 && b.y >= 0 && b.y <= L)) return;
+      const v = vista(b.x, b.y);
+      if (escondidaPelaMesa(cam, { x: b.x, y: b.y, z: CHAO })) return;
+      const c = cam.p(v.x, v.y, CHAO), r = BOLA.raio * c.s * (1.4 + Math.max(0, b.z - CHAO) * 0.5);
+      g.fillStyle = 'rgba(0,0,0,' + clamp(0.45 - (b.z - CHAO) * 0.25, 0.1, 0.45).toFixed(2) + ')';
+      g.beginPath(); g.ellipse(c.x, c.y, r, r * 0.45, 0, 0, Math.PI * 2); g.fill();
+    }
+    // Mesa de competição: cavaletes de metal com travessa e rodinhas, tampo com espessura, azul fosco com o brilho
+    // dos refletores e as linhas brancas pintadas.
     function mesa(cam, d) {
-      g.strokeStyle = '#0c1020';
-      for (const [x, y] of [[-W2 + 0.15, 0.3], [W2 - 0.15, 0.3], [-W2 + 0.15, L - 0.3], [W2 - 0.15, L - 0.3]]) {
-        const a = cam.p(x, y, -0.02), b = cam.p(x, y, -0.76);
-        g.lineWidth = Math.max(2, 0.05 * a.s);
-        g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke();
+      const perna = (x, y) => {
+        const a = cam.p(x, y, -0.03), b = cam.p(x, y, CHAO + 0.05);
+        const lw = Math.max(2 * d, 0.05 * a.s);
+        g.lineCap = 'round';
+        g.strokeStyle = '#3c424c'; g.lineWidth = lw; g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke();
+        g.strokeStyle = 'rgba(200,208,220,.45)'; g.lineWidth = Math.max(1, lw * 0.25);
+        g.beginPath(); g.moveTo(a.x - lw * 0.22, a.y); g.lineTo(b.x - lw * 0.22, b.y); g.stroke();
+        const r = cam.p(x, y, CHAO + 0.03);
+        g.fillStyle = '#0d0f13'; g.beginPath(); g.ellipse(r.x, r.y, 0.045 * r.s, 0.03 * r.s, 0, 0, Math.PI * 2); g.fill();
+      };
+      for (const y of [0.34, L - 0.34]) {
+        const xa = -W2 + 0.13, xb = W2 - 0.13;
+        const a = cam.p(xa, y, -0.42), b = cam.p(xb, y, -0.42);
+        g.strokeStyle = '#2f343c'; g.lineWidth = Math.max(2 * d, 0.035 * a.s); g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke();
+        perna(xa, y); perna(xb, y);
+      }
+      // Armação embaixo do tampo (aparece nas bordas).
+      g.fillStyle = '#16191f';
+      poligono([cam.p(-W2 + 0.04, 0.04, -0.06), cam.p(W2 - 0.04, 0.04, -0.06), cam.p(W2 - 0.04, L - 0.04, -0.06), cam.p(-W2 + 0.04, L - 0.04, -0.06)]); g.fill();
+      // Espessura: ponta da frente e, se a câmera estiver de lado, a lateral.
+      const e = 0.03;
+      g.fillStyle = '#0b2244';
+      poligono([cam.p(-W2, 0, 0), cam.p(W2, 0, 0), cam.p(W2, 0, -e), cam.p(-W2, 0, -e)]); g.fill();
+      if (Math.abs(cam.C.x) > W2) {
+        const x = Math.sign(cam.C.x) * W2;
+        g.fillStyle = '#0a1d3a';
+        poligono([cam.p(x, 0, 0), cam.p(x, L, 0), cam.p(x, L, -e), cam.p(x, 0, -e)]); g.fill();
       }
       const c = [cam.p(-W2, 0, 0), cam.p(W2, 0, 0), cam.p(W2, L, 0), cam.p(-W2, L, 0)];
-      const frente = [cam.p(-W2, 0, 0), cam.p(W2, 0, 0), cam.p(W2, 0, -0.04), cam.p(-W2, 0, -0.04)];
-      g.fillStyle = '#0f2c52'; poligono(frente); g.fill();
       const tampo = g.createLinearGradient(0, c[2].y, 0, c[0].y);
-      tampo.addColorStop(0, '#1d4c86'); tampo.addColorStop(1, '#2a6cb8');
+      tampo.addColorStop(0, '#173f74'); tampo.addColorStop(0.55, '#1c4f8f'); tampo.addColorStop(1, '#215a9e');
       g.fillStyle = tampo; poligono(c); g.fill();
-      const centro = cam.p(0, MEIO * 0.8, 0);
-      const brilho = g.createRadialGradient(centro.x, centro.y, 0, centro.x, centro.y, (c[1].x - c[0].x) * 0.6);
-      brilho.addColorStop(0, 'rgba(255,255,255,.12)'); brilho.addColorStop(1, 'rgba(255,255,255,0)');
-      g.fillStyle = brilho; poligono(c); g.fill();
+      // Brilho dos refletores no tampo (fosco: manchas largas e suaves).
+      g.save(); poligono(c); g.clip();
+      for (const x of [-0.42, 0.42]) {
+        const r = cam.p(x, L * 0.7, 0), rr = 0.5 * r.s;
+        g.save(); g.translate(r.x, r.y); g.scale(1, 0.32);
+        const br = g.createRadialGradient(0, 0, 0, 0, 0, rr);
+        br.addColorStop(0, 'rgba(255,255,255,.16)'); br.addColorStop(1, 'rgba(255,255,255,0)');
+        g.fillStyle = br; g.fillRect(-rr, -rr, rr * 2, rr * 2);
+        g.restore();
+      }
+      g.restore();
+      // Linhas brancas: borda de 2 cm (faixas em perspectiva) e a linha do meio.
       const m = 0.02;
-      g.strokeStyle = '#f2f6fb'; g.lineWidth = 2.2 * d;
-      poligono([cam.p(-W2 + m, m, 0), cam.p(W2 - m, m, 0), cam.p(W2 - m, L - m, 0), cam.p(-W2 + m, L - m, 0)]); g.stroke();
-      g.lineWidth = 1.2 * d;
+      g.fillStyle = '#eef3f8';
+      poligono([cam.p(-W2, 0, 0), cam.p(W2, 0, 0), cam.p(W2, m, 0), cam.p(-W2, m, 0)]); g.fill();
+      poligono([cam.p(-W2, L - m, 0), cam.p(W2, L - m, 0), cam.p(W2, L, 0), cam.p(-W2, L, 0)]); g.fill();
+      poligono([cam.p(-W2, 0, 0), cam.p(-W2 + m, 0, 0), cam.p(-W2 + m, L, 0), cam.p(-W2, L, 0)]); g.fill();
+      poligono([cam.p(W2 - m, 0, 0), cam.p(W2, 0, 0), cam.p(W2, L, 0), cam.p(W2 - m, L, 0)]); g.fill();
+      g.strokeStyle = 'rgba(238,243,248,.9)'; g.lineWidth = 1 * d;
       const a = cam.p(0, m, 0), b = cam.p(0, L - m, 0);
       g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke();
     }
@@ -484,47 +628,87 @@
         g.beginPath(); g.ellipse(c.x, c.y, (0.025 + f * 0.05) * c.s, (0.025 + f * 0.05) * c.s * 0.45, 0, 0, Math.PI * 2); g.stroke();
       }
     }
-    // Rede: tela translúcida com fios, faixa limão em cima e postes.
+    // Rede de competição: malha escura, fita branca em cima, postes e presilhas na borda da mesa.
     function rede(cam, d) {
       const x0 = -W2 - 0.15, x1 = W2 + 0.15, h = MESA.rede;
-      g.fillStyle = 'rgba(225,232,245,.16)';
+      g.fillStyle = 'rgba(14,18,28,.5)';
       poligono([cam.p(x0, MEIO, 0), cam.p(x1, MEIO, 0), cam.p(x1, MEIO, h), cam.p(x0, MEIO, h)]); g.fill();
-      g.strokeStyle = 'rgba(230,236,248,.28)'; g.lineWidth = 1 * d;
+      g.strokeStyle = 'rgba(190,200,220,.22)'; g.lineWidth = 0.8 * d;
       g.beginPath();
-      for (let x = x0; x <= x1 + 1e-6; x += 0.04) { const a = cam.p(x, MEIO, 0), b = cam.p(x, MEIO, h); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); }
-      for (let z = 0.04; z < h; z += 0.04) { const a = cam.p(x0, MEIO, z), b = cam.p(x1, MEIO, z); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); }
+      for (let x = x0; x <= x1 + 1e-6; x += 0.025) { const a = cam.p(x, MEIO, 0), b = cam.p(x, MEIO, h); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); }
+      for (let z = 0.025; z < h; z += 0.025) { const a = cam.p(x0, MEIO, z), b = cam.p(x1, MEIO, z); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); }
       g.stroke();
-      const a = cam.p(x0, MEIO, h), b = cam.p(x1, MEIO, h);
-      g.strokeStyle = '#d6f24a'; g.lineWidth = 3.2 * d;
-      g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke();
-      g.strokeStyle = 'rgba(255,255,255,.7)'; g.lineWidth = 1 * d;
-      g.beginPath(); g.moveTo(a.x, a.y - 1.2 * d); g.lineTo(b.x, b.y - 1.2 * d); g.stroke();
-      g.strokeStyle = '#2b2f36'; g.lineWidth = 4 * d;
-      for (const x of [x0, x1]) { const p = cam.p(x, MEIO, -0.03), q = cam.p(x, MEIO, h + 0.012); g.beginPath(); g.moveTo(p.x, p.y); g.lineTo(q.x, q.y); g.stroke(); }
+      g.fillStyle = '#f5f7fb';
+      poligono([cam.p(x0, MEIO, h - 0.016), cam.p(x1, MEIO, h - 0.016), cam.p(x1, MEIO, h), cam.p(x0, MEIO, h)]); g.fill();
+      for (const x of [x0, x1]) {
+        const p = cam.p(x, MEIO, -0.035), q = cam.p(x, MEIO, h + 0.01), lw = Math.max(3 * d, 0.03 * p.s);
+        g.strokeStyle = '#1d2128'; g.lineWidth = lw; g.lineCap = 'round';
+        g.beginPath(); g.moveTo(p.x, p.y); g.lineTo(q.x, q.y); g.stroke();
+        g.strokeStyle = 'rgba(210,218,230,.4)'; g.lineWidth = Math.max(1, lw * 0.3);
+        g.beginPath(); g.moveTo(p.x - lw * 0.2, p.y); g.lineTo(q.x - lw * 0.2, q.y); g.stroke();
+        const borda = Math.sign(x) * W2, pa = cam.p(borda, MEIO - 0.03, 0.012), pb = cam.p(x, MEIO + 0.03, -0.035);
+        g.fillStyle = '#23272f'; g.fillRect(Math.min(pa.x, pb.x), Math.min(pa.y, pb.y), Math.abs(pb.x - pa.x), Math.abs(pb.y - pa.y));
+      }
     }
-    // Raquete virada para a câmera: borracha (vermelha a sua, escura a do outro), borda de madeira e cabo; inclina
-    // quando corre para o lado. A sua fica um pouco transparente para não esconder a bola.
+    // Raquete em 3D: lâmina com espessura (madeira entre as duas borrachas) que aparece quando ela gira, borracha com
+    // textura e brilho, cabo de madeira anatômico. A sua é vermelha e um pouco transparente para não esconder a bola;
+    // a do outro mostra a borracha preta.
     function raquete(cam, lado, d) {
       const rq = s.raq[lado], v = vista(rq.x, rq.y), c = cam.p(v.x, v.y, RAQUETE.altura);
       const rb = RAQUETE.raio * c.s, minha = lado === eu;
       const vxVista = eu === 'b' ? -rq.vx : rq.vx;
+      const giro = clamp(vxVista * 0.07 + v.x * 0.6, -0.9, 0.9);
+      const rx = rb * 0.92 * Math.max(0.4, Math.cos(giro)), ry = rb, esp = rb * 0.24 * Math.sin(giro);
       g.save();
-      g.globalAlpha = minha ? 0.72 : 1;
+      g.globalAlpha = minha ? 0.8 : 1;
       g.translate(c.x, c.y);
       g.rotate(clamp(vxVista * 0.05, -0.45, 0.45));
-      const madeira = g.createLinearGradient(-rb * 0.2, 0, rb * 0.2, 0);
-      madeira.addColorStop(0, '#e2b273'); madeira.addColorStop(1, '#8a5a2c');
-      g.fillStyle = madeira;
-      g.beginPath(); g.roundRect ? g.roundRect(-rb * 0.17, rb * 0.75, rb * 0.34, rb * 1.05, rb * 0.12) : g.rect(-rb * 0.17, rb * 0.75, rb * 0.34, rb * 1.05); g.fill();
-      if (minha) { g.shadowColor = 'rgba(214,242,74,.65)'; g.shadowBlur = 14 * d; }
-      const borracha = g.createRadialGradient(-rb * 0.3, -rb * 0.35, rb * 0.1, 0, 0, rb * 1.05);
-      if (minha) { borracha.addColorStop(0, '#ff7b6e'); borracha.addColorStop(1, '#b3261e'); }
-      else { borracha.addColorStop(0, '#4b5668'); borracha.addColorStop(1, '#141922'); }
-      g.fillStyle = borracha;
-      g.beginPath(); g.ellipse(0, 0, rb * 0.92, rb, 0, 0, Math.PI * 2); g.fill();
-      g.shadowBlur = 0;
-      g.strokeStyle = '#d9b37a'; g.lineWidth = Math.max(1.5 * d, rb * 0.08);
-      g.beginPath(); g.ellipse(0, 0, rb * 0.92, rb, 0, 0, Math.PI * 2); g.stroke();
+      // Cabo: um lado mais escuro (a espessura) e a frente com veios.
+      const cabo = (dx, claro) => {
+        g.beginPath();
+        g.moveTo(dx - rb * 0.1, rb * 0.82);
+        g.bezierCurveTo(dx - rb * 0.12, rb * 1.2, dx - rb * 0.2, rb * 1.45, dx - rb * 0.17, rb * 1.72);
+        g.quadraticCurveTo(dx, rb * 1.84, dx + rb * 0.17, rb * 1.72);
+        g.bezierCurveTo(dx + rb * 0.2, rb * 1.45, dx + rb * 0.12, rb * 1.2, dx + rb * 0.1, rb * 0.82);
+        g.closePath();
+        if (claro) {
+          const m = g.createLinearGradient(dx - rb * 0.2, 0, dx + rb * 0.2, 0);
+          m.addColorStop(0, '#f4cf98'); m.addColorStop(0.45, '#d9a466'); m.addColorStop(1, '#8a5a2c');
+          g.fillStyle = m;
+        } else g.fillStyle = '#6b4320';
+        g.fill();
+      };
+      cabo(esp * 0.8, false);
+      cabo(0, true);
+      g.save(); g.clip();
+      g.strokeStyle = 'rgba(110,65,25,.35)'; g.lineWidth = Math.max(0.8, rb * 0.015);
+      for (let i = -2; i <= 2; i++) { g.beginPath(); g.moveTo(i * rb * 0.05, rb * 0.85); g.quadraticCurveTo(i * rb * 0.07 + rb * 0.02, rb * 1.3, i * rb * 0.06, rb * 1.8); g.stroke(); }
+      g.fillStyle = '#1b1b1f'; g.fillRect(-rb * 0.25, rb * 1.02, rb * 0.5, rb * 0.09);
+      g.restore();
+      // Espessura da lâmina: borracha do outro lado, madeira e a borda da borracha da frente.
+      g.fillStyle = minha ? '#141418' : '#b3201a';
+      g.beginPath(); g.ellipse(esp, 0, rx, ry, 0, 0, Math.PI * 2); g.fill();
+      g.fillStyle = '#d6a96c';
+      g.beginPath(); g.ellipse(esp * 0.55, 0, rx, ry, 0, 0, Math.PI * 2); g.fill();
+      g.fillStyle = minha ? '#8e1510' : '#0f1115';
+      g.beginPath(); g.ellipse(esp * 0.18, 0, rx, ry, 0, 0, Math.PI * 2); g.fill();
+      // Face da borracha.
+      const face = g.createLinearGradient(-rx, -ry, rx, ry);
+      if (minha) { face.addColorStop(0, '#ff6a5c'); face.addColorStop(0.5, '#d42a20'); face.addColorStop(1, '#8a120d'); }
+      else { face.addColorStop(0, '#4a505c'); face.addColorStop(0.5, '#23272f'); face.addColorStop(1, '#0d0f13'); }
+      g.fillStyle = face;
+      g.beginPath(); g.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2); g.fill();
+      g.save(); g.clip();
+      const passo = Math.max(3 * d, rb * 0.09);
+      g.fillStyle = minha ? 'rgba(255,255,255,.07)' : 'rgba(255,255,255,.05)';
+      for (let y = -ry; y <= ry; y += passo) for (let x = -rx + (Math.abs(Math.round(y / passo)) % 2 ? passo / 2 : 0); x <= rx; x += passo) g.fillRect(x, y, Math.max(1, passo * 0.28), Math.max(1, passo * 0.28));
+      g.translate(-rx * 0.35, -ry * 0.42); g.rotate(-0.6);
+      const br = g.createRadialGradient(0, 0, 0, 0, 0, rx * 0.6);
+      br.addColorStop(0, 'rgba(255,255,255,.32)'); br.addColorStop(1, 'rgba(255,255,255,0)');
+      g.scale(1, 0.45); g.fillStyle = br; g.fillRect(-rx, -rx, rx * 2, rx * 2);
+      g.restore();
+      g.strokeStyle = 'rgba(0,0,0,.4)'; g.lineWidth = Math.max(1, rb * 0.025);
+      g.beginPath(); g.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2); g.stroke();
       g.restore();
     }
     // Bola: rastro, esfera com luz de cima e, quando espera a resposta do outro, um anel pulsando.
