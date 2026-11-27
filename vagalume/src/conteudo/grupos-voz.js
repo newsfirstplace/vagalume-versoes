@@ -565,7 +565,11 @@
       encerrar.className = 'clear'; encerrar.title = 'Fechar conversa'; encerrar.setAttribute('aria-label', 'Fechar conversa');
       montar(rostos, el('div', { class: 'messenger-line vl-grupos-titulo' }, el('p', { class: 'nitro-messenger-header-text fw-bold', texto: g.nome, title: g.nome })),
         el('div', { class: 'vl-grupos-acoes' }, [voltar, voz, gerenciar, encerrar]), historico,
-        status, el('div', { class: 'vl-grupos-compor' }, [campo, enviar]));
+        status, el('div', { class: 'vl-grupos-compor' }, [campo].concat(op.botoesMidia ? [op.botoesMidia(function (marca) {
+          // A mídia vai ao grupo como uma mensagem com a marca (o Vagalume mostra a imagem, o GIF ou o áudio no balão).
+          campo.value = marca;
+          enviar.click();
+        })] : [], [enviar])));
       caixa.classList.add('vl-grupos-chat');
       exibirMembros(g.membros);
       const eu = membros.get(id());

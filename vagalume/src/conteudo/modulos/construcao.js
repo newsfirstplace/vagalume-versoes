@@ -479,12 +479,6 @@
           situacao = el('div', { class: 'vl-sel' });
           historico = el('div', { class: 'vl-linha vl-alturas' });
           atualizarHistorico();
-          const arquivo = el('input', { type: 'file', accept: 'application/json,.json', hidden: true });
-          arquivo.addEventListener('change', function () {
-            const f = arquivo.files && arquivo.files[0];
-            if (f && f.size <= 2000000) f.text().then(importarQuarto);
-            arquivo.value = '';
-          });
           const botao = (rotulo, dica, fazer, classe) => el('button', { type: 'button', class: 'vl-botao' + (classe ? ' ' + classe : ''), texto: rotulo, title: dica, onclick: fazer });
           const mexer = (rotulo, dica, tecla, girar) => { const b = botaoMexer(rotulo, tecla, girar); b.title = dica; return b; };
           const secao = (titulo, filhos) => el('section', { class: 'vl-cons-secao' }, [el('h3', { class: 'vl-acoes-titulo', texto: titulo })].concat(filhos));
@@ -541,13 +535,11 @@
             acao('⧉', 'Copiar quarto', 'Guarda onde está cada mobi.', function () { copiarQuarto(); }),
             acao('⎘', 'Colar quarto', 'Monta de novo com mobis do seu inventário.', function () { colarQuarto(); }),
             acao('🛒', 'Comprar o que falta', 'Compra os mobis da cópia que não estão no seu inventário.', function () {
-              if (!copiaQuarto) { camada.aviso('Copie ou importe um quarto primeiro.', { tipo: 'erro' }); return; }
+              if (!copiaQuarto) { camada.aviso('Copie um quarto primeiro.', { tipo: 'erro' }); return; }
               if (!VL.loja || !VL.loja.comprarTipos) { camada.aviso('Ligue o módulo "Loja e inventário" para comprar.', { tipo: 'erro' }); return; }
               comprarFaltasDaCopia(copiaQuarto, 'Faltam {n} mobis da cópia no seu inventário.').then(function (comprou) { if (comprou === null) camada.aviso('Nada a comprar: o inventário já tem tudo da cópia (ou não respondeu).'); });
             }),
-            acao('⇩', 'Exportar', 'Salva a cópia num arquivo.', function () { exportarQuarto(); }),
-            acao('⇧', 'Importar', 'Traz uma cópia de um arquivo.', function () { arquivo.click(); }),
-          ]), arquivo]);
+          ])]);
           const fimArea = secao('3. Altura dos marcados', [grade([
             acao('═', 'Nivelar', 'Mesma altura para todos (você digita qual).', function () { escreverNoChat('nivelar '); }),
             acao('⟋', 'Escada', 'Altura subindo a cada piso.', function () { escreverNoChat('escada 0.5 x'); }),
@@ -631,7 +623,7 @@
         const r = await VL.comunidade.direto(dono.nome, { t: 'copia:pedido', q: quarto });
         if (r && r.ok === false) { esperasCopia.delete(String(quarto)); camada.aviso('Não consegui mandar o pedido a ' + dono.nome + '.', { tipo: 'erro' }); return false; }
         const ok = await resposta;
-        if (ok === true) return true;
+        if (ok === true) { camada.aviso(dono.nome + ' aceitou o seu pedido de cópia. Copiando o quarto…', { tipo: 'ok', duracaoMs: 6000 }); return true; }
         camada.aviso(ok === false ? dono.nome + ' não autorizou copiar o quarto.' : dono.nome + ' não respondeu ao pedido.', { tipo: 'erro' });
         return false;
       }
@@ -683,7 +675,7 @@
         if (extrasCopia.decoracao) partes.push('papel de parede, piso e paisagem');
         if (extrasCopia.regulador) partes.push('regulador de luz');
         camada.aviso('Cópia guardada: ' + partes.join(', ') + (incompleto ? ' (a lista do quarto pode estar incompleta)' : '') + '.'
-          + (extrasCopia.planta ? '' : ' O floor não veio: saia e entre de novo no quarto e copie outra vez.') + ' Exporte para ter um backup em arquivo.', { tipo: extrasCopia.planta ? 'ok' : 'erro', duracaoMs: 9000 });
+          + (extrasCopia.planta ? '' : ' O floor não veio: saia e entre de novo no quarto e copie outra vez.'), { tipo: extrasCopia.planta ? 'ok' : 'erro', duracaoMs: 9000 });
         // Já oferece comprar o que falta no inventário para montar a cópia (pedido do usuário em 2026-11-22).
         comprarFaltasDaCopia(copiaQuarto, 'Para montar esta cópia, faltam {n} mobis no seu inventário (os que estão no quarto não contam).');
       }
@@ -700,20 +692,6 @@
         const compra = await VL.loja.comprarTipos([...faltam].map(([tipo, quantidade]) => ({ tipo, quantidade })), motivo.replace('{n}', n), opcoes);
         if (compra && compra.cancelado) return 'cancelado';
         return !!(compra && compra.feitas);
-      }
-      function exportarQuarto() {
-        if (!copiaQuarto) { camada.aviso('Copie um quarto primeiro.', { tipo: 'erro' }); return; }
-        camada.baixar('vagalume-quarto-' + camada.carimbo(true) + '.json', JSON.stringify({ app: 'vagalume', tipo: 'quarto', mobis: copiaQuarto, extras: extrasCopia }, null, 1), 'application/json;charset=utf-8');
-      }
-      function importarQuarto(texto) {
-        let obj;
-        try { obj = JSON.parse(texto); } catch (erro) { camada.aviso('Arquivo inválido.', { tipo: 'erro' }); return; }
-        const lista = obj && obj.app === 'vagalume' && obj.tipo === 'quarto' ? codigos.validarCopiaQuarto(obj.mobis) : null;
-        if (!lista) { camada.aviso('Este arquivo não é uma cópia de quarto do Vagalume.', { tipo: 'erro' }); return; }
-        copiaQuarto = lista;
-        extrasCopia = codigos.validarExtrasQuarto(obj.extras);
-        guardarCopia();
-        camada.aviso('Cópia importada: ' + lista.length + ' mobis. Entre num quarto seu e cole.', { tipo: 'ok' });
       }
       function pedirInventario() {
         return new Promise(function (resolver) {
@@ -2349,7 +2327,6 @@
 
       ctx.comando({ nome: 'copiarquarto', apelidos: ['backup'], uso: 'copiarquarto', descricao: 'Guarda a disposição dos mobis do chão deste quarto (use antes de recolher tudo).', executar: copiarQuarto });
       ctx.comando({ nome: 'colarquarto', apelidos: ['pasteroom'], uso: 'colarquarto', descricao: 'Coloca mobis do seu inventário nas posições da cópia, depois de confirmar.', executar() { colarQuarto(); } });
-      ctx.comando({ nome: 'exportarquarto', uso: 'exportarquarto', descricao: 'Baixa a cópia do quarto num arquivo.', executar: exportarQuarto });
 
       ctx.comando({
         nome: 'mobis',

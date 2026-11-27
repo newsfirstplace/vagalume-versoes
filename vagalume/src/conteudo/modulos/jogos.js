@@ -33,7 +33,13 @@
   ];
   // Convite de amigo no console: jogo (x/d/p), cor de quem convida (w/b) e a sala da partida ("9" + 11 dígitos).
   const LETRA_JOGO = { xadrez: 'x', damas: 'd', pingpong: 'p' }, JOGO_DA_LETRA = { x: 'xadrez', d: 'damas', p: 'pingpong' };
-  const CODIGO_CONVITE = /vl-jogo-([xdp])([wb])(9\d{11})/;
+  const CODIGO_CONVITE = /vl-jogo-([xdp])([wb])(9\d{11})(?:-([lubr]))?/;
+  // Ritmos do xadrez: [segundos de cada um, acréscimo por lance]. "livre" não tem relógio.
+  const RITMOS = [['livre', 'Sem relógio'], ['bullet', 'Bullet 1 min'], ['blitz', 'Blitz 3+2'], ['rapida', 'Rápida 10 min']];
+  const TEMPO = { bullet: [60, 0], blitz: [180, 2], rapida: [600, 0] };
+  const LETRA_RITMO = { livre: 'l', bullet: 'u', blitz: 'z', rapida: 'r' }, RITMO_DA_LETRA = { l: 'livre', u: 'bullet', z: 'blitz', r: 'rapida' };
+  const ritmoValido = (r) => (TEMPO[r] ? r : 'livre');
+  const relogioTexto = (ms) => { const x = Math.max(0, ms); const seg = Math.floor(x / 1000); return x < 10000 ? (x / 1000).toFixed(1) : Math.floor(seg / 60) + ':' + String(seg % 60).padStart(2, '0'); };
   const VS = '︎'; // mostra o símbolo como texto, não como emoji
 
   const CSS = `
@@ -59,6 +65,12 @@
     background: conic-gradient(#e8edd0 0 25%, #74954e 0 50%, #e8edd0 0 75%, #74954e 0) 0 0 / 27px 27px; color: #fff;
     -webkit-text-stroke: 1.2px #1d2330; text-shadow: 0 2px 3px rgba(0,0,0,.4); }
   .vl-jg-cartao b { display: block; font-size: 16px; margin-bottom: 2px; }
+  .vl-jg-dama { display: inline-block; width: .78em; height: .78em; border-radius: 50%; vertical-align: -.08em;
+    background: radial-gradient(circle, #d65441 0 30%, #8e2a1e 31% 38%, #d65441 39% 56%, #9c2f20 57% 100%);
+    box-shadow: 0 .07em 0 #4a120b, 0 .12em .16em rgba(0,0,0,.45), inset 0 .05em 0 rgba(255,255,255,.4); -webkit-text-stroke: 0; }
+  .vl-jg-hub { display: flex; flex-direction: column; gap: 10px; }
+  .vl-jg-hub .vl-jg-cartao { width: 100%; }
+  .vl-jg-hub h3 { margin: 6px 0 0; }
   .vl-jg-cartao small { color: #aab5c7; }
   .vl-jg-botao { padding: 9px 14px; border-radius: 10px; border: 1px solid rgba(214,242,74,.5); background: rgba(214,242,74,.14); color: #f2ffc0; cursor: pointer; font: 600 13px system-ui, sans-serif; }
   .vl-jg-botao:hover:not(:disabled) { background: rgba(214,242,74,.26); }
@@ -103,6 +115,10 @@
   .vl-jg-jogador .nome b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .vl-jg-jogador .nome small { color: #9aa6b8; }
   .vl-jg-cor { width: 14px; height: 14px; border-radius: 50%; flex: none; box-shadow: 0 0 0 2px rgba(0,0,0,.35); }
+  .vl-jg-relogio { margin-left: auto; min-width: 62px; text-align: center; padding: 4px 8px; border-radius: 8px; background: #0f141c; border: 1px solid #2c3a4f; font: 700 17px ui-monospace, Consolas, monospace; color: #c9d3e2; font-variant-numeric: tabular-nums; }
+  .vl-jg-relogio.ativo { background: #d6f24a; border-color: #d6f24a; color: #141a10; }
+  .vl-jg-relogio.pouco { background: #e5484d; border-color: #e5484d; color: #fff; }
+  .vl-jg-ritmo { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   .vl-jg-cor.w { background: #fffdf4; } .vl-jg-cor.b { background: #22262f; box-shadow: 0 0 0 2px rgba(255,255,255,.3); }
   .vl-jg-tomadas { font-size: 17px; letter-spacing: -1px; min-height: 20px; font-family: 'Segoe UI Symbol', 'DejaVu Sans', serif; }
   .vl-jg-tomadas.pretas { color: #22262f; -webkit-text-stroke: .7px #cfd7e4; } .vl-jg-tomadas.brancas { color: #fffdf4; -webkit-text-stroke: .7px #1d2330; }
@@ -371,6 +387,8 @@
 
   // Regras de cada jogo atrás da mesma cara.
   const glifoDe = (id) => { const j = JOGOS.find((x) => x.id === id); return j ? j.glifo + (j.emoji ? '' : VS) : ''; };
+  // Ícone do jogo: a peça desenhada nas damas, o símbolo nos outros.
+  const iconeJogo = (id) => (id === 'damas' ? el('span', { class: 'vl-jg-dama' }) : document.createTextNode(glifoDe(id)));
   const REGRAS = {
     xadrez: {
       novo: X.novo, jogar: X.jogar, lances: X.lances, situacao: X.situacao, melhor: X.melhorLance,
@@ -398,7 +416,12 @@
     id: 'jogos',
     iniciar(ctx) {
       // Mesa de jogos para mais pessoas (Corrida de Digitação e os próximos): conteudo/mesa.js.
-      const mesaApi = VL.mesa ? VL.mesa.iniciar(ctx) : null;
+      const mesaApi = VL.mesa ? VL.mesa.iniciar(ctx, {
+        voltar: () => abrirHub(),
+        cabeca: (nome) => cabeca(nome),
+        // Fim da partida na mesa: a mesma festa e a mesma fanfarra do xadrez e das damas.
+        festa(alvo, resultado, titulo, sub) { if (ctx.secao().som !== false) fanfarra(resultado); festejarEm(alvo, resultado, titulo, sub); },
+      }) : null;
       // ---------- tabuleiros no quarto e os dois cliques ----------
       const tabuleiros = new Set(); // ids dos tabuleiros do quarto atual
       const marcar = (m) => { if (m && TABULEIROS.has(m.tipo)) tabuleiros.add(m.id); };
@@ -417,7 +440,7 @@
 
       // ---------- janela ----------
       let janela = null, corpo = null, minimizada = false;
-      let escolha = { jogo: 'xadrez', nivel: 'medio', cor: 'w' };
+      let escolha = { jogo: 'xadrez', nivel: 'medio', cor: 'w', ritmo: 'livre' };
       let partida = null;   // a partida em andamento (ver comecar)
       let convidando = null; // convite que eu mandei: { via, nome, id, sessao, jogo, cor, amigo, relogio }
       let chamada = null;    // convite recebido na tela: { sessao, cartao, relogio, pararToque }
@@ -510,10 +533,10 @@
         if (!janela) return;
         const jogo = partida ? partida.jogo : escolha.jogo;
         janela.classList.toggle('damas', jogo === 'damas');
-        janela.querySelector('.vl-jg-titulo').textContent = NOMES[jogo];
-        janela.querySelector('.vl-jg-ic').textContent = glifoDe(jogo);
-        janela.querySelector('.vl-jg-voltar').hidden = !!(partida && !partida.fim);
-        camada.trocar(corpo, partida ? (partida.jogo === 'pingpong' ? telaPingPong() : telaPartida()) : telaInicio());
+        janela.querySelector('.vl-jg-titulo').textContent = jogo ? NOMES[jogo] : 'Jogos';
+        janela.querySelector('.vl-jg-ic').replaceChildren(jogo ? iconeJogo(jogo) : document.createTextNode('🎮'));
+        janela.querySelector('.vl-jg-voltar').hidden = !jogo || !!(partida && !partida.fim);
+        camada.trocar(corpo, partida ? (partida.jogo === 'pingpong' ? telaPingPong() : telaPartida()) : jogo ? telaInicio() : telaHub());
         if (partida && partida.fim && !partida.festejado && !partida.animando) { partida.festejado = true; festejar(partida); }
       }
       function festejar(p) {
@@ -533,8 +556,30 @@
       // Voltar para a lista de todos os jogos (aba Jogos do painel).
       function voltarAosJogos() {
         if (partida && !partida.fim) return;
-        fechar();
-        ctx.emitir('painel:abrir', { aba: 'jogos' });
+        if (partida) sairDaPartida();
+        escolha.jogo = null;
+        abrir();
+      }
+      // Lista de todos os jogos (o ícone de controle na barra do hotel abre aqui).
+      function abrirHub() {
+        if (partida && !partida.fim) { abrir(); return; }
+        if (partida) sairDaPartida();
+        escolha.jogo = null;
+        abrir();
+      }
+      function telaHub() {
+        const cartao = (id, nome, texto, icone, fazer) => el('button', { type: 'button', class: 'vl-jg-cartao', 'aria-label': 'Jogar ' + nome, 'data-foco': 'hub-' + id, onclick: fazer }, [
+          el('span', { class: 'vl-jg-mini ' + id, 'aria-hidden': 'true' }, [icone]),
+          el('span', null, [el('b', { texto: nome }), el('small', { texto })]),
+          el('span', { class: 'vl-jg-botao forte vl-jg-jogar', 'aria-hidden': 'true', texto: 'Jogar' }),
+        ]);
+        const doisJogadores = JOGOS.map((j) => cartao(j.id, NOMES[j.id], j.texto, iconeJogo(j.id), function () { escolha.jogo = j.id; desenhar(); }));
+        const emGrupo = mesaApi ? Object.entries(VL.mesa.JOGOS).map(([id, j]) => cartao(id, j.nome, j.texto, VL.mesa.arte(id), function () { fechar(); mesaApi.abrir(id); })) : [];
+        return [el('div', { class: 'vl-jg-hub' }, [
+          el('p', { class: 'vl-nota', texto: 'Jogue contra o bot, com quem usa o Vagalume no quarto ou chame um amigo de outro quarto.' }),
+          el('h3', { texto: 'Um contra um' }), ...doisJogadores,
+          emGrupo.length ? el('h3', { texto: 'Em grupo' }) : null, ...emGrupo,
+        ])];
       }
       const fotoDe = (visual) => 'https://imaging.habblet.city/avatarimage?figure=' + encodeURIComponent(visual) + '&headonly=1&direction=2&head_direction=3';
       // Visual pelo apelido: de quem está no quarto ou da lista de amigos.
@@ -594,7 +639,7 @@
           + (pp ? 'Primeiro saque: ' + (escolha.cor === 'b' ? 'de quem é convidado' : escolha.cor === '?' ? 'sorteado' : 'de quem convida') : 'Quem convida joga com as ' + comQual) + '. A outra pessoa precisa usar o Vagalume.';
         return [el('div', { class: 'vl-jg-sala' }, [
           el('div', { class: 'vl-jg-heroi ' + jogo }, [
-            el('span', { class: 'vl-jg-arte ' + jogo, 'aria-hidden': 'true', texto: glifoDe(jogo) }),
+            el('span', { class: 'vl-jg-arte ' + jogo, 'aria-hidden': 'true' }, [iconeJogo(jogo)]),
             el('div', { class: 'vl-jg-heroi-texto' }, [
               el('h2', { texto: NOMES[jogo] }),
               el('p', { texto: j.texto }),
@@ -602,6 +647,8 @@
             ]),
             pp ? null : el('button', { type: 'button', class: 'vl-jg-trocar', 'data-foco': 'trocar', texto: (jogo === 'xadrez' ? 'Jogar damas' : 'Jogar xadrez') + ' neste tabuleiro ›', onclick() { escolha.jogo = jogo === 'xadrez' ? 'damas' : 'xadrez'; desenhar(); } }),
           ]),
+          jogo === 'xadrez' ? el('div', { class: 'vl-jg-ritmo' }, [el('span', { class: 'vl-jg-rotulo', texto: 'Ritmo' }),
+            segmento('Ritmo da partida', RITMOS, escolha.ritmo, (id) => { escolha.ritmo = id; desenhar(); }, 'ritmo')]) : null,
           el('div', { class: 'vl-jg-colunas' }, [
             el('section', { class: 'vl-jg-bloco' }, [
               el('div', { class: 'vl-jg-bloco-cab' }, [el('span', { class: 'ic', 'aria-hidden': 'true', texto: '🤖' }), el('h3', { texto: 'Contra o bot' })]),
@@ -609,7 +656,7 @@
               segmento('Nível do bot', NIVEIS, escolha.nivel, (id) => { escolha.nivel = id; desenhar(); }, 'nivel'),
               el('span', { class: 'vl-jg-rotulo', texto: pp ? 'Primeiro saque' : 'Suas peças' }),
               segmento(pp ? 'Primeiro saque' : 'Suas peças', cores, escolha.cor, (id) => { escolha.cor = id; desenhar(); }, 'cor'),
-              el('button', { type: 'button', class: 'vl-jg-botao forte grande', 'data-foco': 'bot', onclick() { comecar({ jogo, modo: 'bot', nivel: escolha.nivel, minhaCor: corEscolhida() }); } }, [el('span', { 'aria-hidden': 'true', texto: '▶' }), el('span', { texto: 'Jogar agora' })]),
+              el('button', { type: 'button', class: 'vl-jg-botao forte grande', 'data-foco': 'bot', onclick() { comecar({ jogo, modo: 'bot', nivel: escolha.nivel, minhaCor: corEscolhida(), ritmo: jogo === 'xadrez' ? escolha.ritmo : 'livre' }); } }, [el('span', { 'aria-hidden': 'true', texto: '▶' }), el('span', { texto: 'Jogar agora' })]),
             ]),
             el('section', { class: 'vl-jg-bloco' }, [
               el('div', { class: 'vl-jg-bloco-cab' }, [el('span', { class: 'ic', 'aria-hidden': 'true', texto: '👥' }), el('h3', { texto: 'Jogar com alguém' })]),
@@ -634,7 +681,10 @@
           ply: 0, tomou: { w: 0, b: 0 }, pendente: null, empateProposto: null, virado: o.minhaCor === 'b', pensando: false,
           via: o.via || 'quarto', oponenteId: o.oponenteId != null ? String(o.oponenteId) : null, animando: false, fila: [], job: null, mostrado: null,
           pre: null, preSel: null, setas: [], circulos: [], ver: null,
+          ritmo: o.jogo === 'xadrez' ? ritmoValido(o.ritmo) : 'livre', relogio: null,
         };
+        const tempo = TEMPO[partida.ritmo];
+        if (tempo) partida.relogio = { w: tempo[0] * 1000, b: tempo[0] * 1000, inc: tempo[1] * 1000, desde: Date.now() };
         avisoInicio = '';
         if (!janela) montarJanela();
         abrir();
@@ -655,6 +705,7 @@
           nome: (cor) => nomeDe(cor),
           cabeca: (cor) => (p.modo === 'bot' && cor !== p.minhaCor ? el('span', { class: 'vl-jg-cabeca', 'aria-hidden': 'true', texto: '🤖' }) : cabeca(nomeDe(cor))),
           enviar: (dado, confiavel) => ppEnviar(p, dado, confiavel),
+          atraso: () => Math.min(0.25, (p.ppRtt || 0) / 2000),
           som: (tipo) => { if (tipo !== 'fim' && ctx.secao().som !== false && SONS_PP[tipo]) bipes(SONS_PP[tipo], tipo === 'mesa' ? 0.045 : 0.08); },
           vivo: () => partida === p,
           encerrado: () => !!p.fim,
@@ -684,10 +735,17 @@
         if (cor === partida.minhaCor) return (VL.pessoas && VL.pessoas.eu && VL.pessoas.eu()) || 'Você';
         return partida.modo === 'bot' ? 'Bot ' + NIVEIS.find(([id]) => id === partida.nivel)[1].toLowerCase() : partida.oponente;
       }
-      function aplicar(lance, meu) {
+      function aplicar(lance, meu, tempoDele) {
         const p = partida;
         const regras = REGRAS[p.jogo];
         const antes = p.estado;
+        let sobrou;
+        if (p.relogio && !p.fim) {
+          const r = p.relogio, agora = Date.now();
+          r[antes.vez] = Number.isFinite(tempoDele) && !meu ? Math.max(0, tempoDele) : r[antes.vez] - (agora - r.desde) + r.inc;
+          r.desde = agora;
+          sobrou = Math.round(r[antes.vez]);
+        }
         p.historico.push({ nota: regras.nota(antes, lance), cor: antes.vez, ultimo: regras.ultimo(lance) });
         p.estados.push(antes);
         p.estado = regras.jogar(antes, lance);
@@ -696,7 +754,7 @@
         p.ply++;
         const st = regras.situacao(p.estado);
         if (st.fim) p.fim = st;
-        if (meu && p.modo === 'rede') mandarLance(regras.texto(lance));
+        if (meu && p.modo === 'rede') mandarLance(regras.texto(lance), sobrou);
         p.fila.push({ antes, lance, depois: p.estado });
         if (!p.animando) proximaAnimacao(p);
       }
@@ -1001,8 +1059,10 @@
         const jogador = (cor) => el('div', { class: 'vl-jg-jogador' + (!p.fim && vez === cor ? ' vez' : '') }, [
           p.modo === 'bot' && cor !== eu ? el('span', { class: 'vl-jg-cabeca', 'aria-hidden': 'true', texto: '🤖' }) : cabeca(nomeDe(cor)),
           el('span', { class: 'nome' }, [el('b', { texto: nomeDe(cor) }), el('small', { texto: (cor === 'w' ? 'Brancas' : 'Pretas') + (!p.fim && vez === cor ? ' · jogando' : '') })]),
+          p.relogio ? el('span', { class: 'vl-jg-relogio', 'data-cor': cor, role: 'timer', 'aria-label': 'Relógio das ' + (cor === 'w' ? 'brancas' : 'pretas') }) : null,
           el('span', { class: 'vl-jg-cor ' + cor, 'aria-hidden': 'true' }),
         ]);
+        setTimeout(pintarRelogios, 0);
         let estado;
         if (p.fim) estado = regras.motivoFim(p.fim, p.minhaCor, p.modo);
         else if (p.pensando) estado = 'O bot está pensando…';
@@ -1034,7 +1094,7 @@
         const avisoRevisao = revendo ? el('div', { class: 'vl-jg-revendo', texto: 'Revendo: ' + (p.ver ? 'depois do lance ' + p.ver : 'início') + ' de ' + total + '. Só você vê.' }) : null;
         const acoes = [];
         if (!p.fim) {
-          if (p.modo === 'bot') acoes.push(el('button', { type: 'button', class: 'vl-jg-botao discreto', texto: 'Voltar lance', disabled: !p.estados.length || p.pensando || p.animando, onclick: voltarLance }));
+          if (p.modo === 'bot' && !p.relogio) acoes.push(el('button', { type: 'button', class: 'vl-jg-botao discreto', texto: 'Voltar lance', disabled: !p.estados.length || p.pensando || p.animando, onclick: voltarLance }));
           if (p.modo === 'rede') {
             if (p.empateProposto === 'deles') {
               acoes.push(el('button', { type: 'button', class: 'vl-jg-botao forte', texto: 'Aceitar empate', onclick() { enviar({ t: 'jg:empate', a: 'aceitar' }); encerrar({ fim: true, vencedor: null, motivo: 'acordo' }); } }));
@@ -1073,6 +1133,35 @@
         for (const t of ['q', 'r', 'b', 'n', 'p']) s += (GLIFO[t] + VS).repeat(Math.max(0, inicial[t] - (conta[t] || 0)));
         return s;
       }
+      function restante(p, cor) {
+        const r = p.relogio;
+        return r[cor] - (!p.fim && p.estado.vez === cor ? Date.now() - r.desde : 0);
+      }
+      function pintarRelogios() {
+        const p = partida;
+        if (!p || !p.relogio || !corpo) return;
+        for (const no of corpo.querySelectorAll('.vl-jg-relogio')) {
+          const cor = no.getAttribute('data-cor'), ms = restante(p, cor);
+          no.textContent = relogioTexto(ms);
+          no.classList.toggle('ativo', !p.fim && p.estado.vez === cor && ms >= 10000);
+          no.classList.toggle('pouco', ms < 10000);
+        }
+      }
+      const relogioXadrez = setInterval(function () {
+        const p = partida;
+        if (!p || !p.relogio || p.fim) return;
+        pintarRelogios();
+        const vez = p.estado.vez, ms = restante(p, vez);
+        if (vez === p.minhaCor && ms <= 0) {
+          if (p.modo === 'rede') enviar({ t: 'jg:fim', m: 'tempo' });
+          encerrar({ fim: true, vencedor: vez === 'w' ? 'b' : 'w', motivo: 'tempo esgotado' });
+        } else if (vez !== p.minhaCor && ms <= (p.modo === 'bot' ? 0 : -3000)) {
+          // O do outro acabou (pela rede, com 3 s de folga para o aviso dele chegar).
+          if (p.modo === 'rede') enviar({ t: 'jg:fim', m: 'tempo-outro' });
+          encerrar({ fim: true, vencedor: p.minhaCor, motivo: 'tempo esgotado' });
+        }
+      }, 200);
+      ctx.aoParar(() => clearInterval(relogioXadrez));
       function voltarLance() {
         const p = partida;
         if (!p || p.modo !== 'bot' || !p.estados.length) return;
@@ -1102,7 +1191,8 @@
       function revanche() {
         const p = partida;
         if (!p) return;
-        if (p.modo === 'bot') { comecar({ jogo: p.jogo, modo: 'bot', nivel: p.nivel, minhaCor: p.minhaCor === 'w' ? 'b' : 'w' }); return; }
+        if (p.modo === 'bot') { comecar({ jogo: p.jogo, modo: 'bot', nivel: p.nivel, minhaCor: p.minhaCor === 'w' ? 'b' : 'w', ritmo: p.ritmo }); return; }
+        escolha.ritmo = p.ritmo || 'livre';
         convidar(adversario(p), p.jogo, p.minhaCor === 'w' ? 'b' : 'w');
         partida = null;
         desenhar();
@@ -1175,8 +1265,9 @@
         if (alvo.via !== 'canal' && (!VL.comunidade || !VL.comunidade.direto)) { avisoInicio = 'Ligue a Comunidade Vagalume para jogar com outras pessoas.'; desenhar(); return; }
         if (convidando) cancelarConvite();
         const c = convidando = { via: alvo.via, nome: alvo.nome, id: alvo.id || null, sessao: novaSessao(), jogo: jogo || escolha.jogo, cor: corPedida || corEscolhida() };
+        c.ritmo = c.jogo === 'xadrez' ? escolha.ritmo : 'livre';
         avisoInicio = '';
-        enviar({ t: 'jg:convite', j: c.jogo, c: c.cor, s: c.sessao }, alvo).then(function (r) {
+        enviar({ t: 'jg:convite', j: c.jogo, c: c.cor, s: c.sessao, r: c.ritmo }, alvo).then(function (r) {
           if (convidando !== c) return;
           if (!r || r.erro) { convidando = null; avisoInicio = 'Não consegui mandar o convite para ' + c.nome + (r && r.erro === 'pessoa' ? ' (a pessoa saiu do quarto ou não está com o Vagalume).' : '.'); desenhar(); }
         });
@@ -1184,11 +1275,11 @@
         abrir();
       }
       // Chamar um amigo de outro quarto: abre a sala da partida e manda o convite no console dele.
-      const textoDoConvite = (c) => (c.jogo === 'pingpong' ? '🏓' : '♟') + ' Bora jogar ' + NOMES[c.jogo] + '? Convite do Vagalume: vl-jogo-' + LETRA_JOGO[c.jogo] + c.cor + c.sessao;
+      const textoDoConvite = (c) => (c.jogo === 'pingpong' ? '🏓' : '♟') + ' Bora jogar ' + NOMES[c.jogo] + '? Convite do Vagalume: vl-jogo-' + LETRA_JOGO[c.jogo] + c.cor + c.sessao + (c.ritmo && c.ritmo !== 'livre' ? '-' + LETRA_RITMO[c.ritmo] : '');
       function convidarAmigo(a) {
         if (!meuId() || !eu()) { avisoInicio = 'Ligue a Conexão do jogo para chamar amigos.'; desenhar(); return; }
         if (convidando) cancelarConvite();
-        const c = convidando = { via: 'canal', nome: a.nome, id: String(a.id), sessao: novoCanal(), jogo: escolha.jogo, cor: corEscolhida(), amigo: true };
+        const c = convidando = { via: 'canal', nome: a.nome, id: String(a.id), sessao: novoCanal(), jogo: escolha.jogo, cor: corEscolhida(), amigo: true, ritmo: escolha.jogo === 'xadrez' ? escolha.ritmo : 'livre' };
         avisoInicio = '';
         desenhar();
         entrarNoCanal(c.sessao).then(function () {
@@ -1266,13 +1357,13 @@
         }
       }, 700);
       ctx.aoParar(() => clearInterval(reenvioPP));
-      function mandarLance(texto) {
+      function mandarLance(texto, sobrou) {
         const p = partida;
-        p.pendente = { n: p.ply, l: texto, tentativas: 0, travado: false };
+        p.pendente = { n: p.ply, l: texto, tentativas: 0, travado: false, tr: sobrou };
         const tentar = function () {
           if (partida !== p || !p.pendente || p.pendente.l !== texto) return;
           p.pendente.tentativas++;
-          enviar({ t: 'jg:lance', n: p.pendente.n, l: texto });
+          enviar({ t: 'jg:lance', n: p.pendente.n, l: texto, tr: p.pendente.tr });
           if (p.pendente.tentativas >= 5) { p.pendente.travado = true; desenhar(); return; }
           p.pendente.relogio = setTimeout(tentar, 2500);
         };
@@ -1340,7 +1431,7 @@
           aceitar() {
             enviar({ t: 'jg:resposta', ok: true, s: d.s }, de);
             largarPartida(de.via === 'canal' && canal ? canal.id : null);
-            comecar({ jogo: d.j, modo: 'rede', via: de.via, minhaCor, oponente: de.nome, oponenteId: de.id, sessao: d.s });
+            comecar({ jogo: d.j, modo: 'rede', via: de.via, minhaCor, oponente: de.nome, oponenteId: de.id, sessao: d.s, ritmo: ritmoValido(d.r) });
           } });
       }
       // Convite de um amigo de outro quarto, pelo console.
@@ -1348,17 +1439,17 @@
         const m = d && CODIGO_CONVITE.exec(String(d.texto || ''));
         if (!m || d.de == null) return;
         const de = { via: 'canal', nome: d.autor || 'Um amigo', id: String(d.de) };
-        const jogo = JOGO_DA_LETRA[m[1]], minhaCor = m[2] === 'w' ? 'b' : 'w', sessao = m[3];
+        const jogo = JOGO_DA_LETRA[m[1]], minhaCor = m[2] === 'w' ? 'b' : 'w', sessao = m[3], ritmo = RITMO_DA_LETRA[m[4]] || 'livre';
         if ((partida && partida.sessao === sessao) || (chamada && chamada.sessao === sessao)) return;
-        mostrarChamada({ sessao, nome: de.nome, jogo, minhaCor, recusar() { recusarAmigo(de, sessao); }, aceitar() { aceitarAmigo(de, sessao, jogo, minhaCor); } });
+        mostrarChamada({ sessao, nome: de.nome, jogo, minhaCor, recusar() { recusarAmigo(de, sessao); }, aceitar() { aceitarAmigo(de, sessao, jogo, minhaCor, ritmo); } });
       });
-      function aceitarAmigo(de, sessao, jogo, minhaCor) {
+      function aceitarAmigo(de, sessao, jogo, minhaCor, ritmo) {
         if (!meuId() || !eu()) { camada.aviso('Ligue a Conexão do jogo para jogar com amigos.', { tipo: 'erro' }); return; }
         largarPartida(sessao);
         entrarNoCanal(sessao).then(() => esperarNoCanal(de.id, 8000)).then(function (chegou) {
           if (!chegou) { sairDoCanal(sessao); camada.aviso('O convite de ' + de.nome + ' não vale mais.'); return; }
           enviar({ t: 'jg:resposta', ok: true, s: sessao }, de);
-          comecar({ jogo, modo: 'rede', via: 'canal', minhaCor, oponente: de.nome, oponenteId: de.id, sessao });
+          comecar({ jogo, modo: 'rede', via: 'canal', minhaCor, oponente: de.nome, oponenteId: de.id, sessao, ritmo });
         }, function () { camada.aviso('Não consegui entrar na partida agora.', { tipo: 'erro' }); });
       }
       function recusarAmigo(de, sessao) {
@@ -1384,7 +1475,7 @@
             convidando = null;
             if (d.ok) {
               largarPartida(de.via === 'canal' && canal ? canal.id : null);
-              comecar({ jogo: c.jogo, modo: 'rede', via: c.via, minhaCor: c.cor, oponente: c.nome, oponenteId: c.id, sessao: c.sessao });
+              comecar({ jogo: c.jogo, modo: 'rede', via: c.via, minhaCor: c.cor, oponente: c.nome, oponenteId: c.id, sessao: c.sessao, ritmo: c.ritmo });
             } else {
               avisoInicio = c.nome + ' recusou o convite.';
               if (c.amigo) sairDoCanal(c.sessao);
@@ -1404,7 +1495,7 @@
           if (n !== p.ply + 1 || p.estado.vez === p.minhaCor || p.fim) { enviar({ t: 'jg:pedirEstado' }); return; }
           const lance = regras.lanceDe(p.estado, String(d.l || '').slice(0, 80));
           if (!lance) { enviar({ t: 'jg:pedirEstado' }); return; }
-          aplicar(lance, false);
+          aplicar(lance, false, Number(d.tr));
           enviar({ t: 'jg:ok', n });
           return;
         }
@@ -1427,7 +1518,8 @@
           return;
         }
         if (d.t === 'jg:fim') {
-          encerrar({ fim: true, vencedor: p.minhaCor, motivo: d.m === 'desistiu' ? p.oponente + ' desistiu' : p.oponente + ' saiu da partida' });
+          if (d.m === 'tempo-outro') { encerrar({ fim: true, vencedor: p.minhaCor === 'w' ? 'b' : 'w', motivo: 'tempo esgotado' }); return; }
+          encerrar({ fim: true, vencedor: p.minhaCor, motivo: d.m === 'desistiu' ? p.oponente + ' desistiu' : d.m === 'tempo' ? 'tempo esgotado de ' + p.oponente : p.oponente + ' saiu da partida' });
           return;
         }
         if (d.t === 'jg:empate') {
@@ -1467,45 +1559,50 @@
         nome: 'jogos',
         apelidos: ['xadrez', 'damas', 'pingpong', 'pong'],
         uso: 'jogos',
-        descricao: 'Abre os jogos do Vagalume: xadrez, damas e ping-pong (também pela aba Jogos do painel; xadrez e damas também com dois cliques num tabuleiro de xadrez do quarto). Contra o bot, contra quem usa o Vagalume no quarto ou chamando um amigo de outro quarto.',
+        descricao: 'Abre os jogos do Vagalume (também pelo controle na barra do hotel, ao lado do ponto verde; xadrez e damas também com dois cliques num tabuleiro de xadrez do quarto). Contra o bot, contra quem usa o Vagalume no quarto ou chamando um amigo de outro quarto.',
         executar(pedido) {
           const qual = { xadrez: 'xadrez', damas: 'damas', pingpong: 'pingpong', pong: 'pingpong' }[pedido && pedido.nome];
           if (qual) escolha.jogo = qual;
-          else if (!partida && ctx.ativo('painel')) { ctx.emitir('painel:abrir', { aba: 'jogos' }); return; } // a lista de jogos fica no painel
+          else if (!partida || partida.fim) { abrirHub(); return; }
           abrir();
         },
       });
       // Para os testes: abrir e jogar sem a página.
-      // ---------- aba Jogos do painel (pedido do usuário: mais jogos vão entrar aqui) ----------
-      ctx.aba({
-        id: 'jogos',
-        titulo: 'Jogos',
-        ordem: 4,
-        montar(alvo) {
-          const cartoes = JOGOS.map((j) => el('button', { type: 'button', class: 'vl-jg-cartao', 'aria-label': 'Jogar ' + NOMES[j.id], onclick() {
-            if (!partida || partida.fim) { if (partida) sairDaPartida(); escolha.jogo = j.id; }
-            abrir();
-          } }, [
-            el('span', { class: 'vl-jg-mini ' + j.id, 'aria-hidden': 'true', texto: glifoDe(j.id) }),
-            el('span', null, [el('b', { texto: NOMES[j.id] }), el('small', { texto: j.texto })]),
-            el('span', { class: 'vl-jg-botao forte vl-jg-jogar', 'aria-hidden': 'true', texto: 'Jogar' }),
-          ]));
-          if (mesaApi) for (const [id, j] of Object.entries(VL.mesa.JOGOS)) cartoes.push(el('button', { type: 'button', class: 'vl-jg-cartao', 'aria-label': 'Jogar ' + j.nome, onclick() { mesaApi.abrir(id); } }, [
-            el('span', { class: 'vl-jg-mini mesa', 'aria-hidden': 'true', texto: j.glifo }),
-            el('span', null, [el('b', { texto: j.nome }), el('small', { texto: j.texto })]),
-            el('span', { class: 'vl-jg-botao forte vl-jg-jogar', 'aria-hidden': 'true', texto: 'Jogar' }),
-          ]));
-          cartoes.push(el('div', { class: 'vl-jg-cartao embreve' }, [
-            el('span', { class: 'vl-jg-mais', 'aria-hidden': 'true', texto: '+' }),
-            el('span', null, [el('b', { texto: 'Mais jogos em breve' }), el('small', { texto: 'Os próximos jogos vão aparecer aqui.' })]),
-          ]));
-          alvo.replaceChildren(el('div', { class: 'vl-jg-pagina' }, [
-            el('p', { class: 'vl-nota', texto: 'Jogue contra o bot, contra quem usa o Vagalume no quarto ou chame um amigo de outro quarto. Dois cliques num tabuleiro de xadrez do quarto também abrem o xadrez e as damas.' }),
-            el('div', { class: 'vl-jg-lista' }, cartoes),
-          ]));
-        },
+      // ---------- ícone de Jogos na barra do hotel (pedido do usuário em 2026-11-26) ----------
+      // Um controle em pixel art logo depois do ponto verde do Vagalume (ou da câmera, sem o ponto). Abre a lista de jogos.
+      const CONTROLE = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32' shape-rendering='crispEdges'>"
+        + "<g fill='#1b2230'><rect x='5' y='9' width='22' height='1'/><rect x='4' y='10' width='24' height='1'/><rect x='3' y='11' width='26' height='10'/><rect x='3' y='21' width='8' height='3'/><rect x='21' y='21' width='8' height='3'/><rect x='4' y='24' width='6' height='1'/><rect x='22' y='24' width='6' height='1'/></g>"
+        + "<g fill='#c8e63a'><rect x='5' y='10' width='22' height='1'/><rect x='4' y='11' width='24' height='9'/><rect x='4' y='20' width='6' height='3'/><rect x='22' y='20' width='6' height='3'/><rect x='5' y='23' width='4' height='1'/><rect x='23' y='23' width='4' height='1'/></g>"
+        + "<rect x='5' y='11' width='22' height='1' fill='#effc9b'/><rect x='4' y='19' width='24' height='1' fill='#8fae17'/>"
+        + "<g fill='#1b2230'><rect x='7' y='13' width='2' height='6'/><rect x='5' y='15' width='6' height='2'/><rect x='14' y='14' width='4' height='1'/></g>"
+        + "<rect x='21' y='13' width='3' height='3' fill='#ea5a9e'/><rect x='24' y='16' width='3' height='3' fill='#3a8ee8'/><rect x='21' y='13' width='1' height='1' fill='#ffd0e4'/><rect x='24' y='16' width='1' height='1' fill='#cfe4ff'/></svg>";
+      ctx.aoParar(camada.estiloPagina('jogos-barra', '.nitro-toolbar .vl-icone-jogos { width: 32px; height: 32px; flex: none; align-self: center; cursor: pointer; '
+        + 'background: url("data:image/svg+xml;charset=utf-8,' + encodeURIComponent(CONTROLE) + '") center / 32px 32px no-repeat; image-rendering: pixelated; }'
+        + ' .nitro-toolbar .vl-icone-jogos:hover { filter: drop-shadow(0 0 4px #d6f24a); }'));
+      let iconeJogos = null;
+      function cuidarDaBarra() {
+        const vizinho = document.querySelector('.nitro-toolbar .vl-icone-barra') || document.querySelector('.nitro-toolbar .navigation-item.icon-camera') || document.querySelector('.nitro-toolbar .navigation-item.item-avatar');
+        if (!vizinho) { if (iconeJogos) iconeJogos.remove(); return; }
+        if (!iconeJogos) {
+          iconeJogos = document.createElement('div');
+          iconeJogos.className = 'navigation-item vl-icone-jogos';
+          iconeJogos.setAttribute('role', 'button');
+          iconeJogos.setAttribute('aria-label', 'Jogos do Vagalume');
+          iconeJogos.title = 'Jogos do Vagalume';
+          iconeJogos.addEventListener('click', function (ev) { ev.stopPropagation(); if (janela && janela.style.display !== 'none' && !partida) fechar(); else abrirHub(); });
+        }
+        if (vizinho.nextElementSibling !== iconeJogos) vizinho.after(iconeJogos);
+      }
+      let barraPendente = false;
+      const observarBarra = new MutationObserver(function () {
+        if (barraPendente) return;
+        barraPendente = true;
+        setTimeout(function () { barraPendente = false; cuidarDaBarra(); }, 300);
       });
-      VL.jogosTabuleiro = { abrir, comecar, clicarCasa, partida: () => partida, aoDireto, receber };
+      if (document.body) observarBarra.observe(document.body, { childList: true, subtree: true });
+      cuidarDaBarra();
+      ctx.aoParar(function () { observarBarra.disconnect(); if (iconeJogos) iconeJogos.remove(); });
+      VL.jogosTabuleiro = { abrir, abrirHub, comecar, clicarCasa, partida: () => partida, aoDireto, receber };
       ctx.aoParar(() => { delete VL.jogosTabuleiro; });
     },
   });

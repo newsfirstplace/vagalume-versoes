@@ -23,7 +23,7 @@
   function nova(jogadores, aleatorio) {
     const lugares = jogadores.length === 2 ? [0, 2] : [0, 1, 2, 3].slice(0, jogadores.length);
     const js = jogadores.slice(0, 4).map((p, i) => ({ nome: p.nome, bot: p.bot || null, lugar: lugares[i], peoes: [-1, -1, -1, -1] }));
-    return { js, vez: 0, dado: null, rolou: false, seis: 0, fim: null, ultimo: null, desde: Date.now(), sorte: aleatorio || null };
+    return { js, vez: 0, dado: null, rolou: false, seis: 0, fim: null, ultimo: null, n: 0, eventos: [], espera: 0, desde: Date.now(), sorte: aleatorio || null };
   }
   const absoluta = (lugar, prog) => (SAIDA[lugar] + prog) % 52;
   // Onde o peão fica no tabuleiro ([linha, coluna]) ou null no centro.
@@ -40,6 +40,8 @@
   }
   const podeMover = (e, j, d) => j.peoes.map((p) => destino(p, d) != null);
   const daVez = (e) => e.js[e.vez];
+  // Cada lance vira um evento numerado (as telas animam um por vez) e diz quanto a animação dura (os bots esperam).
+  function evento(e, ev, espera) { ev.n = ++e.n; e.ultimo = ev; e.eventos.push(ev); if (e.eventos.length > 12) e.eventos.shift(); e.espera = espera; e.desde = Date.now(); }
   function passarVez(e) { e.vez = (e.vez + 1) % e.js.length; e.rolou = false; e.dado = null; e.seis = 0; e.desde = Date.now(); }
 
   // Ações: { tipo: 'rolar' } | { tipo: 'mover', peao }.
@@ -49,25 +51,28 @@
     if (a.tipo === 'rolar') {
       if (e.rolou) return false;
       e.dado = 1 + Math.floor((e.sorte || Math.random)() * 6);
-      e.rolou = true; e.desde = Date.now();
-      e.ultimo = { nome, tipo: 'rolou', dado: e.dado };
-      if (e.dado === 6 && ++e.seis === 3) { e.ultimo.tres = true; passarVez(e); return true; } // três seis seguidos: perde a vez
-      if (!podeMover(e, j, e.dado).some(Boolean)) passarVez(e);
+      e.rolou = true;
+      const ev = { nome, lugar: j.lugar, tipo: 'rolou', dado: e.dado };
+      if (e.dado === 6 && ++e.seis === 3) { ev.tres = true; evento(e, ev, 1900); passarVez(e); return true; } // três seis seguidos: perde a vez
+      if (!podeMover(e, j, e.dado).some(Boolean)) { ev.semJogada = true; evento(e, ev, 1900); passarVez(e); return true; }
+      evento(e, ev, 1150);
       return true;
     }
     if (a.tipo !== 'mover' || !e.rolou) return false;
     const i = Number(a.peao);
     const novo = destino(j.peoes[i], e.dado);
     if (!(i >= 0 && i < 4) || novo == null) return false;
+    const de = j.peoes[i];
     j.peoes[i] = novo;
-    let capturou = false;
+    const capturados = [];
     if (novo <= 50) {
       const abs = absoluta(j.lugar, novo);
-      if (!SEGURAS.has(abs)) for (const o of e.js) if (o !== j) o.peoes.forEach((p, k) => { if (p >= 0 && p <= 50 && absoluta(o.lugar, p) === abs) { o.peoes[k] = -1; capturou = true; } });
+      if (!SEGURAS.has(abs)) for (const o of e.js) if (o !== j) o.peoes.forEach((p, k) => { if (p >= 0 && p <= 50 && absoluta(o.lugar, p) === abs) { capturados.push({ lugar: o.lugar, peao: k, de: p, nome: o.nome }); o.peoes[k] = -1; } });
     }
-    e.ultimo = { nome, tipo: 'moveu', dado: e.dado, capturou, chegou: novo === FIM };
+    const capturou = capturados.length > 0;
+    evento(e, { nome, lugar: j.lugar, tipo: 'moveu', peao: i, de, para: novo, dado: e.dado, capturou, capturados, chegou: novo === FIM }, 300 + (de < 0 ? 1 : novo - de) * 190 + (capturou ? 750 : 0) + (novo === FIM ? 400 : 0));
     if (j.peoes.every((p) => p === FIM)) { e.fim = { ordem: [j.nome].concat(e.js.filter((o) => o !== j).sort((x, y) => soma(y) - soma(x)).map((o) => o.nome)) }; return true; }
-    if (e.dado === 6 || capturou || novo === FIM) { e.rolou = false; e.dado = null; e.desde = Date.now(); } else passarVez(e);
+    if (e.dado === 6 || capturou || novo === FIM) { e.rolou = false; e.dado = null; } else passarVez(e);
     return true;
   }
   const soma = (j) => j.peoes.reduce((s, p) => s + Math.max(0, p), 0);
@@ -93,7 +98,7 @@
   }
   function tick(e, agora) {
     const j = daVez(e);
-    if (e.fim || !j || !j.bot || (agora == null ? Date.now() : agora) - e.desde < 800) return false;
+    if (e.fim || !j || !j.bot || (agora == null ? Date.now() : agora) - e.desde < (e.espera || 0) + 350) return false;
     const a = jogadaDoBot(e);
     return a ? aplicar(e, j.nome, a) : false;
   }
@@ -109,7 +114,7 @@
   function visao(e) {
     const j = daVez(e);
     return { js: e.js.map((x) => ({ nome: x.nome, bot: !!x.bot, lugar: x.lugar, peoes: x.peoes.slice() })), vez: j ? j.nome : null, dado: e.dado, rolou: e.rolou, ultimo: e.ultimo,
-      movem: j && e.rolou ? podeMover(e, j, e.dado) : [false, false, false, false], fim: !!e.fim };
+      movem: j && e.rolou ? podeMover(e, j, e.dado) : [false, false, false, false], fim: !!e.fim, n: e.n, eventos: e.eventos.slice() };
   }
   const api = { CAMINHO, SAIDA, SEGURAS, RETA, BASE, CORES, FIM, nova, casa, destino, aplicar, jogadaDoBot, tick, sair, visao, absoluta };
   raiz.VL = raiz.VL || {};

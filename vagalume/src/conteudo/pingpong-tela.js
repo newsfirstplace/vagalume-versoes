@@ -79,7 +79,16 @@
     const sacadorAgora = () => P.sacador(s.pontos, o.primeiro || 'w');
     function avisar(texto, dur) { s.aviso = { texto, desde: agora(), ate: agora() + (dur || 1.1) }; }
     function bolaParaRede(b) { return { x: r4(b.x), y: r4(b.y), z: r4(b.z), vx: r4(b.vx), vy: r4(b.vy), vz: r4(b.vz), e: r4(b.e || 0) }; }
-    function novaJogada(lado) { s.ultimo = lado; s.quiques = { w: 0, b: 0 }; s.botMira = null; s.segura = false; s.mira = null; s.miraQuique = null; }
+    function novaJogada(lado) { s.ultimo = lado; s.quiques = { w: 0, b: 0 }; s.botMira = null; s.segura = false; s.mira = null; s.miraQuique = null; s.escala = 1; }
+    // Atraso da rede sem a bola parar (pedido do usuário em 2026-11-26): indo para o outro jogador, a bola anda um pouco
+    // mais devagar na minha tela e chega à raquete dele quando a rebatida dele já chegou aqui; voltando, anda um pouco
+    // mais depressa e alcança o tempo de verdade antes de chegar à minha raquete (eu sou o juiz do meu lado).
+    function escalaIndo() {
+      const L = !bot && o.atraso ? o.atraso() : 0;
+      if (L < 0.01 || !s.bola) return;
+      const c = P.preverCruzamento(s.bola, s.raq[ele].y, 3);
+      if (c && c.t > 0.1) s.escala = clamp(c.t / (c.t + L), 0.6, 1);
+    }
     function sacar(lado) {
       const r = s.raq[lado];
       const pos = P.posicaoDeSaque(lado, r.x);
@@ -90,7 +99,7 @@
       novaJogada(lado);
       s.fase = 'jogo'; s.querSacar = false;
       o.som('saque');
-      if (!bot && lado === eu) o.enviar(Object.assign({ t: 'pp:saque' }, bolaParaRede(s.bola)), true);
+      if (!bot && lado === eu) { o.enviar(Object.assign({ t: 'pp:saque' }, bolaParaRede(s.bola)), true); escalaIndo(); }
     }
     function rebaterAqui(lado) {
       const r = s.raq[lado];
@@ -121,11 +130,11 @@
       novaJogada(lado);
       anel(s.bola, lado === eu);
       o.som('bate');
-      if (!bot && lado === eu) o.enviar(Object.assign({ t: 'pp:bate' }, bolaParaRede(s.bola)), true);
+      if (!bot && lado === eu) { o.enviar(Object.assign({ t: 'pp:bate' }, bolaParaRede(s.bola)), true); escalaIndo(); }
     }
     function ponto(ganhou, placar, motivo) {
       if (placar) s.pontos = placar; else s.pontos[ganhou]++;
-      s.fase = 'ponto'; s.ate = agora() + 1.4; s.segura = false;
+      s.fase = 'ponto'; s.ate = agora() + 1.4; s.segura = false; s.escala = 1;
       s.ultimoPonto = { ganhou, motivo: MOTIVO[motivo] ? motivo : null };
       o.som('ponto');
       const v = P.vencedor(s.pontos);
@@ -153,6 +162,8 @@
         // Compensa o atraso da rede: a bola anda na hora o que andou do lado de lá enquanto a mensagem vinha,
         // em vez de parecer que o outro demorou para devolver.
         let resta = Number.isFinite(d.atraso) ? Math.max(0, Math.min(0.25, d.atraso)) : 0;
+        const c = resta > 0.01 ? P.preverCruzamento(b, s.raq[eu].y, 3) : null;
+        if (c && c.t > resta * 1.5 + 0.08) { s.escala = clamp(c.t / (c.t - resta), 1, 1.6); resta = 0; } // alcança o tempo aos poucos
         while (resta > 1e-6 && s.fase === 'jogo' && s.bola && !s.segura) { const h = Math.min(PASSO, resta); resta -= h; fisica(h); }
         return;
       }
@@ -267,7 +278,7 @@
         const h = Math.min(PASSO, resta);
         resta -= h;
         moverRaquetes(h, t);
-        if (s.fase === 'jogo' && s.bola && !s.segura) fisica(h);
+        if (s.fase === 'jogo' && s.bola && !s.segura) fisica(h * (s.escala || 1));
         else if (s.fase === 'ponto' && s.bola && s.bola.z > -1.5) s.bola = P.passo(s.bola, h).bola;
       }
       // Fases.

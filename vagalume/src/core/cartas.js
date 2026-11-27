@@ -34,7 +34,7 @@
     // A primeira carta da mesa é um número.
     let i = pilha.findIndex((c) => /^\d$/.test(c.valor));
     const topo = pilha.splice(i, 1)[0];
-    return { pilha, descarte: [topo], cor: topo.cor, maos, ordem, bots, vez: 0, sentido: 1, comprada: null, ultima: {}, fim: null, ultimaJogada: null, desde: Date.now() };
+    return { pilha, descarte: [topo], cor: topo.cor, maos, ordem, bots, vez: 0, sentido: 1, comprada: null, ultima: {}, fim: null, ultimaJogada: null, n: 0, desde: Date.now() };
   }
   const topo = (e) => e.descarte[e.descarte.length - 1];
   const daVez = (e) => e.ordem[e.vez];
@@ -63,11 +63,11 @@
       if (e.comprada != null) return false;
       comprar(e, nome, 1);
       const c = mao[mao.length - 1];
-      e.ultimaJogada = { nome, tipo: 'comprou' };
+      e.ultimaJogada = { n: ++e.n, nome, tipo: 'comprou', qtd: 1 };
       if (c && serve(e, c)) e.comprada = c.id; else proximo(e);
       return true;
     }
-    if (a.tipo === 'passar') { if (e.comprada == null) return false; e.ultimaJogada = { nome, tipo: 'passou' }; proximo(e); return true; }
+    if (a.tipo === 'passar') { if (e.comprada == null) return false; e.ultimaJogada = { n: ++e.n, nome, tipo: 'passou' }; proximo(e); return true; }
     if (a.tipo !== 'jogar') return false;
     const i = mao.findIndex((c) => c.id === Number(a.id));
     if (i < 0) return false;
@@ -78,7 +78,7 @@
     mao.splice(i, 1);
     e.descarte.push(c);
     e.cor = curinga(c) ? a.cor : c.cor;
-    e.ultimaJogada = { nome, tipo: 'jogou', carta: c, cor: e.cor };
+    e.ultimaJogada = { n: ++e.n, nome, tipo: 'jogou', carta: c, cor: e.cor };
     // Esqueceu de avisar a última carta: compra 2.
     if (mao.length === 1 && !e.ultima[nome]) { comprar(e, nome, 2); e.ultimaJogada.esqueceu = true; }
     if (mao.length !== 1) e.ultima[nome] = false;
@@ -86,7 +86,7 @@
     const n = e.ordem.length;
     if (c.valor === 'inverter') { e.sentido = -e.sentido; proximo(e, n === 2 ? 2 : 1); }
     else if (c.valor === 'pular') proximo(e, 2);
-    else if (c.valor === '+2' || c.valor === '+4') { proximo(e); comprar(e, daVez(e), c.valor === '+2' ? 2 : 4); proximo(e); }
+    else if (c.valor === '+2' || c.valor === '+4') { proximo(e); e.ultimaJogada.vitima = daVez(e); e.ultimaJogada.qtd = c.valor === '+2' ? 2 : 4; comprar(e, daVez(e), e.ultimaJogada.qtd); proximo(e); }
     else proximo(e);
     return true;
   }
@@ -108,7 +108,7 @@
   function tick(e, agora) {
     if (e.fim) return false;
     const nome = daVez(e);
-    if (!e.bots[nome] || (agora == null ? Date.now() : agora) - e.desde < 1100) return false;
+    if (!e.bots[nome] || (agora == null ? Date.now() : agora) - e.desde < 1500) return false;
     return aplicar(e, nome, jogadaDoBot(e, nome));
   }
   function sair(e, nome) {
@@ -123,7 +123,7 @@
   }
   function visao(e, nome) {
     return {
-      mao: (e.maos[nome] || []).slice(), topo: topo(e), cor: e.cor, vez: daVez(e), sentido: e.sentido, comprada: daVez(e) === nome ? e.comprada : null,
+      mao: (e.maos[nome] || []).slice(), topo: topo(e), descarte: e.descarte.slice(-4), cor: e.cor, vez: daVez(e), sentido: e.sentido, comprada: daVez(e) === nome ? e.comprada : null,
       outros: e.ordem.map((n) => ({ nome: n, cartas: e.maos[n].length, bot: !!e.bots[n], ultima: !!e.ultima[n] })), pilha: e.pilha.length,
       ultimaJogada: e.ultimaJogada, avisei: !!e.ultima[nome], fim: !!e.fim,
     };

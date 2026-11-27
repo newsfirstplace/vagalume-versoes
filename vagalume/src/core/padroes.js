@@ -123,15 +123,16 @@
 
   // Novidades mostradas uma vez quando a versão instalada muda (o usuário pode desligar o aviso nas opções do módulo Comandos).
   const NOVIDADES = [
-    'Jogos em grupo: Corrida de Digitação, Vagacartas, Duelo de Pistas, Ludo e Sinuca, com quem usa o Vagalume no quarto ou com bots (aba Jogos do painel).',
-    'Balões de fala: 15 balões do Vagalume com enfeites, no seletor de balões do jogo.',
-    'Bate-papo privado: mande imagem, GIF e áudio para os amigos. As imagens passam por um filtro automático.',
-    'Construção: altura escolhida antes de colocar (sem :up), ocultar mobis por categoria, e copiar o quarto de outra pessoa só com a permissão do dono.',
-    'Campainha: som de campainha quando alguém toca num quarto em que você tem direitos.',
-    'Ping-pong: a bola não fica mais parada esperando a devolução do outro jogador.',
+    'Jogos: um controle na barra do hotel, ao lado do ponto verde, abre a lista de todos os jogos (saiu a aba do painel).',
+    'Sinuca no jeito dos jogos de bola 8: mira com bola fantasma, taco que recua, barra de força, efeito na branca, bola na mão e caçapa marcada. Modo novo: bola 9.',
+    'Ludo com dado 3D que gira, peões pulando casa por casa e o tabuleiro clássico.',
+    'Vagacartas refeito: mesa de feltro, cartas novas, leque na mão e cartas voando ao jogar e comprar.',
+    'Corrida de Digitação com 1, 3 ou 5 rodadas, placar entre as rodadas e pontos pela colocação.',
+    'Xadrez com relógio: Bullet, Blitz e Rápida. Salas dos jogos em grupo no mesmo visual do Xadrez, com pódio no fim.',
+    'Console: imagem, GIF e áudio também nas conversas em grupo; copiar quarto avisa quando o dono aceita.',
   ];
 
-  const api = { PADROES, CATALOGO, GRUPOS, NOVIDADES, ESQUEMA: 1, VERSAO: '0.1.10' };
+  const api = { PADROES, CATALOGO, GRUPOS, NOVIDADES, ESQUEMA: 1, VERSAO: '0.1.11' };
   raiz.VL = raiz.VL || {};
   raiz.VL.padroes = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
