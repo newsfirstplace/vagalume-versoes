@@ -306,29 +306,58 @@
   .vl-jg.vl-nativo .vl-cr-meu b { color: var(--n-acento); text-shadow: 0 0 12px color-mix(in srgb, var(--n-acento) 50%, transparent); }
   .vl-jg.vl-nativo .vl-pp-pontos { color: var(--n-acento); text-shadow: 0 0 12px color-mix(in srgb, var(--n-acento) 60%, transparent); font-family: ui-monospace, Consolas, monospace; }
   .vl-jg.vl-nativo .vl-pp-estado { color: var(--n-texto); }
-  /* Lista de jogos: um fliperama com as capas. */
-  .vl-jg.vl-nativo.tema-hub { --n-fundo: radial-gradient(ellipse at 50% -10%, #3b2f7a 0%, #1a1640 45%, #0c0a1f 100%); --n-barra: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,0));
-    --n-borda: rgba(255,207,58,.3); --n-acento: #ffcf3a; --n-acento-texto: #2b1d00; --n-acento-sombra: #b07d00; --n-titulo-fonte: 900 16px/1 system-ui, sans-serif; --n-titulo-cor: #ffe08a; }
-  .vl-jg.vl-nativo.tema-hub .vl-jg-hub { display: grid; grid-template-columns: repeat(auto-fill, minmax(196px, 1fr)); gap: 14px; }
-  .vl-jg.vl-nativo.tema-hub .vl-jg-hub > p, .vl-jg.vl-nativo.tema-hub .vl-jg-hub > h3 { grid-column: 1 / -1; margin: 2px 0 0; }
-  .vl-jg.vl-nativo.tema-hub .vl-jg-hub > h3 { font: 900 13px system-ui, sans-serif; letter-spacing: 2.5px; color: #ffcf3a; }
-  .vl-jg.vl-nativo.tema-hub .vl-jg-cartao { flex-direction: column; align-items: stretch; gap: 0; padding: 0; overflow: hidden; border-radius: 18px; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1); box-shadow: 0 10px 24px rgba(0,0,0,.35); transition: transform .15s, box-shadow .15s; }
-  .vl-jg.vl-nativo.tema-hub .vl-jg-cartao:hover { transform: translateY(-4px) scale(1.02); box-shadow: 0 16px 34px rgba(0,0,0,.5), 0 0 0 2px #ffcf3a; }
-  .vl-jg.vl-nativo.tema-hub .vl-jg-cartao .vl-jg-mini { width: 104px; height: 104px; margin: 16px auto 2px; border-radius: 24px; font-size: 62px; box-shadow: 0 10px 22px rgba(0,0,0,.45), 0 0 0 3px rgba(255,255,255,.14); }
-  .vl-jg.vl-nativo.tema-hub .vl-jg-cartao[data-foco="hub-xadrez"] { background: linear-gradient(180deg, #5a3a22, #1d130a); }
-  .vl-jg.vl-nativo.tema-hub .vl-jg-cartao[data-foco="hub-xadrez"] .vl-jg-mini { background: conic-gradient(#ecd3ab 0 25%, #a97a50 0 50%, #ecd3ab 0 75%, #a97a50 0) 0 0 / 52px 52px; }
-  .vl-jg.vl-nativo.tema-hub .vl-jg-cartao[data-foco="hub-damas"] .vl-jg-mini { background: conic-gradient(#f2dfc0 0 25%, #6e3f26 0 50%, #f2dfc0 0 75%, #6e3f26 0) 0 0 / 52px 52px; }
-  .vl-jg.vl-nativo.tema-hub .vl-jg-cartao[data-foco="hub-damas"] { background: linear-gradient(180deg, #5c2420, #1f0d0a); }
-  .vl-jg.vl-nativo.tema-hub .vl-jg-cartao[data-foco="hub-pingpong"] { background: linear-gradient(180deg, #1f4a8f, #0a1633); }
-  .vl-jg.vl-nativo.tema-hub .vl-jg-cartao[data-foco="hub-corrida"] { background: linear-gradient(180deg, #3a1060, #120724); }
-  .vl-jg.vl-nativo.tema-hub .vl-jg-cartao[data-foco="hub-cartas"] { background: linear-gradient(180deg, #3a2a7a, #140f33); }
-  .vl-jg.vl-nativo.tema-hub .vl-jg-cartao[data-foco="hub-pistas"] { background: linear-gradient(180deg, #2d3f44, #101719); }
-  .vl-jg.vl-nativo.tema-hub .vl-jg-cartao[data-foco="hub-ludo"] { background: linear-gradient(180deg, #3c9be8, #164c92); }
-  .vl-jg.vl-nativo.tema-hub .vl-jg-cartao[data-foco="hub-sinuca"] { background: linear-gradient(180deg, #1f6b43, #0b2416); }
-  .vl-jg.vl-nativo.tema-hub .vl-jg-cartao > span:nth-child(2) { padding: 10px 12px 0; }
-  .vl-jg.vl-nativo.tema-hub .vl-jg-cartao b { font: 900 16px system-ui, sans-serif; color: #fff; }
-  .vl-jg.vl-nativo.tema-hub .vl-jg-cartao small { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 11.5px; }
-  .vl-jg.vl-nativo.tema-hub .vl-jg-cartao .vl-jg-jogar { margin: 10px 12px 12px; text-align: center; }
+  /* Lista de jogos: destaque no topo, duas seções e cartões com capa 16:9. */
+  .vl-jg.vl-nativo.tema-hub { --n-fundo: #0F1117; --n-barra: #141823; --n-borda: rgba(255,255,255,.08); --n-texto: #eef0f4; --n-suave: rgba(238,240,244,.6);
+    --n-acento: #FACC15; --n-acento-texto: #1a1400; --n-acento-sombra: #a8870a; --n-titulo-cor: #eef0f4;
+    --n-titulo-fonte: 700 15px/1 var(--hub-fonte); --hub-fonte: 'Outfit', 'Plus Jakarta Sans', 'Segoe UI Variable Display', 'Segoe UI', system-ui, sans-serif;
+    --hub-sup: #161a24; --hub-sup2: #1b2030; --hub-linha: rgba(255,255,255,.08); box-shadow: 0 30px 90px rgba(0,0,0,.7); }
+  .vl-jg.vl-nativo.tema-hub .vl-jg-cab b { letter-spacing: .4px; text-transform: none; font-size: 16px; }
+  .vl-jg.vl-nativo.tema-hub .vl-jg-corpo { padding: 18px 20px 22px; }
+  .vl-jg.vl-nativo.tema-hub .vl-jg-hub { display: flex; flex-direction: column; gap: 24px; container-type: inline-size; }
+  .vl-hub-dest, .vl-hub-card { font: inherit; color: inherit; text-align: left; cursor: pointer; padding: 0; margin: 0; -webkit-appearance: none; appearance: none; }
+  .vl-hub-dest { position: relative; display: flex; align-items: stretch; min-height: 228px; border-radius: 18px; overflow: hidden; background: var(--hub-sup); border: 1px solid var(--hub-linha);
+    transition: border-color .2s, box-shadow .2s; }
+  .vl-hub-dest > img { position: absolute; inset: 0 0 0 auto; width: 74%; height: 100%; object-fit: cover; -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 34%); mask-image: linear-gradient(90deg, transparent 0, #000 34%); transition: transform .5s ease; }
+  .vl-hub-dest .txt { position: relative; z-index: 1; display: flex; flex-direction: column; justify-content: center; gap: 10px; padding: 26px 30px; max-width: 46%; }
+  .vl-hub-dest .chip { align-self: flex-start; display: inline-flex; align-items: center; gap: 7px; font: 700 10.5px/1 var(--hub-fonte); letter-spacing: 1.6px; text-transform: uppercase; color: #FACC15; }
+  .vl-hub-dest .chip i { width: 7px; height: 7px; border-radius: 50%; background: #FACC15; box-shadow: 0 0 10px #FACC15; }
+  .vl-hub-dest h2 { margin: 0; font: 800 34px/1.05 var(--hub-fonte); letter-spacing: -.5px; color: #fff; }
+  .vl-hub-dest p { margin: 0; font: 400 13.5px/1.45 system-ui, 'Segoe UI', sans-serif; color: var(--n-suave); }
+  .vl-hub-dest .vl-hub-tags { position: static; }
+  .vl-hub-dest .cta { align-self: flex-start; margin-top: 4px; display: inline-flex; align-items: center; gap: 8px; padding: 11px 20px; border-radius: 12px; background: #FACC15; color: #1a1400;
+    font: 700 14px/1 var(--hub-fonte); box-shadow: 0 8px 24px rgba(250,204,21,.22); transition: transform .15s, box-shadow .15s; }
+  .vl-hub-dest:hover, .vl-hub-dest:focus-visible { border-color: rgba(255,255,255,.16); box-shadow: 0 18px 40px rgba(0,0,0,.45); }
+  .vl-hub-dest:hover > img, .vl-hub-dest:focus-visible > img { transform: scale(1.03); }
+  .vl-hub-dest:hover .cta, .vl-hub-dest:focus-visible .cta { transform: translateY(-1px); box-shadow: 0 12px 28px rgba(250,204,21,.32); }
+  .vl-hub-sec { display: flex; flex-direction: column; gap: 12px; }
+  .vl-hub-sec > header { display: flex; align-items: baseline; gap: 10px; }
+  .vl-hub-sec h3 { margin: 0; font: 700 12px/1 var(--hub-fonte); letter-spacing: 2px; text-transform: uppercase; color: #fff; }
+  .vl-hub-sec header small { font: 400 12px/1 system-ui, sans-serif; color: var(--n-suave); }
+  .vl-hub-sec header em { margin-left: auto; font: 600 11px/1 var(--hub-fonte); font-style: normal; color: var(--n-suave); padding: 4px 8px; border-radius: 999px; border: 1px solid var(--hub-linha); }
+  .vl-hub-grade { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+  .vl-hub-grade.grupo { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  @container (max-width: 760px) { .vl-hub-grade.grupo { grid-template-columns: repeat(3, minmax(0, 1fr)); } .vl-hub-dest .txt { max-width: 60%; } }
+  @container (max-width: 520px) { .vl-hub-grade, .vl-hub-grade.grupo { grid-template-columns: repeat(2, minmax(0, 1fr)); } .vl-hub-dest > img { width: 100%; opacity: .45; } .vl-hub-dest .txt { max-width: none; } }
+  .vl-hub-card { display: flex; flex-direction: column; border-radius: 14px; overflow: hidden; background: var(--hub-sup); border: 1px solid var(--hub-linha);
+    transition: transform .2s ease, border-color .2s, background .2s, box-shadow .2s; }
+  .vl-hub-capa { position: relative; display: block; aspect-ratio: 16 / 9; overflow: hidden; background: #0b0d13; }
+  .vl-hub-capa img { display: block; width: 100%; height: 100%; object-fit: cover; transition: transform .45s ease; }
+  .vl-hub-capa::after { content: ''; position: absolute; inset: auto 0 0 0; height: 40%; background: linear-gradient(180deg, transparent, rgba(15,17,23,.55)); pointer-events: none; }
+  .vl-hub-tags { position: absolute; z-index: 1; top: 8px; left: 8px; right: 8px; display: flex; flex-wrap: wrap; gap: 4px; }
+  .vl-hub-tags span { font: 600 10px/1 var(--hub-fonte); letter-spacing: .2px; padding: 4px 7px; border-radius: 999px; color: #e9ebf0; background: rgba(15,17,23,.74);
+    border: 1px solid rgba(255,255,255,.12); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); white-space: nowrap; }
+  .vl-hub-tags span.rapido { color: #FACC15; }
+  .vl-hub-grade.grupo .vl-hub-tags span:nth-child(n+3) { display: none; } /* cartão estreito: no máximo duas etiquetas */
+  .vl-hub-card .play { position: absolute; z-index: 1; right: 9px; bottom: 9px; display: inline-flex; align-items: center; gap: 5px; padding: 6px 11px; border-radius: 999px;
+    background: #FACC15; color: #1a1400; font: 700 11.5px/1 var(--hub-fonte); box-shadow: 0 6px 16px rgba(0,0,0,.4); opacity: 0; transform: translateY(6px); transition: opacity .2s, transform .2s; }
+  .vl-hub-info { display: flex; flex-direction: column; gap: 5px; padding: 11px 13px 14px; }
+  .vl-hub-info b { font: 700 15px/1.2 var(--hub-fonte); color: #f4f5f8; }
+  .vl-hub-info small { font: 400 12px/1.4 system-ui, 'Segoe UI', sans-serif; color: var(--n-suave); min-height: 2.8em; }
+  .vl-hub-card:hover, .vl-hub-card:focus-visible { transform: translateY(-4px); background: var(--hub-sup2); border-color: rgba(255,255,255,.16); box-shadow: 0 16px 32px rgba(0,0,0,.45); }
+  .vl-hub-card:hover .play, .vl-hub-card:focus-visible .play { opacity: 1; transform: none; }
+  .vl-hub-card:hover .vl-hub-capa img, .vl-hub-card:focus-visible .vl-hub-capa img { transform: scale(1.06); }
+  .vl-hub-card:focus-visible, .vl-hub-dest:focus-visible { outline: 2px solid #FACC15; outline-offset: 2px; }
+  .vl-hub-card:active { transform: translateY(-1px); }
   /* Xadrez: clube de madeira e dourado. */
   .vl-jg.vl-nativo.tema-xadrez { --n-fundo: radial-gradient(ellipse at 50% 0%, #4a2f1a 0%, #24160c 55%, #140c06 100%); --n-barra: linear-gradient(180deg, #5a3a22, #2e1d10); --n-borda: #7a5634;
     --n-acento: #e0b65a; --n-acento-texto: #2a1806; --n-acento-sombra: #8f6a22; --n-texto: #f6ead2; --n-suave: #c9b48f; --n-cartao: rgba(0,0,0,.28); --n-cartao-borda: rgba(224,182,90,.22);
@@ -382,7 +411,7 @@
     --n-barra: linear-gradient(180deg, #2c3a32, #151d18); --n-borda: rgba(232,197,71,.3); --n-acento: #e8c547; --n-acento-texto: #2a2100; --n-acento-sombra: #8f7414; --n-texto: #f2f5ef; --n-suave: #aebba9;
     --n-titulo-cor: #f4e3a1; --n-logo-fonte: 900 46px/1 system-ui, sans-serif; --n-logo-cor: #f4e3a1; --n-logo-sombra: 0 2px 0 #6b5510, 0 0 26px rgba(232,197,71,.35);
     --n-capa: radial-gradient(ellipse at 50% -30%, rgba(255,226,150,.4), transparent 60%), linear-gradient(160deg, #1f6b43, #0f3a24); }
-  @media (prefers-reduced-motion: reduce) { .vl-jg.vl-nativo.tema-hub .vl-jg-cartao:hover { transform: none; } }
+  @media (prefers-reduced-motion: reduce) { .vl-hub-card, .vl-hub-card:hover, .vl-hub-card:focus-visible, .vl-hub-card .play, .vl-hub-capa img, .vl-hub-dest > img, .vl-hub-dest .cta { transition: none; transform: none !important; } }
   `;
 
 
@@ -704,18 +733,52 @@
         escolha.jogo = null;
         abrir();
       }
+      // Textos curtos dos cartões (cabem em duas linhas).
+      const CURTOS = {
+        xadrez: 'O clássico de estratégia, com relógio e bot em três níveis.',
+        damas: 'Regra brasileira, com dama voadora e captura obrigatória.',
+        pingpong: 'Mesa em 3D: rebata com o mouse e feche em 11 pontos.',
+        corrida: 'Digite a frase certinha antes de todo mundo.',
+        cartas: 'Mesma cor ou número. Esvazie a mão primeiro.',
+        pistas: 'O mestre dá a pista e o time acha as palavras.',
+        ludo: 'Tire 6, dê a volta e leve os peões ao centro.',
+        sinuca: 'Bola 8 ou bola 9, com efeito e bola na mão.',
+      };
+      const RAPIDOS = { pingpong: 1, corrida: 1 };
       function telaHub() {
-        const cartao = (id, nome, texto, icone, fazer) => el('button', { type: 'button', class: 'vl-jg-cartao', 'aria-label': 'Jogar ' + nome, 'data-foco': 'hub-' + id, onclick: fazer }, [
-          el('span', { class: 'vl-jg-mini ' + id, 'aria-hidden': 'true' }, [icone]),
-          el('span', null, [el('b', { texto: nome }), el('small', { texto })]),
-          el('span', { class: 'vl-jg-botao forte vl-jg-jogar', 'aria-hidden': 'true', texto: 'Jogar' }),
+        const capa = (id, largura) => {
+          const src = VL.capasJogos ? VL.capasJogos.url(id, largura) : '';
+          return src ? el('img', { alt: '', src, draggable: 'false' }) : null;
+        };
+        const etiquetas = (j) => el('span', { class: 'vl-hub-tags' }, [
+          el('span', { texto: j.min === j.max ? j.min + ' jogadores' : j.min + '–' + j.max + ' jogadores' }),
+          RAPIDOS[j.id] ? el('span', { class: 'rapido', texto: 'Rápido' }) : null,
+          j.bot ? el('span', { texto: 'Bot' }) : null,
         ]);
-        const doisJogadores = JOGOS.map((j) => cartao(j.id, NOMES[j.id], j.texto, iconeJogo(j.id), function () { escolha.jogo = j.id; desenhar(); }));
-        const emGrupo = mesaApi ? Object.entries(VL.mesa.JOGOS).map(([id, j]) => cartao(id, j.nome, j.texto, VL.mesa.arte(id), function () { fechar(); mesaApi.abrir(id); })) : [];
+        const cartao = (j) => el('button', { type: 'button', class: 'vl-hub-card', 'aria-label': 'Jogar ' + j.nome, 'data-foco': 'hub-' + j.id, onclick: j.abrir }, [
+          el('span', { class: 'vl-hub-capa', 'aria-hidden': 'true' }, [capa(j.id, 300), etiquetas(j), el('span', { class: 'play', texto: '▶ Jogar' })]),
+          el('span', { class: 'vl-hub-info' }, [el('b', { texto: j.nome }), el('small', { texto: CURTOS[j.id] || '' })]),
+        ]);
+        const doisJogadores = JOGOS.map((j) => ({ id: j.id, nome: NOMES[j.id], min: 2, max: 2, bot: true, abrir() { escolha.jogo = j.id; desenhar(); } }));
+        const emGrupo = mesaApi ? Object.entries(VL.mesa.JOGOS).map(([id, j]) => ({ id, nome: j.nome, min: j.min || 2, max: j.max || j.min || 2, bot: !!(j.bots && j.bots.length), abrir() { fechar(); mesaApi.abrir(id); } })) : [];
+        const destaque = emGrupo.find((j) => j.id === 'sinuca') || doisJogadores[0];
+        const secao = (titulo, sub, lista, classe) => el('section', { class: 'vl-hub-sec' }, [
+          el('header', null, [el('h3', { texto: titulo }), el('small', { texto: sub }), el('em', { texto: lista.length + ' jogos' })]),
+          el('div', { class: 'vl-hub-grade' + (classe ? ' ' + classe : '') }, lista.map(cartao)),
+        ]);
         return [el('div', { class: 'vl-jg-hub' }, [
-          el('p', { class: 'vl-nota', texto: 'Jogue contra o bot, com quem usa o Vagalume no quarto ou chame um amigo de outro quarto.' }),
-          el('h3', { texto: 'Um contra um' }), ...doisJogadores,
-          emGrupo.length ? el('h3', { texto: 'Em grupo' }) : null, ...emGrupo,
+          el('button', { type: 'button', class: 'vl-hub-dest', 'aria-label': 'Jogar ' + destaque.nome + ' (em destaque)', 'data-foco': 'hub-destaque', onclick: destaque.abrir }, [
+            capa(destaque.id, 720),
+            el('span', { class: 'txt' }, [
+              el('span', { class: 'chip' }, [el('i'), el('span', { texto: 'Em destaque' })]),
+              el('h2', { texto: destaque.nome }),
+              el('p', { texto: destaque.id === 'sinuca' ? 'Bola 8 ou bola 9 numa mesa de verdade: mire, puxe o taco, use efeito na branca e encare o bot ou alguém do quarto.' : CURTOS[destaque.id] }),
+              etiquetas(destaque),
+              el('span', { class: 'cta', 'aria-hidden': 'true', texto: '▶  Jogar agora' }),
+            ]),
+          ]),
+          secao('Um contra um', 'Contra o bot, no quarto ou com um amigo', doisJogadores),
+          emGrupo.length ? secao('Em grupo', 'Para jogar com quem está no quarto', emGrupo, 'grupo') : null,
         ])];
       }
       const fotoDe = (visual) => 'https://imaging.habblet.city/avatarimage?figure=' + encodeURIComponent(visual) + '&headonly=1&direction=2&head_direction=3';

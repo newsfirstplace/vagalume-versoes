@@ -188,6 +188,7 @@
         "src/conteudo/mesa-pistas.js",
         "src/conteudo/mesa-ludo.js",
         "src/conteudo/mesa-sinuca.js",
+        "src/conteudo/capas-jogos.js",
         "src/conteudo/conexao.js",
         "src/conteudo/construcao-ferramenta.js",
         "src/conteudo/grupos-voz.js",
