@@ -15,7 +15,6 @@
   const CHEGADA = [[7, 6], [6, 7], [7, 8], [8, 7]];      // triângulo do centro de cada cor
   const SETA = [0, 90, 180, 270];                         // sentido da casa de saída
   const PIPS = { 1: [5], 2: [1, 9], 3: [1, 5, 9], 4: [1, 3, 7, 9], 5: [1, 3, 5, 7, 9], 6: [1, 3, 4, 6, 7, 9] };
-  const GIRO = { 1: [0, 0], 6: [0, 180], 2: [0, -90], 5: [0, 90], 3: [-90, 0], 4: [90, 0] };
   const CSS = `
   .vl-ld { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 16px; align-items: start; }
   .vl-ld-tab { --c: 32px; position: relative; width: calc(var(--c) * 15); height: calc(var(--c) * 15); border-radius: 12px; background: #f4f6fa; overflow: hidden;
@@ -53,16 +52,12 @@
     background: radial-gradient(circle at 50% 38%, color-mix(in srgb, var(--cor) 32%, #1a2130), #11151f 75%); transition: background .3s, border-color .3s; }
   .vl-ld-dado-caixa.pode { cursor: pointer; box-shadow: 0 0 0 2px var(--cor), 0 0 22px color-mix(in srgb, var(--cor) 50%, transparent); }
   .vl-ld-dado-caixa small { color: #dfe6f2; font-weight: 600; }
-  .vl-ld-palco { width: 96px; height: 96px; perspective: 520px; display: grid; place-items: center; }
-  .vl-ld-incl { transform-style: preserve-3d; transform: rotateX(-22deg) rotateY(-28deg); }
-  .vl-ld-cubo { position: relative; width: 62px; height: 62px; transform-style: preserve-3d; }
-  .vl-ld-face { position: absolute; inset: 0; box-sizing: border-box; border-radius: 13px; padding: 8px; display: grid; grid-template: repeat(3, 1fr) / repeat(3, 1fr);
-    background: radial-gradient(circle at 30% 25%, #ffffff, #eef1f6 60%, #d3d9e3); box-shadow: inset 0 0 0 1px rgba(0,0,0,.08), inset 0 -5px 9px rgba(0,0,0,.12); backface-visibility: hidden; }
-  .vl-ld-face i { width: 11px; height: 11px; border-radius: 50%; place-self: center; background: radial-gradient(circle at 40% 35%, #4a4f5a, #0c0e12); box-shadow: inset 0 1px 1px rgba(255,255,255,.2); }
-  .vl-ld-face.f1 i { width: 15px; height: 15px; background: radial-gradient(circle at 40% 35%, #ff6b7a, #b3132a); }
-  .vl-ld-face.f1 { transform: translateZ(31px); } .vl-ld-face.f6 { transform: rotateY(180deg) translateZ(31px); }
-  .vl-ld-face.f2 { transform: rotateY(90deg) translateZ(31px); } .vl-ld-face.f5 { transform: rotateY(-90deg) translateZ(31px); }
-  .vl-ld-face.f3 { transform: rotateX(90deg) translateZ(31px); } .vl-ld-face.f4 { transform: rotateX(-90deg) translateZ(31px); }
+  .vl-ld-palco { width: 96px; height: 96px; display: grid; place-items: center; }
+  .vl-ld-dado { width: 66px; height: 66px; box-sizing: border-box; border-radius: 15px; padding: 9px; display: grid; grid-template: repeat(3, 1fr) / repeat(3, 1fr);
+    background: radial-gradient(circle at 30% 25%, #ffffff, #eef1f6 55%, #cdd4df); box-shadow: inset 0 -5px 0 rgba(0,0,0,.12), inset 0 0 0 1px rgba(0,0,0,.08), 0 8px 16px rgba(0,0,0,.45); }
+  .vl-ld-dado i { width: 12px; height: 12px; border-radius: 50%; place-self: center; background: radial-gradient(circle at 40% 35%, #4a4f5a, #0c0e12); box-shadow: inset 0 1px 1px rgba(255,255,255,.2); }
+  .vl-ld-dado[data-n="1"] i { width: 17px; height: 17px; background: radial-gradient(circle at 40% 35%, #ff6b7a, #b3132a); }
+  .vl-ld-dado.girando { filter: blur(.7px); }
   .vl-ld-sombra { width: 58px; height: 10px; margin-top: -6px; border-radius: 50%; background: radial-gradient(ellipse, rgba(0,0,0,.55), transparent 70%); }
   .vl-ld-msg { text-align: center; min-height: 38px; color: #dfe6f2; line-height: 1.35; }
   .vl-ld-msg b { color: #d6f24a; }
@@ -108,10 +103,12 @@
       tab.append(...fundo, camadaPeoes);
       // ---------- lado: jogadores, dado, mensagem ----------
       const listaJog = el('div', { style: 'display:grid;gap:6px' });
-      const cubo = el('div', { class: 'vl-ld-cubo' }, [1, 2, 3, 4, 5, 6].map((n) => el('div', { class: 'vl-ld-face f' + n }, PIPS[n].map((p) => el('i', { style: 'grid-area:' + (Math.floor((p - 1) / 3) + 1) + '/' + ((p - 1) % 3 + 1) })))));
-      const incl = el('div', { class: 'vl-ld-incl' }, [cubo]);
+      // Dado visto de cima: gira trocando de face e para de pé, mostrando só a face de cima.
+      const dado = el('div', { class: 'vl-ld-dado', 'aria-hidden': 'true' });
+      const mostrarFace = (n) => { dado.setAttribute('data-n', String(n)); dado.replaceChildren(...PIPS[n].map((p) => el('i', { style: 'grid-area:' + (Math.floor((p - 1) / 3) + 1) + '/' + ((p - 1) % 3 + 1) }))); };
+      mostrarFace(6);
       const legendaDado = el('small', { texto: 'Dado' });
-      const caixaDado = el('div', { class: 'vl-ld-dado-caixa', role: 'button', tabindex: '-1', 'aria-label': 'Dado' }, [el('div', { class: 'vl-ld-palco' }, [incl]), el('i', { class: 'vl-ld-sombra' }), legendaDado]);
+      const caixaDado = el('div', { class: 'vl-ld-dado-caixa', role: 'button', tabindex: '-1', 'aria-label': 'Dado' }, [el('div', { class: 'vl-ld-palco' }, [dado]), el('i', { class: 'vl-ld-sombra' }), legendaDado]);
       const msg = el('div', { class: 'vl-ld-msg', role: 'status', 'aria-live': 'polite' });
       const rolar = el('button', { type: 'button', class: 'vl-jg-botao forte grande vl-ld-rolar', texto: '🎲 Rolar o dado' });
       const nota = el('p', { class: 'vl-ld-nota' });
@@ -178,20 +175,24 @@
         return new Promise(function (ok) {
           api.som('dado');
           caixaDado.style.setProperty('--cor', COR[ev.lugar] || '#d6f24a');
-          const [rx, ry] = GIRO[ev.dado] || [0, 0], fim = 'rotateX(' + rx + 'deg) rotateY(' + ry + 'deg)';
-          if (semAnimar() || !cubo.animate) { cubo.style.transform = fim; evMostrado = ev; pintarLado(); setTimeout(ok, 300); return; }
-          const sorte = (n) => Math.round(Math.random() * n);
-          const a = cubo.animate([
-            { transform: cubo.style.transform || 'rotateX(0deg) rotateY(0deg)' },
-            { transform: 'rotateX(' + (rx + 400 + sorte(80)) + 'deg) rotateY(' + (ry + 300 + sorte(80)) + 'deg)', offset: 0.55 },
-            { transform: 'rotateX(' + (rx + 720) + 'deg) rotateY(' + (ry + 720) + 'deg)' },
-          ], { duration: 950, easing: 'cubic-bezier(.12,.6,.3,1)' });
-          incl.animate([{ transform: 'rotateX(-22deg) rotateY(-28deg) translateY(0)' }, { transform: 'rotateX(-22deg) rotateY(-28deg) translateY(-26px)', offset: 0.3 },
-            { transform: 'rotateX(-22deg) rotateY(-28deg) translateY(0)', offset: 0.62 }, { transform: 'rotateX(-22deg) rotateY(-28deg) translateY(-7px)', offset: 0.8 }, { transform: 'rotateX(-22deg) rotateY(-28deg) translateY(0)' }], { duration: 950 });
-          cubo.style.transform = fim;
+          const acabar = () => { mostrarFace(ev.dado); evMostrado = ev; pintarLado(); setTimeout(ok, ev.semJogada || ev.tres ? 900 : 120); };
+          if (semAnimar() || !dado.animate) { acabar(); return; }
+          // Gira (duas voltas, com pulos) trocando de face; para em pé, só com a face de cima.
+          const voltas = 2, lado = Math.random() < 0.5 ? -1 : 1;
+          const a = dado.animate([
+            { transform: 'translate(0, 0) rotate(0deg) scale(1)' },
+            { transform: 'translate(' + (-8 * lado) + 'px, -14px) rotate(' + (lado * 290) + 'deg) scale(1.24)', offset: 0.32 },
+            { transform: 'translate(' + (6 * lado) + 'px, 5px) rotate(' + (lado * 560) + 'deg) scale(.9)', offset: 0.62 },
+            { transform: 'translate(0, -4px) rotate(' + (lado * 700) + 'deg) scale(1.06)', offset: 0.84 },
+            { transform: 'translate(0, 0) rotate(' + (lado * 360 * voltas) + 'deg) scale(1)' },
+          ], { duration: 950, easing: 'cubic-bezier(.2,.7,.3,1)' });
+          dado.classList.add('girando');
+          const troca = setInterval(() => mostrarFace(1 + Math.floor(Math.random() * 6)), 70);
+          setTimeout(() => { clearInterval(troca); dado.classList.remove('girando'); mostrarFace(ev.dado); }, 760);
           terminar(a, 950).then(function () {
-            evMostrado = ev; pintarLado();
-            setTimeout(ok, ev.semJogada || ev.tres ? 900 : 120);
+            clearInterval(troca); dado.classList.remove('girando');
+            if (dado.animate && !semAnimar()) dado.animate([{ transform: 'scale(1.16)' }, { transform: 'scale(1)' }], { duration: 220, easing: 'ease-out' });
+            acabar();
           });
         });
       }

@@ -123,16 +123,14 @@
 
   // Novidades mostradas uma vez quando a versão instalada muda (o usuário pode desligar o aviso nas opções do módulo Comandos).
   const NOVIDADES = [
-    'Jogos: um controle na barra do hotel, ao lado do ponto verde, abre a lista de todos os jogos (saiu a aba do painel).',
-    'Sinuca no jeito dos jogos de bola 8: mira com bola fantasma, taco que recua, barra de força, efeito na branca, bola na mão e caçapa marcada. Modo novo: bola 9.',
-    'Ludo com dado 3D que gira, peões pulando casa por casa e o tabuleiro clássico.',
-    'Vagacartas refeito: mesa de feltro, cartas novas, leque na mão e cartas voando ao jogar e comprar.',
-    'Corrida de Digitação com 1, 3 ou 5 rodadas, placar entre as rodadas e pontos pela colocação.',
-    'Xadrez com relógio: Bullet, Blitz e Rápida. Salas dos jogos em grupo no mesmo visual do Xadrez, com pódio no fim.',
-    'Console: imagem, GIF e áudio também nas conversas em grupo; copiar quarto avisa quando o dono aceita.',
+    'Console: os botões de imagem, GIF e áudio ficam dentro do campo do bate-papo privado, e mandar mídia por ele não solta mais um emoji no chat do quarto.',
+    'Sinuca: dê força arrastando o mouse para qualquer lado; com a bola na mão, arraste a branca (ou já tacada). Mesa azul, placar com as bolas de cada grupo e canaleta das encaçapadas.',
+    'Ludo: o dado gira visto de cima e para mostrando só a face de cima.',
+    'Vagacartas: arena nova com raios de luz e vagalumes, jogadores em moldura com o leque refletido, cartas redesenhadas e lances especiais grandes no meio da mesa.',
+    'Ícone de Jogos novo na barra do hotel.',
   ];
 
-  const api = { PADROES, CATALOGO, GRUPOS, NOVIDADES, ESQUEMA: 1, VERSAO: '0.1.11' };
+  const api = { PADROES, CATALOGO, GRUPOS, NOVIDADES, ESQUEMA: 1, VERSAO: '0.1.12' };
   raiz.VL = raiz.VL || {};
   raiz.VL.padroes = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

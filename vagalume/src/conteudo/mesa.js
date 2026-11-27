@@ -391,7 +391,9 @@
       clearInterval(relogio);
       relogio = setInterval(function () {
         if (!mesa || !mesa.souAnfitriao || mesa.fase !== 'jogo') return;
-        if (def.tick && def.tick(mesa.estado)) publicar();
+        let mudou = false;
+        try { mudou = !!(def.tick && def.tick(mesa.estado)); } catch (e) { console.error('[Vagalume] mesa:', e); } // um erro do jogo não para a mesa
+        if (mudou) publicar();
         else if (Date.now() - (mesa.publicadoEm || 0) > 3000) publicar(); // de novo, para quem perdeu uma mensagem
       }, 150);
     }

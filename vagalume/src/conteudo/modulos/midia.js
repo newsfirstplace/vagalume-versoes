@@ -29,14 +29,15 @@
     + '.vl-midia { display: inline-flex; align-items: center; vertical-align: middle; margin: 1px 0 1px 2px; }'
     + '.vl-midia img { display: block; width: auto; height: auto; max-width: 110px; max-height: 68px; object-fit: contain; border-radius: 4px; cursor: zoom-in; }'
     + '.vl-pm-oculta { display: none !important; }'
-    + '.vl-midia.vl-midia-pm { display: flex; margin: 3px 0; }'
-    + '.vl-midia.vl-midia-pm img { max-width: 190px; max-height: 150px; }'
-    + '.vl-pm-botoes { display: inline-flex !important; align-items: center; gap: 1px; margin: 0 3px; flex: none; }'
+    + '.vl-midia.vl-midia-pm { display: block; max-width: 100%; margin: 3px 0; }'
+    + '.vl-midia.vl-midia-pm img { max-width: 100%; max-height: 140px; }'
+    + '.vl-midia.vl-midia-pm .vl-audio input[type=range] { width: 64px; }'
+    // O campo do bate-papo privado é absoluto (o jogo o põe no rodapé da janela): os botões ficam dentro dele,
+    // na ponta direita, posicionados pela medida do campo (ver posicionarPrivado).
+    + '.vl-pm-botoes { position: absolute !important; z-index: 3; display: inline-flex !important; align-items: center; gap: 1px; margin: 0 !important; }'
     + '.vl-pm-botoes button { width: 22px !important; height: 22px !important; }'
     + '.vl-pm-botoes svg { width: 15px !important; height: 15px !important; }'
-    // A fileira do campo (input + botões + Fale) fica numa linha só; o campo encolhe.
-    + ':has(> .vl-pm-botoes) { display: flex !important; flex-wrap: nowrap !important; align-items: center !important; }'
-    + ':has(> .vl-pm-botoes) > input { flex: 1 1 auto !important; min-width: 0 !important; width: auto !important; }'
+    + 'input.vl-pm-campo { padding-right: 74px !important; }'
     + '.vl-audio { display: inline-flex; align-items: center; gap: 6px; padding: 3px 8px 3px 3px; border-radius: 999px; background: #1b2330; border: 1px solid #3b4a2a; pointer-events: auto; }'
     + '.vl-audio button { all: unset; width: 22px; height: 22px; border-radius: 50%; background: #d6f24a; color: #12161f; display: grid; place-items: center; cursor: pointer; font: 700 10px/1 system-ui, sans-serif; }'
     + '.vl-audio input[type=range] { width: 90px; height: 14px; margin: 0; accent-color: #d6f24a; cursor: pointer; }'
@@ -437,9 +438,12 @@
       const SEL_PRIVADO = '.nitro-friends-messenger:not(.vl-console-grupos)';
       function mandarNoPrivado(tipo, id) {
         const texto = servidor.marcar(tipo, id);
-        const campo = document.querySelector(SEL_PRIVADO + ' input.chat-input-form');
+        const campo = campoPrivado();
         if (campo && jogo.definirValor && jogo.apertarEnter) {
           const rascunho = campo.value;
+          // Com o foco no campo do console, o chat do quarto não pega o Enter (sem foco, ele mandava o emoji
+          // também como fala no quarto).
+          campo.focus();
           jogo.definirValor(campo, texto);
           jogo.apertarEnter(campo);
           if (rascunho) jogo.definirValor(campo, rascunho);
@@ -462,11 +466,25 @@
         return g;
       }
       const grupoPrivado = botoesMidia('privado');
+      // O campo da conversa privada do jogo (não o campo das conversas em grupo do Vagalume encaixadas no console).
+      const campoPrivado = () => [...document.querySelectorAll(SEL_PRIVADO + ' input.chat-input-form')].find((c) => !c.closest('.vl-grupos-compor')) || null;
+      let campoMedido = null;
+      const medidor = typeof ResizeObserver === 'function' ? new ResizeObserver(() => posicionarPrivado()) : null;
       function encaixarPrivado() {
-        // O campo da conversa privada do jogo (não o campo das conversas em grupo do Vagalume encaixadas no console).
-        const campo = [...document.querySelectorAll(SEL_PRIVADO + ' input.chat-input-form')].find((c) => !c.closest('.vl-grupos-compor'));
+        const campo = campoPrivado();
         if (!campo) { grupoPrivado.remove(); return; }
+        campo.classList.add('vl-pm-campo');
         if (grupoPrivado.previousElementSibling !== campo) campo.after(grupoPrivado);
+        if (campoMedido !== campo) { if (medidor) { medidor.disconnect(); medidor.observe(campo); } campoMedido = campo; }
+        posicionarPrivado();
+      }
+      // Os botões ficam dentro do campo, na ponta direita (o campo e os botões têm o mesmo bloco de posição).
+      function posicionarPrivado() {
+        const campo = campoMedido;
+        if (!campo || !campo.isConnected || grupoPrivado.previousElementSibling !== campo) return;
+        const w = grupoPrivado.offsetWidth || 70, h = grupoPrivado.offsetHeight || 22;
+        grupoPrivado.style.left = Math.round(campo.offsetLeft + campo.offsetWidth - w - 5) + 'px';
+        grupoPrivado.style.top = Math.round(campo.offsetTop + (campo.offsetHeight - h) / 2) + 'px';
       }
       const imagensBaixadas = new Map(); // id -> Promise({ dataUrl }): a conversa em grupo redesenha as falas a cada mensagem
       function midiaNoConsole() {
@@ -500,7 +518,8 @@
       });
       if (document.body) observadorPrivado.observe(document.body, { childList: true, subtree: true });
       ctx.aoParar(function () {
-        observadorPrivado.disconnect(); clearTimeout(relogioPrivado); grupoPrivado.remove();
+        observadorPrivado.disconnect(); clearTimeout(relogioPrivado); grupoPrivado.remove(); if (medidor) medidor.disconnect();
+        document.querySelectorAll('input.vl-pm-campo').forEach((n) => n.classList.remove('vl-pm-campo'));
         document.querySelectorAll('.vl-midia-pm').forEach((n) => n.remove());
         document.querySelectorAll('[data-vl-pm]').forEach((n) => { n.removeAttribute('data-vl-pm'); n.classList.remove('vl-pm-oculta'); });
       });

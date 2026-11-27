@@ -11,7 +11,7 @@
   const corDe = (id) => (id === 0 ? '#f4f1e6' : CORES[id > 8 ? id - 8 : id]);
   const listrada = (id) => id >= 9;
   const BORDA = 12, K = 5, CW = 2.6; // moldura e almofada, em unidades da mesa; pixels por unidade
-  const PANO = { 8: ['#33b06c', '#1d7d49', '#0f4b2c'], 9: ['#3487de', '#1d5ca8', '#103a6c'] };
+  const PANO = { 8: ['#4a9ae0', '#2768ae', '#143f73'], 9: ['#33b06c', '#1d7d49', '#0f4b2c'] };
   const CSS = `
   .vl-sn { display: grid; gap: 10px; }
   .vl-sn-hud { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 10px; align-items: center; }
@@ -49,6 +49,12 @@
   .vl-sn-efeito::before, .vl-sn-efeito::after { content: ''; position: absolute; background: rgba(0,0,0,.12); }
   .vl-sn-efeito::before { left: 50%; top: 8%; bottom: 8%; width: 1px; } .vl-sn-efeito::after { top: 50%; left: 8%; right: 8%; height: 1px; }
   .vl-sn-efeito i { position: absolute; left: 50%; top: 50%; width: 12px; height: 12px; margin: -6px 0 0 -6px; border-radius: 50%; pointer-events: none; background: radial-gradient(circle at 40% 35%, #ff7a7a, #d11d1d); box-shadow: 0 0 0 2px #fff, 0 1px 3px rgba(0,0,0,.5); }
+  .vl-sn-cesta { display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 3px; width: 30px; flex: 1; min-height: 70px; padding: 6px 0; border-radius: 15px; overflow: hidden;
+    background: linear-gradient(90deg, #0b0e14, #1d2433 50%, #0b0e14); box-shadow: inset 0 0 0 1px rgba(255,255,255,.08), inset 0 4px 10px rgba(0,0,0,.7); }
+  .vl-sn-cesta i { width: 20px; height: 20px; flex: none; border-radius: 50%; display: grid; place-items: center; font: 800 8.5px/1 system-ui, sans-serif; color: #15171c; box-shadow: 0 1px 3px rgba(0,0,0,.6);
+    background: radial-gradient(circle at 35% 30%, rgba(255,255,255,.55), transparent 40%), radial-gradient(circle, #fbfaf5 0 36%, transparent 38%), var(--c); animation: vl-sn-cai .35s cubic-bezier(.3,1.5,.5,1); }
+  .vl-sn-cesta i.lst { background: radial-gradient(circle at 35% 30%, rgba(255,255,255,.55), transparent 40%), radial-gradient(circle, #fbfaf5 0 36%, transparent 38%), linear-gradient(#f4f1e6 0 26%, var(--c) 26% 74%, #f4f1e6 74%); }
+  @keyframes vl-sn-cai { from { transform: translateY(-30px); opacity: 0; } }
   .vl-sn-baixo { display: flex; align-items: center; gap: 10px; padding: 9px 14px; border-radius: 12px; background: rgba(0,0,0,.28); min-height: 20px; }
   .vl-sn-baixo span { flex: 1; color: #dfe6f2; }
   .vl-sn-baixo b { color: #d6f24a; font-weight: 700; text-align: right; }
@@ -77,14 +83,16 @@
       const ponto = el('i');
       const efeito = el('div', { class: 'vl-sn-efeito', title: 'Efeito na branca: clique onde o taco vai bater (duplo clique tira o efeito)', role: 'slider', 'aria-label': 'Efeito na branca' }, [ponto]);
       const efeitoTxt = el('small', { texto: 'Sem efeito' });
+      const cesta = el('div', { class: 'vl-sn-cesta', 'aria-label': 'Bolas encaçapadas' });
       const msgEl = el('span'), dicaEl = el('b');
       const raizEl = el('div', { class: 'vl-sn' }, [el('style', { texto: CSS }), hud,
-        el('div', { class: 'vl-sn-meio' }, [barra, el('div', { class: 'vl-sn-mesa' }, [tela]), el('div', { class: 'vl-sn-lado' }, [el('small', { texto: 'Efeito' }), efeito, efeitoTxt])]),
+        el('div', { class: 'vl-sn-meio' }, [barra, el('div', { class: 'vl-sn-mesa' }, [tela]), el('div', { class: 'vl-sn-lado' }, [el('small', { texto: 'Efeito' }), efeito, efeitoTxt, el('small', { texto: 'Caíram' }), cesta])]),
         el('div', { class: 'vl-sn-baixo', role: 'status', 'aria-live': 'polite' }, [msgEl, dicaEl])]);
       let v = null, bolas = [], tiroVisto = null, animacao = null, enviado = false, soltarEnvio = null;
       let mira = 0, puxando = null, forca = 0, giro = { topo: 0, lado: 0 }, colocando = false, brancaLocal = null, colocValida = true;
       let cacapaEscolhida = null, sugestao = null, mouse = null, sujo = true, rodando = false, fundo = null, fundoModo = null;
       const sprites = new Map();
+      let cestaMostrada = [];
 
       // ---------- desenho ----------
       function pintarFundo() {
@@ -93,12 +101,12 @@
         const f = c.getContext('2d'), Wp = c.width, Hp = c.height, modo = v && v.modo === '9' ? 9 : 8;
         // Moldura de madeira.
         const madeira = f.createLinearGradient(0, 0, 0, Hp);
-        madeira.addColorStop(0, '#6e4220'); madeira.addColorStop(0.5, '#4b2a12'); madeira.addColorStop(1, '#3a1f0c');
+        madeira.addColorStop(0, '#7e2626'); madeira.addColorStop(0.5, '#571515'); madeira.addColorStop(1, '#380b0b');
         f.fillStyle = madeira; arredondado(f, 0, 0, Wp, Hp, 9 * K); f.fill();
         f.globalAlpha = 0.08; f.strokeStyle = '#000';
         for (let k = 0; k < 46; k++) { const y = (k * 37) % Hp; f.lineWidth = 1 + (k % 3); f.beginPath(); f.moveTo(0, y); f.bezierCurveTo(Wp / 3, y + 6, Wp * 2 / 3, y - 6, Wp, y + 2); f.stroke(); }
         f.globalAlpha = 1;
-        f.strokeStyle = 'rgba(255,220,170,.18)'; f.lineWidth = 3; arredondado(f, 3, 3, Wp - 6, Hp - 6, 8 * K); f.stroke();
+        f.strokeStyle = 'rgba(255,190,170,.22)'; f.lineWidth = 3; arredondado(f, 3, 3, Wp - 6, Hp - 6, 8 * K); f.stroke();
         // Pano (vai por baixo das almofadas) com luz no meio e textura.
         const [claro, medio, escuro] = PANO[modo];
         const pano = f.createRadialGradient(Wp / 2, Hp / 2, 30, Wp / 2, Hp / 2, Wp * 0.62);
@@ -267,13 +275,17 @@
           if (b.id === 0 && vez && colocando) { g.strokeStyle = colocValida ? '#d6f24a' : '#ff5a5a'; g.lineWidth = 2.5; g.beginPath(); g.arc(px(b.x), px(b.y), (S.R + 1.6) * K, 0, Math.PI * 2); g.stroke(); }
         }
         if (vez && branca && !colocando) pintarTaco(branca.x, branca.y, mira, 2 + forca * 26);
+        // Bola na mão: anel tracejado na branca (dá para arrastar).
+        if (vez && branca && v.naMao && !colocando) { g.save(); g.setLineDash([5, 5]); g.lineDashOffset = -agora / 40; g.strokeStyle = '#d6f24a'; g.lineWidth = 2.5; g.beginPath(); g.arc(px(branca.x), px(branca.y), (S.R + 2.2) * K, 0, Math.PI * 2); g.stroke(); g.restore(); }
         sujo = false;
       }
       // ---------- laço de desenho ----------
       function quadro(agora) {
         if (!raizEl.isConnected) { rodando = false; return; }
-        if (animacao) avancar(agora);
-        if (animacao || sujo || (minhaVez() && v.precisa8)) pintar();
+        try {
+          if (animacao) avancar(agora);
+          if (animacao || sujo || (minhaVez() && (v.precisa8 || v.naMao))) pintar();
+        } catch (e) { console.error('[Vagalume] sinuca:', e); animacao = null; } // um erro não pode parar o desenho
         requestAnimationFrame(quadro);
       }
       function ligar() { sujo = true; if (!rodando) { rodando = true; requestAnimationFrame(quadro); } }
@@ -303,7 +315,7 @@
       function prepararVez() {
         if (!minhaVez()) { colocando = false; brancaLocal = null; return; }
         const b = bolas.find((x) => x.id === 0);
-        if (v.naMao && !brancaLocal) { brancaLocal = b ? [b.x, b.y] : [S.CABECA[0], S.CABECA[1]]; colocando = true; colocValida = S.lugarValido(v.bolas, brancaLocal[0], brancaLocal[1], v.naMao); }
+        if (v.naMao && !brancaLocal) { brancaLocal = b ? [b.x, b.y] : [S.CABECA[0], S.CABECA[1]]; colocValida = S.lugarValido(v.bolas, brancaLocal[0], brancaLocal[1], v.naMao); colocando = !colocValida; }
         if (!v.naMao) { colocando = false; brancaLocal = null; }
         sujo = true;
       }
@@ -349,22 +361,23 @@
           brancaLocal = [Math.max(S.R, Math.min(S.W - S.R, mouse[0])), Math.max(S.R, Math.min(S.H - S.R, mouse[1]))];
           colocValida = S.lugarValido(v.bolas, brancaLocal[0], brancaLocal[1], v.naMao);
         } else if (puxando) {
-          const d = (puxando[0] - mouse[0]) * Math.cos(mira) + (puxando[1] - mouse[1]) * Math.sin(mira);
-          mostrarForca(d / 45);
+          // Força: o quanto o mouse se afastou de onde apertou, para qualquer lado (a mira fica parada).
+          mostrarForca(Math.hypot(puxando[0] - mouse[0], puxando[1] - mouse[1]) / 40);
         } else {
           const b = brancaAtual();
           if (b && Math.hypot(mouse[0] - b.x, mouse[1] - b.y) > 0.5) mira = Math.atan2(mouse[1] - b.y, mouse[0] - b.x);
         }
-        tela.className = colocando ? 'mao' : '';
+        const bb = brancaAtual();
+        tela.className = colocando || (v.naMao && bb && Math.hypot(mouse[0] - bb.x, mouse[1] - bb.y) < S.R * 2.4) ? 'mao' : '';
         sujo = true;
       });
       tela.addEventListener('pointerdown', function (ev) {
         if (ev.button !== 0 || !minhaVez()) return;
         const [x, y] = naMesa(ev);
         tela.focus();
-        if (colocando) { if (colocValida) { colocando = false; tela.className = ''; textos(); } sujo = true; return; }
         const b = brancaAtual();
-        if (v.naMao && b && Math.hypot(x - b.x, y - b.y) < S.R * 1.8) { colocando = true; tela.className = 'mao'; textos(); return; }
+        if (v.naMao && b && Math.hypot(x - b.x, y - b.y) < S.R * 2.4) { colocando = true; arrastando = true; tela.setPointerCapture(ev.pointerId); tela.className = 'mao'; textos(); return; }
+        if (colocando) { if (colocValida) { colocando = false; tela.className = ''; textos(); } sujo = true; return; }
         if (v.precisa8) {
           const k = S.CACAPAS.findIndex(([cx, cy, pr]) => Math.hypot(x - cx, y - cy) < pr + 4);
           if (k >= 0) { cacapaEscolhida = k; sujo = true; textos(); return; }
@@ -372,9 +385,14 @@
         puxando = [x, y];
         tela.setPointerCapture(ev.pointerId);
       });
-      const soltar = function () { if (!puxando) return; puxando = null; tacar(); };
+      let arrastando = false; // levando a branca (bola na mão)
+      const soltar = function () {
+        if (arrastando) { arrastando = false; if (colocValida) { colocando = false; textos(); } sujo = true; return; }
+        if (!puxando) return;
+        puxando = null; tacar();
+      };
       tela.addEventListener('pointerup', soltar);
-      tela.addEventListener('pointercancel', function () { puxando = null; mostrarForca(0); });
+      tela.addEventListener('pointercancel', function () { puxando = null; arrastando = false; mostrarForca(0); });
       tela.addEventListener('wheel', function (ev) { if (!minhaVez() || colocando) return; ev.preventDefault(); mira += Math.sign(ev.deltaY) * 0.004; sujo = true; }, { passive: false });
       tela.addEventListener('keydown', function (ev) {
         if (!minhaVez() || colocando) return;
@@ -421,11 +439,20 @@
         if (v.modo === '9' && v.menor) centro.push(el('span', { class: 'vl-sn-proxima' }, ['Bola da vez', el('span', { class: 'vl-sn-mini' }, [el('i', { class: listrada(v.menor) ? 'lst' : 'lis', style: '--c:' + corDe(v.menor) })]), String(v.menor)]));
         else if (v.quebra) centro.push(el('span', { class: 'vl-sn-proxima', texto: 'Abertura' }));
         hud.replaceChildren(v.js[0] ? painel(v.js[0], 0) : el('span'), el('div', { class: 'vl-sn-centro' }, centro), v.js[1] ? painel(v.js[1], 1) : el('span'));
+        // Canaleta: as bolas encaçapadas, na ordem (só redesenha quando muda, para a animação de cair tocar uma vez).
+        const lista = animacao ? cestaMostrada : (v.encacapadas || []);
+        if (lista.join(',') !== cesta.getAttribute('data-ids')) {
+          const antes = (cesta.getAttribute('data-ids') || '').split(',').filter(Boolean);
+          cesta.setAttribute('data-ids', lista.join(','));
+          cesta.replaceChildren(...lista.slice(-14).map((id) => { const i = el('i', { class: listrada(id) ? 'lst' : '', style: '--c:' + corDe(id), title: 'Bola ' + id, texto: id }); if (antes.includes(String(id))) i.style.animation = 'none'; return i; }));
+        }
+        cestaMostrada = lista;
         msgEl.textContent = v.fim || animacao ? '' : v.msg || '';
         const vez = minhaVez();
         dicaEl.textContent = v.fim || animacao || !vez ? ''
-          : colocando ? 'Bola na mão: clique na mesa para colocar a branca' + (v.naMao === 'cabeca' ? ' (antes da linha).' : '.')
-            : v.precisa8 && cacapaEscolhida == null ? 'Vez da 8: clique na caçapa e tacada!' : 'Sua vez! Puxe o taco para trás e solte.';
+          : colocando ? 'Leve a branca para um lugar livre' + (v.naMao === 'cabeca' ? ' antes da linha' : '') + ' e solte.'
+            : v.precisa8 && cacapaEscolhida == null ? 'Vez da 8: clique na caçapa e tacada!'
+              : v.naMao ? 'Bola na mão: arraste a branca se quiser, ou mire e tacada.' : 'Mire, segure e arraste para dar força; solte para tacar.';
         barra.classList.toggle('desligada', !vez || colocando);
         tela.className = !vez ? 'espera' : colocando ? 'mao' : '';
       }

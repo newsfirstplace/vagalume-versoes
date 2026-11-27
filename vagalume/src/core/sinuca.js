@@ -44,7 +44,7 @@
   function nova(jogadores, opcoes, aleatorio) {
     const modo = opcoes && String(opcoes.modo) === '9' ? '9' : '8';
     const js = jogadores.slice(0, 2).map((p) => ({ nome: p.nome, bot: p.bot || null, grupo: null }));
-    return { modo, bolas: modo === '9' ? arrumar9(aleatorio) : arrumar8(), js, vez: 0, tiro: null, num: 0, fim: null, quebra: true, naMao: 'cabeca',
+    return { modo, bolas: modo === '9' ? arrumar9(aleatorio) : arrumar8(), js, vez: 0, tiro: null, num: 0, fim: null, quebra: true, naMao: 'cabeca', encacapadas: [],
       msg: 'Abertura de ' + (js[0] ? js[0].nome : '') + '.', desde: Date.now(), duracao: 0 };
   }
 
@@ -183,6 +183,7 @@
     e.num++;
     e.tiro = { id: e.num, angulo, forca, giro, antes, quem: nome, cacapa, abertura: e.quebra };
     e.bolas = r.bolas;
+    e.encacapadas = (e.encacapadas || []).concat(r.caidas.filter((id) => id !== 0));
     e.desde = Date.now(); e.duracao = Math.round(r.passos / 240 * 1000) + 300;
     const outro = e.js[1 - e.vez];
     if (e.modo === '9') regras9(e, j, outro, r, antes); else regras8(e, j, outro, r, antes, cacapa, precisa8);
@@ -203,7 +204,7 @@
     }
     let extra = '';
     if (r.caidas.includes(8)) {
-      if (quebra) { recolocar(e.bolas, 8); extra = ' A 8 caiu na abertura e voltou para a mesa.'; }
+      if (quebra) { recolocar(e.bolas, 8); e.encacapadas = e.encacapadas.filter((id) => id !== 8); extra = ' A 8 caiu na abertura e voltou para a mesa.'; }
       else {
         const certa = cacapa != null && r.bolsos[8] === cacapa, venceu = precisa8 && !falta && certa;
         const como = venceu ? 'encaçapou a 8 na caçapa marcada' : !precisa8 ? 'encaçapou a 8 antes da hora' : falta ? 'encaçapou a 8 com falta (' + falta + ')' : 'encaçapou a 8 em outra caçapa';
@@ -235,6 +236,7 @@
         return;
       }
       recolocar(e.bolas, 9);
+      e.encacapadas = e.encacapadas.filter((id) => id !== 9);
       extra = ' A 9 voltou para a mesa.';
     }
     fecharVez(e, j, outro, r, falta, r.caidas.filter((id) => id !== 0 && id !== 9), quebra, extra);
@@ -328,7 +330,7 @@
     return {
       modo: e.modo, bolas: e.bolas, vez: j ? j.nome : null, tiro: e.tiro, msg: e.msg, fim: !!e.fim, espera: Math.max(0, e.duracao - (Date.now() - e.desde)),
       js: e.js.map((x) => ({ nome: x.nome, bot: !!x.bot, grupo: x.grupo, restam: x.grupo ? restam(e.bolas, x.grupo) : 7 })),
-      naMao: e.naMao, quebra: e.quebra, precisa8: e.modo === '8' && !!(j && j.grupo) && restam(e.bolas, j.grupo) === 0, menor: e.modo === '9' ? menorNaMesa(e.bolas) : null,
+      naMao: e.naMao, quebra: e.quebra, encacapadas: (e.encacapadas || []).slice(), precisa8: e.modo === '8' && !!(j && j.grupo) && restam(e.bolas, j.grupo) === 0, menor: e.modo === '9' ? menorNaMesa(e.bolas) : null,
     };
   }
   const api = { W, H, R, CACAPAS, CABECA, PE, LINHA_CABECA, grupoDe, nova, simular, aplicar, jogadaDoBot, tick, sair, visao, restam, lugarValido, menorNaMesa };
