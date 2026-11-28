@@ -123,12 +123,12 @@
 
   // Novidades mostradas uma vez quando a versão instalada muda (o usuário pode desligar o aviso nas opções do módulo Comandos).
   const NOVIDADES = [
-    'ZERA!: agora você também aparece sentado à mesa, de costas, no lado da frente, e os seus balões saem em cima do seu boneco.',
-    'ZERA!: o botão ÚLTIMA! só aparece na hora certa: na sua vez, com duas cartas e uma delas podendo ser jogada.',
-    'ZERA!: tela de vitória nova, no jeito do jogo, com os avatares em pé no pódio, o vencedor de coroa acenando e os pontos de cada um.',
+    'Jogos em grupo (ZERA!, Ludo, Sinuca, Corrida de Digitação e Duelo de Pistas): agora dá para chamar amigos que estão em outro quarto. O convite chega pelo console e a partida continua mesmo se alguém trocar de quarto.',
+    'ZERA!: você senta numa das seis cadeiras da mesa (a da esquerda, mais perto), de frente como os outros, sem cadeira a mais.',
+    'ZERA!: o botão ÚLTIMA! só aparece na hora de jogar a penúltima, e a tela de vitória mostra os avatares no pódio.',
   ];
 
-  const api = { PADROES, CATALOGO, GRUPOS, NOVIDADES, ESQUEMA: 1, VERSAO: '0.1.16' };
+  const api = { PADROES, CATALOGO, GRUPOS, NOVIDADES, ESQUEMA: 1, VERSAO: '0.1.17' };
   raiz.VL = raiz.VL || {};
   raiz.VL.padroes = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

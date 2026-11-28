@@ -289,8 +289,7 @@
   }
 
   // ---------- cadeira (estofado vermelho, encosto do lado de trás) ----------
-  // lado 'L': a pessoa olha para +x (encosto em x pequeno); 'R': olha para +y (encosto em y pequeno);
-  // 'F': a sua cadeira, de costas para a câmera (olha para -y; o encosto fica na frente e vai em `frente`).
+  // lado 'L': a pessoa olha para +x (encosto em x pequeno); 'R': olha para +y (encosto em y pequeno).
   function cadeira(lado) {
     const Wc = 72, Hc = 76, OX = 36, OY = 56;
     const [cv, x] = tela(Wc, Hc);
@@ -303,7 +302,7 @@
       caixa(x, I, a, a, a + 0.1, b, S, 44, madeira);
       poli(x, [I(a + 0.1, a + 0.12, 41), I(a + 0.1, b - 0.12, 41), I(a + 0.1, b - 0.12, S + 6), I(a + 0.1, a + 0.12, S + 6)], '#b5342a');
       linha(x, I(a + 0.1, a + 0.12, 41), I(a + 0.1, b - 0.12, 41), '#e0584a');
-    } else if (lado === 'R') {
+    } else {
       caixa(x, I, a, a, b, a + 0.1, S, 44, madeira);
       poli(x, [I(a + 0.12, a + 0.1, 41), I(b - 0.12, a + 0.1, 41), I(b - 0.12, a + 0.1, S + 6), I(a + 0.12, a + 0.1, S + 6)], '#a52e25');
       linha(x, I(a + 0.12, a + 0.1, 41), I(b - 0.12, a + 0.1, 41), '#d4503f');
@@ -312,14 +311,7 @@
     caixa(x, I, a, a, b, b, S - 3, S, madeira);
     poli(x, [I(a + 0.04, a + 0.04, S + 2), I(b - 0.04, a + 0.04, S + 2), I(b - 0.04, b - 0.04, S + 2), I(a + 0.04, b - 0.04, S + 2)], '#c23a2e');
     linha(x, I(a + 0.04, a + 0.04, S + 2), I(b - 0.04, a + 0.04, S + 2), '#ee6a5a');
-    let frente = null;
-    if (lado === 'F') {
-      const [cf, xf] = tela(Wc, Hc);
-      caixa(xf, I, a, b - 0.1, b, b, S, 44, madeira);
-      linha(xf, I(a + 0.06, b, 39), I(b - 0.06, b, 39), '#b07a45'); linha(xf, I(a + 0.06, b, 28), I(b - 0.06, b, 28), '#b07a45');
-      frente = cf;
-    }
-    return { canvas: cv, frente, ox: OX, oy: OY };
+    return { canvas: cv, ox: OX, oy: OY };
   }
 
   // ---------- peças pequenas ----------

@@ -111,6 +111,12 @@
   @media (max-width: 640px) { .vl-ms-degrau { width: 96px; } }
   `;
   const sessaoNova = () => Array.from(crypto.getRandomValues(new Uint8Array(8)), (b) => b.toString(16).padStart(2, '0')).join('');
+  // Mesa com gente de outro quarto (pedido de 2026-11-27): uma sala de partida no servidor ("9" + 11 dígitos) e o
+  // convite pelo console, com o código do jogo, da sala e da sessão.
+  const novoCanal = () => '9' + Array.from(crypto.getRandomValues(new Uint32Array(3)), (n) => String(n % 10000).padStart(4, '0')).join('').slice(0, 11);
+  const LETRA_MESA = { corrida: 'r', cartas: 'c', pistas: 'p', ludo: 'l', sinuca: 's' };
+  const JOGO_DA_LETRA = Object.fromEntries(Object.entries(LETRA_MESA).map(([j, l]) => [l, j]));
+  const CODIGO_MESA = /vl-mesa-([a-z])(9\d{11})([a-f0-9]{16})/;
   const NOMES_BOT = ['Bot Faísca', 'Bot Lume', 'Bot Brilho', 'Bot Estrela', 'Bot Cometa', 'Bot Neon', 'Bot Pirilampo'];
   // Desenho de cada jogo (cartão da lista de jogos, cabeçalho da sala e convite); escala pelo tamanho da caixa.
   const ARTE = {
@@ -198,12 +204,52 @@
       } catch (e) { /* sem som */ }
     }
 
+    // ---------- caminho das mensagens ----------
+    // Com a sala da partida aberta, vai pelo id de quem está nela (serve para quem está em outro quarto); sem
+    // ela, pelo canal direto do quarto (pelo apelido).
+    const meuId = () => (VL.pessoas && VL.pessoas.meuId ? VL.pessoas.meuId() : null);
+    function salaDoFundo(tipo, dados) {
+      try { return Promise.resolve(chrome.runtime.sendMessage(Object.assign({ tipo: 'sala:' + tipo }, dados || {}))).catch(() => null); } catch (e) { return Promise.resolve(null); }
+    }
+    let naSala = new Map(); // apelido (minúsculo) -> id de quem está na sala da partida
+    let esperasNaSala = [];
+    function entrarNaSala(canal) {
+      if (!canal || !meuId() || !eu()) return Promise.resolve(false);
+      return salaDoFundo('mesa:entrar', { canal, id: String(meuId()), nome: eu() }).then((r) => !!(r && r.ok));
+    }
+    function sairDaSala() { naSala = new Map(); esperasNaSala = []; salaDoFundo('mesa:sair'); }
+    // Espera alguém aparecer na sala da partida; true se chegou a tempo.
+    function esperarNaSala(nome, ms) {
+      const chave = String(nome).toLowerCase();
+      if (naSala.has(chave)) return Promise.resolve(true);
+      return new Promise(function (resolver) {
+        const w = { chave, ok() { clearTimeout(relogioEspera); resolver(true); } };
+        const relogioEspera = setTimeout(function () { esperasNaSala = esperasNaSala.filter((x) => x !== w); resolver(false); }, ms);
+        esperasNaSala.push(w);
+      });
+    }
     function mandar(nome, dado) {
-      if (!VL.comunidade || !VL.comunidade.direto) return Promise.resolve(null);
-      return VL.comunidade.direto(nome, Object.assign({ s: mesa ? mesa.sessao : dado.s }, dado)).then(function (r) {
+      const msg = Object.assign({ s: mesa ? mesa.sessao : dado.s }, dado);
+      const id = mesa && mesa.canal ? naSala.get(String(nome).toLowerCase()) : null;
+      const envio = id ? salaDoFundo('mesa:enviar', { para: id, dado: msg })
+        : VL.comunidade && VL.comunidade.direto ? VL.comunidade.direto(nome, msg) : Promise.resolve(null);
+      return envio.then(function (r) {
         if (r && r.erro) console.warn('[Vagalume] mesa: não foi para ' + nome + ' (' + dado.t + '): ' + r.erro);
         return r;
       });
+    }
+    function aoAvisoDaSala(m) {
+      if (!m || m.de !== 'sala' || !mesa || !mesa.canal || String(m.canal) !== mesa.canal) return;
+      if (m.tipo === 'mesa:pessoas') {
+        naSala = new Map((Array.isArray(m.nomes) ? m.nomes : []).map((x) => [String(x[1] || '').toLowerCase(), String(x[0])]));
+        esperasNaSala = esperasNaSala.filter((w) => { if (naSala.has(w.chave)) { w.ok(); return false; } return true; });
+      } else if (m.tipo === 'mesa:direto' && m.dado && typeof m.dado === 'object') {
+        receber({ de: 'sala', tipo: 'presenca:direto', nome: String(m.nome || ''), dado: m.dado });
+      }
+    }
+    if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.onMessage) {
+      chrome.runtime.onMessage.addListener(aoAvisoDaSala);
+      ctx.aoParar(function () { chrome.runtime.onMessage.removeListener(aoAvisoDaSala); });
     }
     const pessoas = () => mesa.jogadores.filter((p) => !p.bot && !mesmo(p.nome, eu()));
 
@@ -293,18 +339,24 @@
       ]);
       let blocoLado;
       if (anf) {
-        const convidados = vagalumesNoQuarto();
-        const linhas = convidados.length ? convidados.map((n) => {
+        const noQuarto = vagalumesNoQuarto();
+        const nomesNoQuarto = new Set(((VL.pessoas && VL.pessoas.lista && VL.pessoas.lista()) || []).map((n) => String(n).toLowerCase()));
+        const amigos = mesa.naSala ? ((VL.amigos && VL.amigos.lista && VL.amigos.lista()) || [])
+          .filter((a) => a && a.online && a.id && a.nome && !nomesNoQuarto.has(String(a.nome).toLowerCase()) && !mesmo(a.nome, eu())) : [];
+        const linha = (n, sub, acao) => {
           const dentro = mesa.jogadores.some((p) => mesmo(p.nome, n));
-          const chamado = mesa.chamados && mesa.chamados.has(n.toLowerCase());
+          const chamado = mesa.chamados && mesa.chamados.has(String(n).toLowerCase());
           return el('div', { class: 'vl-jg-linha-pessoa' }, [rosto(n),
-            el('span', { class: 'quem' }, [el('b', { texto: n }), el('small', { texto: dentro ? 'Já está na mesa' : chamado ? 'Esperando aceitar…' : 'Neste quarto' })]),
-            el('button', { type: 'button', class: 'vl-jg-botao' + (dentro || chamado ? ' discreto' : ''), 'data-foco': 'conv-' + n, texto: dentro ? 'Na mesa' : chamado ? 'Chamado' : 'Convidar', disabled: dentro || chamado || cheio, onclick() { convidar(n); } })]);
-        }) : [el('div', { class: 'vl-jg-vazio' }, [el('b', { texto: 'Ninguém com o Vagalume no quarto' }), el('span', { texto: def.bots.length ? 'Dá para jogar com bots enquanto isso.' : 'Este jogo precisa de pessoas: chame quem usa o Vagalume para o quarto.' })])];
+            el('span', { class: 'quem' }, [el('b', { texto: n }), el('small', { texto: dentro ? 'Já está na mesa' : chamado ? 'Esperando aceitar…' : sub })]),
+            el('button', { type: 'button', class: 'vl-jg-botao' + (dentro || chamado ? ' discreto' : ''), 'data-foco': 'conv-' + n, texto: dentro ? 'Na mesa' : chamado ? 'Chamado' : 'Convidar', disabled: dentro || chamado || cheio, onclick: acao })]);
+        };
+        const linhas = noQuarto.map((n) => linha(n, 'Neste quarto', () => convidar(n)))
+          .concat(amigos.map((a) => linha(a.nome, 'Amigo em outro quarto', () => convidarAmigo(a))));
         blocoLado = el('section', { class: 'vl-jg-bloco' }, [
-          el('div', { class: 'vl-jg-bloco-cab' }, [el('span', { class: 'ic', 'aria-hidden': 'true', texto: '👥' }), el('h3', { texto: 'Chamar quem está no quarto' })]),
-          el('div', { class: 'vl-jg-gente' }, linhas),
-          el('p', { class: 'vl-jg-nota', texto: 'O convite aparece na tela da pessoa; ela precisa usar o Vagalume.' }),
+          el('div', { class: 'vl-jg-bloco-cab' }, [el('span', { class: 'ic', 'aria-hidden': 'true', texto: '👥' }), el('h3', { texto: 'Chamar para a mesa' })]),
+          el('div', { class: 'vl-jg-gente' }, linhas.length ? linhas : [el('div', { class: 'vl-jg-vazio' }, [el('b', { texto: 'Ninguém para chamar agora' }),
+            el('span', { texto: def.bots.length ? 'Chame quem usa o Vagalume ou espere um amigo ficar online. Dá para jogar com bots enquanto isso.' : 'Chame quem usa o Vagalume para o quarto ou espere um amigo ficar online.' })])]),
+          el('p', { class: 'vl-jg-nota', texto: mesa.naSala ? 'Quem está no quarto recebe o convite na tela; amigos de outros quartos, pelo console. A pessoa precisa usar o Vagalume.' : 'Para chamar amigos de outros quartos, ligue a Conexão do jogo.' }),
         ]);
       } else {
         blocoLado = el('section', { class: 'vl-jg-bloco' }, [
@@ -362,15 +414,31 @@
       const def = JOGOS[jogo];
       if (!def) return;
       if (mesa && mesa.fase !== 'fim' && mesa.jogo !== jogo) { camada.aviso('Termine ou saia da mesa de ' + JOGOS[mesa.jogo].nome + ' primeiro.', { tipo: 'erro' }); mostrar(); return; }
-      if (!mesa || mesa.jogo !== jogo || mesa.fase === 'fim') mesa = { jogo, sessao: sessaoNova(), anfitriao: eu(), souAnfitriao: true, jogadores: [{ nome: eu(), bot: null }], fase: 'sala', chamados: new Set(), opcoes: opcoesValidas(def, null) };
+      if (!mesa || mesa.jogo !== jogo || mesa.fase === 'fim') {
+        naSala = new Map(); esperasNaSala = [];
+        const m = mesa = { jogo, sessao: sessaoNova(), canal: novoCanal(), anfitriao: eu(), souAnfitriao: true, jogadores: [{ nome: eu(), bot: null }], fase: 'sala', chamados: new Set(), opcoes: opcoesValidas(def, null) };
+        entrarNaSala(m.canal).then(function (ok) { if (mesa === m) { m.naSala = ok; desenhar(); } });
+      }
       mostrar();
     }
     function convidar(nome) {
       mesa.chamados.add(nome.toLowerCase());
-      mandar(nome, { t: 'ms:convite', j: mesa.jogo });
+      mandar(nome, { t: 'ms:convite', j: mesa.jogo, c: mesa.canal });
       camada.aviso('Convite enviado a ' + nome + '.');
       desenhar();
       setTimeout(function () { if (mesa && mesa.chamados) { mesa.chamados.delete(nome.toLowerCase()); desenhar(); } }, 45000);
+    }
+    // Amigo de outro quarto: o convite vai pelo console, com a sala da partida e a sessão.
+    function convidarAmigo(a) {
+      const def = JOGOS[mesa.jogo];
+      if (!mesa.naSala || !VL.conexao || !VL.conexao.enviar || !VL.codigos) { camada.aviso('Ligue a Conexão do jogo para chamar amigos de outros quartos.', { tipo: 'erro' }); return; }
+      const chave = String(a.nome).toLowerCase();
+      mesa.chamados.add(chave);
+      VL.conexao.enviar(VL.codigos.SAIDA.MENSAGEM_PRIVADA, [['i', Number(a.id)], ['s', def.glifo + ' Bora jogar ' + def.nome + '? Convite do Vagalume: vl-mesa-' + LETRA_MESA[mesa.jogo] + mesa.canal + mesa.sessao]]);
+      camada.aviso('Convite enviado a ' + a.nome + ' pelo console.');
+      desenhar();
+      const m = mesa;
+      setTimeout(function () { if (mesa === m && m.chamados) { m.chamados.delete(chave); desenhar(); } }, 60000);
     }
     function botNovo(nivel) {
       const def = JOGOS[mesa.jogo];
@@ -427,8 +495,10 @@
         else mandar(mesa.anfitriao, { t: 'ms:sair' });
       }
       clearInterval(relogio);
+      const tinhaSala = !!(mesa && mesa.canal);
       mesa = null;
       if (janela) janela.style.display = 'none';
+      if (tinhaSala) setTimeout(function () { if (!mesa || !mesa.canal) sairDaSala(); }, 400);
     }
 
     // ---------- mensagens ----------
@@ -466,39 +536,64 @@
         if (d.f) { mesa.fase = 'fim'; mesa.resultado = d.f; }
         else if (mesa.fase === 'fim') { mesa.fase = 'jogo'; mesa.resultado = null; mesa.festejado = false; }
         desenhar();
-      } else if (d.t === 'ms:fim') { camada.aviso(String(d.m || 'A mesa foi fechada.').slice(0, 120)); mesa = null; if (janela) janela.style.display = 'none'; }
+      } else if (d.t === 'ms:fim') { camada.aviso(String(d.m || 'A mesa foi fechada.').slice(0, 120)); mesa = null; if (janela) janela.style.display = 'none'; sairDaSala(); }
     }
     function mostrarConvite(de, d) {
       if (convite) fecharConvite();
       const def = JOGOS[d.j];
+      const canal = /^9\d{11}$/.test(String(d.c || '')) ? String(d.c) : null;
       const no = el('div', { class: 'vl-ms-convite', role: 'dialog', 'aria-label': 'Convite para jogar' }, [
         el('div', { class: 'vl-ms-convite-arte ' + d.j, 'aria-hidden': 'true' }, [arte(d.j)]),
         el('b', { texto: de + ' chamou você para ' + def.nome }),
-        el('p', { texto: def.texto }),
+        el('p', { texto: d.deId ? 'Pelo console: você entra na mesa de onde estiver.' : def.texto }),
         el('div', { class: 'vl-ms-acoes' }, [
-          el('button', { type: 'button', class: 'vl-jg-botao recusar', texto: 'Recusar', onclick() { VL.comunidade.direto(de, { t: 'ms:recusar', s: d.s }); fecharConvite(); } }),
-          el('button', { type: 'button', class: 'vl-jg-botao aceitar', texto: 'Entrar', onclick() {
+          el('button', { type: 'button', class: 'vl-jg-botao recusar', texto: 'Recusar', onclick() {
+            if (!d.deId && VL.comunidade && VL.comunidade.direto) VL.comunidade.direto(de, { t: 'ms:recusar', s: d.s });
             fecharConvite();
-            if (mesa && mesa.souAnfitriao) sair();
-            mesa = { jogo: d.j, sessao: d.s, anfitriao: de, souAnfitriao: false, jogadores: [], fase: 'sala', versao: 0, opcoes: opcoesValidas(def, null) };
-            mandar(de, { t: 'ms:entrar' });
-            mostrar();
           } }),
+          el('button', { type: 'button', class: 'vl-jg-botao aceitar', texto: 'Entrar', onclick() { fecharConvite(); entrarNaMesa(de, d, canal); } }),
         ]),
       ]);
       camada.area().appendChild(no);
       som('vez');
-      convite = { no, relogio: setTimeout(fecharConvite, 45000) };
+      convite = { no, sessao: d.s, relogio: setTimeout(fecharConvite, d.deId ? 60000 : 45000) };
+    }
+    function entrarNaMesa(de, d, canal) {
+      if (mesa) sair();
+      naSala = new Map(); esperasNaSala = []; // a sala de partida antiga não vale para a mesa nova
+      const def = JOGOS[d.j];
+      const m = mesa = { jogo: d.j, sessao: d.s, canal, anfitriao: de, souAnfitriao: false, jogadores: [], fase: 'sala', versao: 0, opcoes: opcoesValidas(def, null) };
+      mostrar();
+      if (!d.deId) { mandar(de, { t: 'ms:entrar' }); entrarNaSala(canal); return; } // mesmo quarto: pelo canal do quarto
+      // Pelo console: entra na sala da partida e espera quem chamou para pedir o lugar.
+      entrarNaSala(canal).then((ok) => (ok ? esperarNaSala(de, 8000) : false)).then(function (chegou) {
+        if (mesa !== m) return;
+        if (!chegou) {
+          camada.aviso(meuId() ? 'O convite de ' + de + ' não vale mais.' : 'Ligue a Conexão do jogo para entrar na mesa de ' + de + '.', { tipo: 'erro' });
+          mesa = null;
+          if (janela) janela.style.display = 'none';
+          sairDaSala();
+          return;
+        }
+        mandar(de, { t: 'ms:entrar' });
+      });
     }
     function fecharConvite() { if (!convite) return; clearTimeout(convite.relogio); convite.no.remove(); convite = null; }
 
+    if (ctx.ouvir) ctx.ouvir('amigos:mensagem', function (d) {
+      const m = d && CODIGO_MESA.exec(String(d.texto || ''));
+      if (!m || d.de == null) return;
+      const jogo = JOGO_DA_LETRA[m[1]];
+      if (!JOGOS[jogo] || (mesa && mesa.sessao === m[3]) || (convite && convite.sessao === m[3])) return;
+      mostrarConvite(String(d.autor || 'Um amigo'), { j: jogo, s: m[3], c: m[2], deId: String(d.de) });
+    });
     let tirarOuvinte = null, tentativas = 0;
     const ligar = function () {
       if (VL.comunidade && VL.comunidade.aoAcao) { tirarOuvinte = VL.comunidade.aoAcao(receber); return; }
       if (++tentativas < 60) setTimeout(ligar, 1000);
     };
     ligar();
-    ctx.aoParar(function () { sair(); fecharConvite(); if (tirarOuvinte) tirarOuvinte(); estilo.remove(); if (janela) janela.remove(); janela = null; });
+    ctx.aoParar(function () { sair(); sairDaSala(); fecharConvite(); if (tirarOuvinte) tirarOuvinte(); estilo.remove(); if (janela) janela.remove(); janela = null; });
     return { abrir, receber, mesa: () => mesa };
   }
 

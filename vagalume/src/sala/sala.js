@@ -301,50 +301,67 @@
     return { ok: true };
   }
 
-  // ---------- jogos entre quartos (pedido do usuário em 2026-11-22) ----------
+  // ---------- salas de partida (jogos entre quartos; pedidos de 2026-11-22 e 2026-11-27) ----------
   // Uma sala só da partida, no mesmo serviço da presença ("9" + 11 dígitos: não bate com id de quarto). As
-  // jogadas vão como sinal direto para o id do adversário; quem entra e sai da sala vira aviso para a aba.
-  let jogo = null; // { canal, id, nome, ws, pessoas: Map id -> nome, fechado, espera }
-  function pessoasDoJogo(j) { avisar('jogo:pessoas', { canal: j.canal, ids: [...j.pessoas.keys()].filter((x) => x !== j.id) }); }
-  function conectarJogo(j) {
-    let ws;
-    try { ws = abrirSocket('/presenca/' + encodeURIComponent(j.canal) + '?id=' + encodeURIComponent(j.id) + '&nome=' + encodeURIComponent(j.nome)); } catch (e) { return; }
-    j.ws = ws;
-    ws.onopen = function () { j.espera = 1000; };
-    ws.onmessage = function (e) {
-      if (jogo !== j) return;
-      let m;
-      try { m = JSON.parse(e.data); } catch (erro) { return; }
-      if (m.t === 'ola') { j.pessoas = new Map((m.pessoas || []).map((x) => [String(x.id), String(x.nome || '')])); j.pessoas.set(j.id, j.nome); pessoasDoJogo(j); }
-      else if (m.t === 'entrou') { j.pessoas.set(String(m.id), String(m.nome || '')); pessoasDoJogo(j); }
-      else if (m.t === 'saiu') { j.pessoas.delete(String(m.id)); pessoasDoJogo(j); }
-      else if (m.t === 'sinal' && m.dado && m.dado.t === 'vl:jogo' && m.dado.d && typeof m.dado.d === 'object') {
-        const autorId = String(m.de || '');
-        avisar('jogo:direto', { canal: j.canal, autorId, nome: j.pessoas.get(autorId) || '', dado: m.dado.d });
-      }
-    };
-    ws.onclose = function () {
-      if (jogo !== j || j.fechado) return;
-      j.espera = Math.min(30000, (j.espera || 1000) * 2);
-      setTimeout(function () { if (jogo === j && !j.fechado) conectarJogo(j); }, j.espera);
-    };
+  // mensagens vão como sinal direto para o id de cada um; quem entra e sai da sala vira aviso para a aba.
+  // 'jogo' é a do um contra um; 'mesa', a dos jogos em grupo (o estado da mesa é maior). Uma de cada por vez.
+  function salaDePartida(tipo, limite) {
+    let atual = null; // { canal, id, nome, ws, pessoas: Map id -> nome, fechado, espera }
+    function pessoas(j) {
+      const outros = [...j.pessoas].filter(([x]) => x !== j.id);
+      avisar(tipo + ':pessoas', { canal: j.canal, ids: outros.map(([x]) => x), nomes: outros });
+    }
+    function conectar(j) {
+      let ws;
+      try { ws = abrirSocket('/presenca/' + encodeURIComponent(j.canal) + '?id=' + encodeURIComponent(j.id) + '&nome=' + encodeURIComponent(j.nome)); } catch (e) { return; }
+      j.ws = ws;
+      ws.onopen = function () { j.espera = 1000; };
+      ws.onmessage = function (e) {
+        if (atual !== j) return;
+        let m;
+        try { m = JSON.parse(e.data); } catch (erro) { return; }
+        if (m.t === 'ola') { j.pessoas = new Map((m.pessoas || []).map((x) => [String(x.id), String(x.nome || '')])); j.pessoas.set(j.id, j.nome); pessoas(j); }
+        else if (m.t === 'entrou') { j.pessoas.set(String(m.id), String(m.nome || '')); pessoas(j); }
+        else if (m.t === 'saiu') { j.pessoas.delete(String(m.id)); pessoas(j); }
+        else if (m.t === 'sinal' && m.dado && m.dado.t === 'vl:' + tipo && m.dado.d && typeof m.dado.d === 'object') {
+          const autorId = String(m.de || '');
+          avisar(tipo + ':direto', { canal: j.canal, autorId, nome: j.pessoas.get(autorId) || '', dado: m.dado.d });
+        }
+      };
+      ws.onclose = function () {
+        if (atual !== j || j.fechado) return;
+        j.espera = Math.min(30000, (j.espera || 1000) * 2);
+        setTimeout(function () { if (atual === j && !j.fechado) conectar(j); }, j.espera);
+      };
+    }
+    function sair() {
+      const j = atual;
+      if (!j) return { ok: true };
+      atual = null;
+      j.fechado = true;
+      try { if (j.ws) j.ws.close(1000, 'tchau'); } catch (e) { /* já fechado */ }
+      return { ok: true };
+    }
+    function entrar(canal, id, nome) {
+      if (!/^9\d{11}$/.test(canal) || !id) return { erro: 'pedido' };
+      if (atual && atual.canal === canal && atual.id === id) { pessoas(atual); return { ok: true }; }
+      sair();
+      atual = { canal, id, nome, ws: null, pessoas: new Map([[id, nome]]), fechado: false, espera: 1000 };
+      conectar(atual);
+      return { ok: true };
+    }
+    function enviar(m) {
+      if (!atual || !atual.ws || atual.ws.readyState !== 1) return { erro: 'conexao' };
+      const para = String(m.para || '').replace(/\D/g, '');
+      if (!para || !m.dado || typeof m.dado !== 'object') return { erro: 'pedido' };
+      const dado = JSON.stringify({ t: 'vl:' + tipo, d: m.dado });
+      if (dado.length > limite) return { erro: 'tamanho' };
+      atual.ws.send(JSON.stringify({ t: 'sinal', para, dado: JSON.parse(dado) }));
+      return { ok: true };
+    }
+    return { entrar, sair, enviar };
   }
-  function entrarJogo(canal, id, nome) {
-    if (!/^9\d{11}$/.test(canal) || !id) return { erro: 'pedido' };
-    if (jogo && jogo.canal === canal && jogo.id === id) { pessoasDoJogo(jogo); return { ok: true }; }
-    sairJogo();
-    jogo = { canal, id, nome, ws: null, pessoas: new Map([[id, nome]]), fechado: false, espera: 1000 };
-    conectarJogo(jogo);
-    return { ok: true };
-  }
-  function sairJogo() {
-    const j = jogo;
-    if (!j) return { ok: true };
-    jogo = null;
-    j.fechado = true;
-    try { if (j.ws) j.ws.close(1000, 'tchau'); } catch (e) { /* já fechado */ }
-    return { ok: true };
-  }
+  const salaJogo = salaDePartida('jogo', 900), salaMesa = salaDePartida('mesa', 16000);
 
   // ---------- voz ----------
   let voz = null;
@@ -562,17 +579,12 @@
       case 'voz:quem': return (await rede('/sala/' + String(m.quarto).replace(/\D/g, '') + '/pessoas')).json();
       case 'presenca:entrar': return entrarPresenca(String(m.quarto).replace(/\D/g, ''), String(m.id).replace(/\D/g, ''), String(m.nome || '').slice(0, 32));
       case 'presenca:sair': return sairPresenca();
-      case 'jogo:entrar': return entrarJogo(String(m.canal || ''), String(m.id || '').replace(/\D/g, ''), String(m.nome || '').slice(0, 32));
-      case 'jogo:sair': return sairJogo();
-      case 'jogo:enviar': {
-        if (!jogo || !jogo.ws || jogo.ws.readyState !== 1) return { erro: 'conexao' };
-        const para = String(m.para || '').replace(/\D/g, '');
-        if (!para || !m.dado || typeof m.dado !== 'object') return { erro: 'pedido' };
-        const dado = JSON.stringify({ t: 'vl:jogo', d: m.dado });
-        if (dado.length > 900) return { erro: 'tamanho' };
-        jogo.ws.send(JSON.stringify({ t: 'sinal', para, dado: JSON.parse(dado) }));
-        return { ok: true };
-      }
+      case 'jogo:entrar': return salaJogo.entrar(String(m.canal || ''), String(m.id || '').replace(/\D/g, ''), String(m.nome || '').slice(0, 32));
+      case 'jogo:sair': return salaJogo.sair();
+      case 'jogo:enviar': return salaJogo.enviar(m);
+      case 'mesa:entrar': return salaMesa.entrar(String(m.canal || ''), String(m.id || '').replace(/\D/g, ''), String(m.nome || '').slice(0, 32));
+      case 'mesa:sair': return salaMesa.sair();
+      case 'mesa:enviar': return salaMesa.enviar(m);
       case 'presenca:acao':
         if (!presenca || !presenca.ws || presenca.ws.readyState !== 1) return { erro: 'conexao' };
         presenca.ws.send(JSON.stringify({ t: 'acao', dado: m.dado }));

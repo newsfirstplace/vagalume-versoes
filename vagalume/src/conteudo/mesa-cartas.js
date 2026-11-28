@@ -11,11 +11,12 @@
   const ESC = 2, H = 220, OY = 120; // 1 pixel de arte = 2 pixels de tela
   const NOME_COR = { vermelho: 'Vermelho', amarelo: 'Amarelo', verde: 'Verde', azul: 'Azul' };
   const ORDEM_VALOR = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'pular', 'inverter', '+2', 'coringa', '+4'];
-  // Lugares nos dois lados de trás da mesa (lado, x e y do ladrilho). Você é a câmera, na frente.
+  // Lugares nos dois lados de trás da mesa (lado, x e y do ladrilho); a câmera fica na frente, onde a mesa não tem cadeira.
   const LUGAR = { L2: ['L', -1, 2], L1: ['L', -1, 1], L0: ['L', -1, 0], R0: ['R', 0, -1], R1: ['R', 1, -1], R2: ['R', 2, -1] };
-  const POR_QTD = { 1: ['L0'], 2: ['L1', 'R1'], 3: ['L1', 'L0', 'R1'], 4: ['L1', 'L0', 'R0', 'R1'], 5: ['L2', 'L1', 'L0', 'R0', 'R1'] };
+  // Você fica sempre na cadeira L2 (a da esquerda mais perto); os outros sentam depois de você, no sentido do jogo.
+  const MEU = 'L2';
+  const POR_QTD = { 1: ['R2'], 2: ['L0', 'R1'], 3: ['L0', 'R0', 'R2'], 4: ['L1', 'L0', 'R1', 'R2'], 5: ['L1', 'L0', 'R0', 'R1', 'R2'] };
   const MONTE = [1.05, 1.95], DESCARTE = [1.95, 1.05];
-  const MEU_LUGAR = { id: 'EU', lado: 'F', sx: 1, sy: 3, dir: 0 }; // você, de costas, no lado da frente da mesa
   const IMAGER = 'https://imaging.habblet.city/avatarimage?figure=';
   const VISUAL_PADRAO = 'hd-180-1.ch-210-66.lg-270-82.sh-290-80.hr-100-61';
   const VISUAIS_BOT = [
@@ -186,7 +187,7 @@
 
     // ---------- tamanho da cena ----------
     let W = 0, OX = 0, I = null, fundo = null, tampo = null;
-    const cadeiras = { L: A.cadeira('L'), R: A.cadeira('R'), F: A.cadeira('F') };
+    const cadeiras = { L: A.cadeira('L'), R: A.cadeira('R') };
     function medir() {
       const largura = Math.max(560, Math.min(1000, cena.clientWidth || 880));
       const w = Math.floor(largura / ESC);
@@ -212,7 +213,7 @@
         const [lado, sx, sy] = LUGAR[id];
         lugares.set(nomes[(i + k) % nomes.length], { id, lado, sx, sy, dir: lado === 'L' ? 2 : 4 });
       }
-      if (nomes.includes(eu)) lugares.set(eu, Object.assign({}, MEU_LUGAR));
+      if (nomes.includes(eu)) { const [lado, sx, sy] = LUGAR[MEU]; lugares.set(eu, { id: MEU, lado, sx, sy, dir: 2 }); }
     }
     const figura = (nome) => textoVisual(v && v.visuais && v.visuais[nome]) || visualLocal(nome) || VISUAL_PADRAO;
     // Pede as imagens de cada avatar (a de sempre primeiro, depois as caras); o visual pode chegar só depois.
@@ -224,7 +225,6 @@
       for (const [n, l] of pendentes) {
         const f = figura(n);
         preparados.add(f + '|' + l.dir);
-        if (l.lado === 'F') { imagem(urlAvatar(f, l.dir, l.dir, 'sml', 'sit,wav')); continue; } // de costas: as caras não aparecem
         [3, l.lado === 'L' ? 1 : 5].forEach((cab) => imagem(urlAvatar(f, l.dir, cab, 'std')));
         ['eyb', 'agr', 'sad', 'sml', 'srp', 'spk'].forEach((g) => imagem(urlAvatar(f, l.dir, l.dir, g)));
         imagem(urlAvatar(f, l.dir, l.dir, 'sml', 'sit,wav'));
@@ -543,10 +543,9 @@
     }
     // Para onde cada um olha: para quem está jogando (para você, na sua vez).
     function olhar(nome, l) {
-      if (!v || v.fim || l.lado === 'F') return l.dir;
+      if (!v || v.fim) return l.dir;
       const alvo = v.esquecido ? v.esquecido.nome : v.vez;
       if (alvo === nome) return l.dir;
-      if (alvo === eu) return 3;
       const o = lugares.get(alvo);
       return o && o.lado !== l.lado ? (l.lado === 'L' ? 1 : 5) : l.dir;
     }
@@ -623,7 +622,7 @@
         ctx.drawImage(A.carta(D.topo, D.topo.cor ? null : D.cor), Math.round(x0 - A.CW / 2), Math.round(y0 - A.CH - 6 + bob));
       }
       // Leques nas mãos de quem está na mesa.
-      for (const [nome, l] of lugares) { const n = D.qtd[nome] || 0; if (!n || l.lado === 'F') continue; const p = pontos(l); ctx.drawImage(leque(n), Math.round(p.fx - 20), Math.round(p.fy - 8)); }
+      for (const [nome, l] of lugares) { const n = D.qtd[nome] || 0; if (!n) continue; const p = pontos(l); ctx.drawImage(leque(n), Math.round(p.fx - 20), Math.round(p.fy - 8)); }
       // Onda da cor escolhida no coringa.
       for (let i = ondas.length - 1; i >= 0; i--) {
         const o = ondas[i], p = (t - o.t0) / 900;
@@ -632,14 +631,6 @@
         ctx.globalAlpha = 1 - p; ctx.fillStyle = o.cor;
         for (let k = 0; k < 90; k++) { const a = k / 90 * Math.PI * 2, [px, py] = I(DESCARTE[0] + Math.cos(a) * r, DESCARTE[1] + Math.sin(a) * r, z); ctx.fillRect(Math.round(px), Math.round(py), 2, 2); }
         ctx.globalAlpha = 1;
-      }
-      // A sua cadeira e o seu boneco, de costas, na frente da mesa (o encosto fica na frente dele).
-      const minha = lugares.get(eu);
-      if (minha) {
-        const ch = cadeiras.F, [cx, cy] = I(minha.sx + 0.5, minha.sy + 0.5, 0), p = pontos(minha), img = imagemDoAvatar(eu, minha, t);
-        ctx.drawImage(ch.canvas, Math.round(cx - ch.ox), Math.round(cy - ch.oy));
-        if (img) ctx.drawImage(img, Math.round(p.ax - 45), Math.round(p.ay - 104));
-        ctx.drawImage(ch.frente, Math.round(cx - ch.ox), Math.round(cy - ch.oy));
       }
       // Cartas voando.
       for (let i = voos.length - 1; i >= 0; i--) {
