@@ -375,10 +375,10 @@
   .vl-jg.vl-nativo.tema-damas .vl-jg-casa.clara { background: #f2dfc0; } .vl-jg.vl-nativo.tema-damas .vl-jg-casa.escura { background: #6e3f26; }
   .vl-jg.vl-nativo.tema-damas .vl-jg-arte { background: conic-gradient(#f2dfc0 0 25%, #6e3f26 0 50%, #f2dfc0 0 75%, #6e3f26 0) 0 0 / 56px 56px; }
   /* Ping-pong: arena esportiva. */
-  .vl-jg.vl-nativo.tema-pingpong { --n-fundo: radial-gradient(ellipse at 50% -20%, #1f4a8f 0%, #0d1d40 50%, #060b1c 100%); --n-barra: linear-gradient(180deg, #13306a, #0b1a3c); --n-borda: rgba(120,170,255,.25);
-    --n-acento: #ff8c1a; --n-acento-texto: #2b1300; --n-acento-sombra: #a24f00; --n-texto: #eef4ff; --n-suave: #9fb4d8;
-    --n-titulo-fonte: italic 900 16px/1 system-ui, sans-serif; --n-logo-fonte: italic 900 46px/1 system-ui, sans-serif; --n-logo-sombra: 3px 3px 0 #ff8c1a, 0 0 26px rgba(255,140,26,.45);
-    --n-capa: radial-gradient(ellipse at 20% 120%, rgba(255,140,26,.35), transparent 55%), radial-gradient(ellipse at 80% -20%, rgba(120,170,255,.35), transparent 55%), linear-gradient(160deg, #173a78, #0a1633); }
+  .vl-jg.vl-nativo.tema-pingpong { --n-fundo: linear-gradient(180deg, #24384c 0%, #16222e 100%); --n-barra: linear-gradient(180deg, #4a93c4, #2a6690); --n-borda: #0b1118;
+    --n-acento: #ff9a1a; --n-acento-texto: #2b1300; --n-acento-sombra: #8f4e00; --n-texto: #f1f5f9; --n-suave: #a9bccd; --n-cartao: rgba(255,255,255,.05); --n-cartao-borda: rgba(255,255,255,.12);
+    --n-logo-cor: #ff9a1a;
+    --n-capa: radial-gradient(ellipse at 80% 55%, rgba(38,130,98,.5), transparent 55%), linear-gradient(135deg, #2b4a63, #172530); }
   /* Corrida de Digitação: neon. */
   .vl-jg.vl-nativo.tema-corrida { --n-fundo: linear-gradient(180deg, #160a2e 0%, #0b061a 60%, #05030d 100%); --n-barra: linear-gradient(90deg, rgba(255,62,165,.28), rgba(95,246,255,.22)); --n-borda: rgba(255,62,165,.35);
     --n-acento: #ff3ea5; --n-acento-texto: #fff; --n-acento-sombra: #8f0e57; --n-texto: #f6eaff; --n-suave: #b9a5d9;
@@ -395,12 +395,18 @@
     --n-logo-fonte: 700 46px/1 Goldfish, Volter, 'Ubuntu', system-ui, sans-serif; --n-logo-cor: #ffcc00; --n-logo-sombra: 3px 0 #000, -3px 0 #000, 0 3px #000, 0 -3px #000, 3px 3px #000, -3px -3px #000, 3px -3px #000, -3px 3px #000, 0 7px 0 rgba(0,0,0,.4);
     --n-capa: radial-gradient(ellipse at 78% 55%, rgba(47,147,91,.55), transparent 55%), linear-gradient(135deg, #2b4a63, #172530);
     width: min(944px, calc(100vw - 24px)); border: 2px solid #000; border-radius: 10px; box-shadow: 0 0 0 2px #4a6a86, 0 30px 90px rgba(0,0,0,.7); }
-  .vl-jg.vl-nativo.tema-cartas .vl-jg-cab { border-bottom: 2px solid #000; }
-  .vl-jg.vl-nativo.tema-cartas .vl-jg-cab b { letter-spacing: .5px; text-transform: none; text-shadow: 0 2px 0 rgba(0,0,0,.45); }
+  .vl-jg.vl-nativo.tema-cartas .vl-jg-cab, .vl-jg.vl-nativo.tema-pingpong .vl-jg-cab, .vl-jg.vl-nativo.tema-ludo .vl-jg-cab { border-bottom: 2px solid #000; }
+  .vl-jg.vl-nativo.tema-cartas .vl-jg-cab b, .vl-jg.vl-nativo.tema-pingpong .vl-jg-cab b, .vl-jg.vl-nativo.tema-ludo .vl-jg-cab b { letter-spacing: .5px; text-transform: none; text-shadow: 0 2px 0 rgba(0,0,0,.45); }
   .vl-jg.vl-nativo.tema-cartas .vl-jg-corpo { position: relative; }
-  .vl-jg.vl-nativo.tema-cartas .vl-jg-botao { font-family: Goldfish, Volter, 'Ubuntu', system-ui, sans-serif; font-size: 16px; border-radius: 6px; }
-  .vl-jg.vl-nativo.tema-cartas .vl-jg-botao.forte { border: 2px solid #000; box-shadow: inset 0 -4px 0 rgba(0,0,0,.18), 0 3px 0 #000; text-transform: none; }
-  .vl-jg.vl-nativo.tema-cartas .vl-jg-heroi h2 { letter-spacing: 2px; }
+  .vl-jg.vl-nativo.tema-cartas .vl-jg-botao, .vl-jg.vl-nativo.tema-pingpong .vl-jg-botao, .vl-jg.vl-nativo.tema-ludo .vl-jg-botao { font-family: Goldfish, Volter, 'Ubuntu', system-ui, sans-serif; font-size: 16px; border-radius: 6px; }
+  .vl-jg.vl-nativo.tema-cartas .vl-jg-botao.forte, .vl-jg.vl-nativo.tema-pingpong .vl-jg-botao.forte, .vl-jg.vl-nativo.tema-ludo .vl-jg-botao.forte { border: 2px solid #000; box-shadow: inset 0 -4px 0 rgba(0,0,0,.18), 0 3px 0 #000; text-transform: none; }
+  .vl-jg.vl-nativo.tema-cartas .vl-jg-heroi h2, .vl-jg.vl-nativo.tema-pingpong .vl-jg-heroi h2, .vl-jg.vl-nativo.tema-ludo .vl-jg-heroi h2 { letter-spacing: 2px; }
+  .vl-jg.vl-nativo.tema-cartas, .vl-jg.vl-nativo.tema-pingpong, .vl-jg.vl-nativo.tema-ludo { --n-titulo-fonte: 700 18px/1 Goldfish, Volter, 'Ubuntu', system-ui, sans-serif; --n-titulo-cor: #fff;
+    --n-logo-fonte: 700 46px/1 Goldfish, Volter, 'Ubuntu', system-ui, sans-serif; --n-logo-sombra: 3px 0 #000, -3px 0 #000, 0 3px #000, 0 -3px #000, 3px 3px #000, -3px -3px #000, 3px -3px #000, -3px 3px #000, 0 7px 0 rgba(0,0,0,.4);
+    border: 2px solid #000; border-radius: 10px; box-shadow: 0 0 0 2px #4a6a86, 0 30px 90px rgba(0,0,0,.7); }
+  .vl-jg.vl-nativo.tema-cartas .vl-jg-seg button, .vl-jg.vl-nativo.tema-pingpong .vl-jg-seg button, .vl-jg.vl-nativo.tema-ludo .vl-jg-seg button { font-family: Goldfish, Volter, 'Ubuntu', system-ui, sans-serif; font-size: 16px; }
+  .vl-jg.vl-nativo.tema-cartas .vl-jg-bloco-cab h3, .vl-jg.vl-nativo.tema-pingpong .vl-jg-bloco-cab h3, .vl-jg.vl-nativo.tema-ludo .vl-jg-bloco-cab h3 { font: 700 18px/1.1 Goldfish, Volter, 'Ubuntu', system-ui, sans-serif; }
+  .vl-jg.vl-nativo.tema-cartas .vl-jg-fato, .vl-jg.vl-nativo.tema-pingpong .vl-jg-fato, .vl-jg.vl-nativo.tema-ludo .vl-jg-fato { font-family: Goldfish, Volter, 'Ubuntu', system-ui, sans-serif; font-size: 15px; }
   /* Duelo de Pistas: dossiê de espião. */
   .vl-jg.vl-nativo.tema-pistas { --n-fundo: radial-gradient(ellipse at 50% 0%, #22343a 0%, #111a1d 60%, #070b0c 100%); --n-barra: linear-gradient(180deg, #2a3d42, #162225); --n-borda: rgba(224,72,72,.35);
     --n-acento: #e04848; --n-acento-texto: #fff; --n-acento-sombra: #7a1a1a; --n-texto: #eef2ea; --n-suave: #a7b5ae;
@@ -408,11 +414,10 @@
     --n-capa: repeating-linear-gradient(0deg, rgba(255,255,255,.02) 0 1px, transparent 1px 22px), linear-gradient(135deg, #2d3f44, #141f22); }
   .vl-jg.vl-nativo.tema-pistas .vl-jg-heroi h2::after { content: 'CONFIDENCIAL'; display: inline-block; margin-left: 14px; padding: 3px 7px; vertical-align: middle; transform: rotate(-6deg); border: 2px solid #e04848; color: #e04848; font: 700 12px/1 'Courier New', monospace; letter-spacing: 2px; text-shadow: none; }
   /* Ludo: azul e alegre. */
-  .vl-jg.vl-nativo.tema-ludo { --n-fundo: radial-gradient(ellipse at 50% -10%, #3c9be8 0%, #1d5fb0 50%, #0f3570 100%); --n-barra: rgba(255,255,255,.12); --n-borda: rgba(255,255,255,.3);
-    --n-acento: #ffd23a; --n-acento-texto: #3a2a00; --n-acento-sombra: #b38a00; --n-texto: #ffffff; --n-suave: #d5e6ff; --n-cartao: rgba(255,255,255,.1); --n-cartao-borda: rgba(255,255,255,.22);
-    --n-titulo-fonte: 900 17px/1 system-ui, sans-serif; --n-logo-fonte: 900 54px/1 system-ui, sans-serif;
-    --n-capa: radial-gradient(circle at 12% 22%, rgba(255,255,255,.22) 0 9%, transparent 10%), radial-gradient(circle at 92% 80%, rgba(255,255,255,.16) 0 13%, transparent 14%), linear-gradient(135deg, #46a6f0, #2266bf); }
-  .vl-jg.vl-nativo.tema-ludo .vl-jg-heroi h2 { background: linear-gradient(90deg, #ffe04a, #ff8a3d, #ff5aa0, #7ad7ff); -webkit-background-clip: text; background-clip: text; color: transparent; text-shadow: none; filter: drop-shadow(0 4px 0 #0f3570); }
+  .vl-jg.vl-nativo.tema-ludo { --n-fundo: linear-gradient(180deg, #263646 0%, #182430 100%); --n-barra: linear-gradient(180deg, #4a93c4, #2a6690); --n-borda: #0b1118;
+    --n-acento: #ffcc00; --n-acento-texto: #2b1d00; --n-acento-sombra: #8f6a00; --n-texto: #f1f5f9; --n-suave: #a9bccd; --n-cartao: rgba(255,255,255,.05); --n-cartao-borda: rgba(255,255,255,.12);
+    --n-logo-cor: #ffcc00;
+    --n-capa: radial-gradient(circle at 88% 30%, rgba(58,142,232,.35), transparent 40%), radial-gradient(circle at 70% 85%, rgba(234,90,158,.3), transparent 40%), linear-gradient(135deg, #2b4a63, #172530); }
   /* Sinuca: salão com a luz em cima da mesa. */
   .vl-jg.vl-nativo.tema-sinuca { --n-fundo: radial-gradient(ellipse at 50% -15%, rgba(255,226,150,.28) 0%, rgba(255,226,150,0) 45%), radial-gradient(ellipse at 50% 0%, #22302a 0%, #101814 55%, #070a08 100%);
     --n-barra: linear-gradient(180deg, #2c3a32, #151d18); --n-borda: rgba(232,197,71,.3); --n-acento: #e8c547; --n-acento-texto: #2a2100; --n-acento-sombra: #8f7414; --n-texto: #f2f5ef; --n-suave: #aebba9;
