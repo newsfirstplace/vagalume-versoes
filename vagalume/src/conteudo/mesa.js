@@ -200,7 +200,10 @@
 
     function mandar(nome, dado) {
       if (!VL.comunidade || !VL.comunidade.direto) return Promise.resolve(null);
-      return VL.comunidade.direto(nome, Object.assign({ s: mesa ? mesa.sessao : dado.s }, dado));
+      return VL.comunidade.direto(nome, Object.assign({ s: mesa ? mesa.sessao : dado.s }, dado)).then(function (r) {
+        if (r && r.erro) console.warn('[Vagalume] mesa: não foi para ' + nome + ' (' + dado.t + '): ' + r.erro);
+        return r;
+      });
     }
     const pessoas = () => mesa.jogadores.filter((p) => !p.bot && !mesmo(p.nome, eu()));
 

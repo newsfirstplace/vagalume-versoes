@@ -593,7 +593,8 @@
         const alvo = [...presenca.pessoas].find(([id, n]) => id !== presenca.id && String(n).trim().toLowerCase() === nome);
         if (!alvo || !m.dado || typeof m.dado !== 'object') return { erro: 'pessoa' };
         const dado = JSON.stringify({ t: 'vl:direto', d: m.dado });
-        if (dado.length > 600) return { erro: 'tamanho' };
+        // O estado das mesas de jogo (ZERA!, Pistas, Sinuca…) passa de 2 mil caracteres; o servidor repassa sinais de até 20 mil.
+        if (dado.length > 16000) return { erro: 'tamanho' };
         presenca.ws.send(JSON.stringify({ t: 'sinal', para: alvo[0], dado: JSON.parse(dado) }));
         return { ok: true };
       }

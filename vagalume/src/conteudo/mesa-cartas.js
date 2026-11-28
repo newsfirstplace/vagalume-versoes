@@ -114,6 +114,8 @@
   const sorteia = (lista) => lista[Math.floor(Math.random() * lista.length)];
   const hashNome = (s) => [...String(s)].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 7);
   const urlAvatar = (fig, dir, cab, gesto, acao) => IMAGER + encodeURIComponent(fig) + '&direction=' + dir + '&head_direction=' + cab + '&action=' + (acao || 'sit') + '&gesture=' + (gesto || 'std') + '&size=m';
+  const textoVisual = (x) => (typeof x === 'string' ? x : x && typeof x.visual === 'string' ? x.visual : '') || null;
+  const visualLocal = (nome) => textoVisual(VL.pessoas && VL.pessoas.visualDe ? VL.pessoas.visualDe(nome) : null);
   const urlCabeca = (fig, gesto) => IMAGER + encodeURIComponent(fig) + '&headonly=1&direction=3&head_direction=3&gesture=' + (gesto || 'std') + '&size=m';
 
   // Imagens do servidor de imagens do hotel: poucas de cada vez (ele recusa muitas juntas) e uma nova tentativa.
@@ -181,18 +183,26 @@
         lugares.set(nomes[(i + k) % nomes.length], { id, lado, sx, sy, dir: lado === 'L' ? 2 : 4 });
       }
     }
-    const figura = (nome) => (v && v.visuais && v.visuais[nome]) || (VL.pessoas && VL.pessoas.visualDe && VL.pessoas.visualDe(nome)) || VISUAL_PADRAO;
+    const figura = (nome) => textoVisual(v && v.visuais && v.visuais[nome]) || visualLocal(nome) || VISUAL_PADRAO;
+    // Pede as imagens de cada avatar (a de sempre primeiro, depois as caras); o visual pode chegar só depois.
+    const preparados = new Set();
+    let retratoDe = '';
     function preparar() {
-      for (const [n, l] of lugares) imagem(urlAvatar(figura(n), l.dir, l.dir, 'std'));
-      imagem(urlCabeca(figura(eu), 'std'));
-      for (const [n, l] of lugares) {
+      const pendentes = [...lugares].filter(([n, l]) => !preparados.has(figura(n) + '|' + l.dir));
+      for (const [n, l] of pendentes) imagem(urlAvatar(figura(n), l.dir, l.dir, 'std'));
+      for (const [n, l] of pendentes) {
         const f = figura(n);
+        preparados.add(f + '|' + l.dir);
         [3, l.lado === 'L' ? 1 : 5].forEach((cab) => imagem(urlAvatar(f, l.dir, cab, 'std')));
         ['eyb', 'agr', 'sad', 'sml', 'srp', 'spk'].forEach((g) => imagem(urlAvatar(f, l.dir, l.dir, g)));
         imagem(urlAvatar(f, l.dir, l.dir, 'sml', 'sit,wav'));
       }
-      ['agr', 'sad', 'sml', 'srp', 'spk', 'eyb'].forEach((g) => imagem(urlCabeca(figura(eu), g)));
-      retratoImg.src = urlCabeca(figura(eu), 'std');
+      const meu = figura(eu);
+      if (meu !== retratoDe) {
+        retratoDe = meu;
+        ['std', 'agr', 'sad', 'sml', 'srp', 'spk', 'eyb'].forEach((g) => imagem(urlCabeca(meu, g)));
+        retratoImg.src = urlCabeca(meu, 'std');
+      }
     }
     // Pontos da cena (pixels de arte).
     function pontos(l) {
@@ -227,7 +237,8 @@
       v = Object.assign({}, nova, { recebido: performance.now() });
       if (antes && nova.n !== antes.n) esperando = 0;
       if (!I) medir();
-      if (novaGente) { sentar(); preparar(); }
+      if (novaGente) sentar();
+      preparar();
       const evs = (v.eventos || []).filter((e) => visto == null || e.n > visto);
       if (visto == null) {
         visto = v.n;
@@ -493,8 +504,8 @@
       const a = imagens.get(urlAvatar(f, l.dir, gesto === 'std' ? cab : l.dir, gesto, acao));
       if (a && a.ok) return a.img;
       if (gesto === 'std' && cab !== l.dir) imagem(urlAvatar(f, l.dir, cab, 'std'));
-      const b = imagens.get(urlAvatar(f, l.dir, l.dir, 'std'));
-      return b && b.ok ? b.img : null;
+      const b = imagem(urlAvatar(f, l.dir, l.dir, 'std'));
+      return b.ok ? b.img : null;
     }
     // Para onde cada um olha: para quem está jogando (para você, na sua vez).
     function olhar(nome, l) {
@@ -773,7 +784,7 @@
     visao(e, nome) {
       const v = K.visao(e, nome);
       v.visuais = {};
-      for (const n of e.ordem) v.visuais[n] = e.visuais[n] || (VL.pessoas && VL.pessoas.visualDe && VL.pessoas.visualDe(n)) || null;
+      for (const n of e.ordem) v.visuais[n] = e.visuais[n] || visualLocal(n);
       return v;
     },
     montar,
