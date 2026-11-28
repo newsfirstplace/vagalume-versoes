@@ -20,9 +20,6 @@
   const TABULEIROS = new Set([1356475873, 1356469514, 2100000708, 886652737, 886652738, 886647434, 886634006, 886655528, 1356476911]);
 
   const NOMES = { xadrez: 'Xadrez', damas: 'Damas', pingpong: 'Ping-pong' };
-  // Vagacartas (2026-11-27): o jogo de cartas contra a IA mandado pelo usuário, em ES modules numa página da extensão
-  // (src/cartas/), mostrada num quadro da janela. Fica fora de NOMES, que é a lista de jogos aceitos em convite.
-  const CARTAS = { id: 'cartas', nome: 'Vagacartas', glifo: '🃏', pagina: 'src/cartas/index.html' };
   const NIVEIS = [['facil', 'Fácil'], ['medio', 'Médio'], ['dificil', 'Difícil']];
   const GLIFO = { k: '♚', q: '♛', r: '♜', b: '♝', n: '♞', p: '♟' };
   const NOME_PECA = { k: 'rei', q: 'dama', r: 'torre', b: 'bispo', n: 'cavalo', p: 'peão' };
@@ -74,9 +71,6 @@
   .vl-jg-hub { display: flex; flex-direction: column; gap: 10px; }
   .vl-jg-hub .vl-jg-cartao { width: 100%; }
   .vl-jg-hub h3 { margin: 6px 0 0; }
-  .vl-jg.vl-nativo.tema-cartas { width: auto; }
-  .vl-jg.vl-nativo.tema-cartas .vl-jg-corpo { padding: 0; }
-  .vl-jg-quadro { display: block; width: 380px; height: 300px; border: 0; }
   .vl-jg-cartao small { color: #aab5c7; }
   .vl-jg-botao { padding: 9px 14px; border-radius: 10px; border: 1px solid rgba(214,242,74,.5); background: rgba(214,242,74,.14); color: #f2ffc0; cursor: pointer; font: 600 13px system-ui, sans-serif; }
   .vl-jg-botao:hover:not(:disabled) { background: rgba(214,242,74,.26); }
@@ -394,12 +388,26 @@
   .vl-jg.vl-nativo.tema-corrida .vl-cr-frase .ok { color: #5ff6ff; text-shadow: 0 0 6px rgba(95,246,255,.6); }
   .vl-jg.vl-nativo.tema-corrida .vl-cr-pista { background: linear-gradient(180deg, #1a0b33, #0c0619); box-shadow: inset 0 0 0 1px rgba(255,62,165,.35); }
   .vl-jg.vl-nativo.tema-corrida .vl-cr-raias { background: rgba(10,4,24,.6); border-color: rgba(255,62,165,.25); }
-  /* Vagacartas: cartas coloridas. */
-  .vl-jg.vl-nativo.tema-cartas { --n-fundo: radial-gradient(ellipse at 50% 0%, #3a2a7a 0%, #1b1440 55%, #0c0920 100%); --n-barra: linear-gradient(90deg, #e6508f, #f08a24, #a6cf26, #2f86e6); --n-borda: rgba(255,255,255,.18);
-    --n-acento: #ffcc33; --n-acento-texto: #2b1d00; --n-acento-sombra: #a8780a; --n-titulo-fonte: 900 16px/1 system-ui, sans-serif;
-    --n-logo-fonte: 900 46px/1 system-ui, sans-serif; --n-logo-sombra: 3px 3px 0 #e6508f, 6px 6px 0 #2f86e6;
-    --n-capa: radial-gradient(circle at 80% 40%, rgba(255,204,51,.25), transparent 45%), linear-gradient(135deg, #2b1f63, #140f33); }
-  .vl-jg.vl-nativo.tema-cartas .vl-jg-cab b { text-shadow: 0 2px 0 rgba(0,0,0,.45); }
+  /* ZERA!: janela no jeito do hotel (barra azul, fonte de pixel, botões amarelos). */
+  .vl-jg.vl-nativo.tema-cartas { --n-fundo: linear-gradient(180deg, #263646 0%, #182430 100%); --n-barra: linear-gradient(180deg, #4a93c4, #2a6690); --n-borda: #0b1118;
+    --n-acento: #ffcc00; --n-acento-texto: #2b1d00; --n-acento-sombra: #8f6a00; --n-texto: #f1f5f9; --n-suave: #a9bccd; --n-cartao: rgba(255,255,255,.05); --n-cartao-borda: rgba(255,255,255,.12);
+    --n-titulo-fonte: 700 18px/1 Goldfish, Volter, 'Ubuntu', system-ui, sans-serif; --n-titulo-cor: #fff;
+    --n-logo-fonte: 700 46px/1 Goldfish, Volter, 'Ubuntu', system-ui, sans-serif; --n-logo-cor: #ffcc00; --n-logo-sombra: 3px 0 #000, -3px 0 #000, 0 3px #000, 0 -3px #000, 3px 3px #000, -3px -3px #000, 3px -3px #000, -3px 3px #000, 0 7px 0 rgba(0,0,0,.4);
+    --n-capa: radial-gradient(ellipse at 78% 55%, rgba(47,147,91,.55), transparent 55%), linear-gradient(135deg, #2b4a63, #172530);
+    width: min(944px, calc(100vw - 24px)); border: 2px solid #000; border-radius: 10px; box-shadow: 0 0 0 2px #4a6a86, 0 30px 90px rgba(0,0,0,.7); }
+  .vl-jg.vl-nativo.tema-cartas .vl-jg-cab { border-bottom: 2px solid #000; }
+  .vl-jg.vl-nativo.tema-cartas .vl-jg-cab b { letter-spacing: .5px; text-transform: none; text-shadow: 0 2px 0 rgba(0,0,0,.45); }
+  .vl-jg.vl-nativo.tema-cartas .vl-jg-corpo { position: relative; }
+  .vl-jg.vl-nativo.tema-cartas .vl-jg-botao { font-family: Goldfish, Volter, 'Ubuntu', system-ui, sans-serif; font-size: 16px; border-radius: 6px; }
+  .vl-jg.vl-nativo.tema-cartas .vl-jg-botao.forte { border: 2px solid #000; box-shadow: inset 0 -4px 0 rgba(0,0,0,.18), 0 3px 0 #000; text-transform: none; }
+  .vl-jg.vl-nativo.tema-cartas .vl-jg-heroi h2 { letter-spacing: 2px; }
+  .vl-jg.vl-nativo.tema-cartas .vl-ms-res { position: absolute; left: 50%; top: 150px; transform: translateX(-50%); z-index: 20; width: min(560px, calc(100% - 40px)); margin: 0;
+    background: #e9e9e1; color: #111; border: 2px solid #000; border-radius: 8px; box-shadow: 0 8px 0 rgba(0,0,0,.45); }
+  .vl-jg.vl-nativo.tema-cartas .vl-ms-res h3 { color: #111; font: 700 26px/1 Goldfish, Volter, 'Ubuntu', system-ui, sans-serif; }
+  .vl-jg.vl-nativo.tema-cartas .vl-ms-res b, .vl-jg.vl-nativo.tema-cartas .vl-ms-res span { color: #111; }
+  .vl-jg.vl-nativo.tema-cartas .vl-ms-res small, .vl-jg.vl-nativo.tema-cartas .vl-ms-res .vl-jg-nota { color: #4a5563; }
+  .vl-jg.vl-nativo.tema-cartas .vl-ms-resto div { background: rgba(0,0,0,.06); }
+  .vl-jg.vl-nativo.tema-cartas .vl-ms-res .vl-jg-botao.discreto { background: #fff; color: #111; border: 2px solid #000; }
   /* Duelo de Pistas: dossiê de espião. */
   .vl-jg.vl-nativo.tema-pistas { --n-fundo: radial-gradient(ellipse at 50% 0%, #22343a 0%, #111a1d 60%, #070b0c 100%); --n-barra: linear-gradient(180deg, #2a3d42, #162225); --n-borda: rgba(224,72,72,.35);
     --n-acento: #e04848; --n-acento-texto: #fff; --n-acento-sombra: #7a1a1a; --n-texto: #eef2ea; --n-suave: #a7b5ae;
@@ -558,7 +566,7 @@
   // Regras de cada jogo atrás da mesma cara.
   const glifoDe = (id) => { const j = JOGOS.find((x) => x.id === id); return j ? j.glifo + (j.emoji ? '' : VS) : ''; };
   // Ícone do jogo: a peça desenhada nas damas, o símbolo nos outros.
-  const iconeJogo = (id) => (id === 'damas' ? el('span', { class: 'vl-jg-dama' }) : document.createTextNode(id === CARTAS.id ? CARTAS.glifo : glifoDe(id)));
+  const iconeJogo = (id) => (id === 'damas' ? el('span', { class: 'vl-jg-dama' }) : document.createTextNode(glifoDe(id)));
   const REGRAS = {
     xadrez: {
       novo: X.novo, jogar: X.jogar, lances: X.lances, situacao: X.situacao, melhor: X.melhorLance,
@@ -694,14 +702,6 @@
         camada.area().appendChild(janela);
       }
       ctx.aoParar(function () { if (janela) janela.remove(); janela = null; fecharChamada(); });
-      // A página do Vagacartas avisa a altura dela (src/cartas/altura.js) e o quadro acompanha, como o popup fazia.
-      const quadroCartas = () => el('iframe', { class: 'vl-jg-quadro', title: CARTAS.nome, src: chrome.runtime.getURL(CARTAS.pagina) });
-      function aoAlturaCartas(ev) {
-        const q = corpo && corpo.querySelector('.vl-jg-quadro');
-        if (q && ev.source === q.contentWindow && ev.data && ev.data.vagalume === 'cartas:altura') q.style.height = Math.min(600, Math.max(120, Number(ev.data.h) || 0)) + 'px';
-      }
-      window.addEventListener('message', aoAlturaCartas);
-      ctx.aoParar(() => window.removeEventListener('message', aoAlturaCartas));
 
       function desenhar() {
         if (partida && partida.animando) return; // a tela é refeita quando a peça pousa
@@ -713,12 +713,10 @@
         janela.classList.toggle('damas', jogo === 'damas');
         for (const c of [...janela.classList]) if (c.indexOf('tema-') === 0) janela.classList.remove(c);
         janela.classList.add('vl-nativo', 'tema-' + (jogo || 'hub'));
-        janela.querySelector('.vl-jg-titulo').textContent = jogo === CARTAS.id ? CARTAS.nome : jogo ? NOMES[jogo] : 'Jogos';
+        janela.querySelector('.vl-jg-titulo').textContent = jogo ? NOMES[jogo] : 'Jogos';
         janela.querySelector('.vl-jg-ic').replaceChildren(jogo ? iconeJogo(jogo) : document.createTextNode('🎮'));
         janela.querySelector('.vl-jg-voltar').hidden = !jogo || !!(partida && !partida.fim);
-        // O quadro do Vagacartas fica enquanto ele estiver aberto: refazer a tela recarregaria a página e a partida.
-        if (!partida && jogo === CARTAS.id) { if (!corpo.querySelector('.vl-jg-quadro')) camada.trocar(corpo, [quadroCartas()]); }
-        else camada.trocar(corpo, partida ? (partida.jogo === 'pingpong' ? telaPingPong() : telaPartida()) : jogo ? telaInicio() : telaHub());
+        camada.trocar(corpo, partida ? (partida.jogo === 'pingpong' ? telaPingPong() : telaPartida()) : jogo ? telaInicio() : telaHub());
         if (partida && partida.fim && !partida.festejado && !partida.animando) { partida.festejado = true; festejar(partida); }
       }
       function festejar(p) {
@@ -755,7 +753,7 @@
         damas: 'Regra brasileira, com dama voadora e captura obrigatória.',
         pingpong: 'Mesa em 3D: rebata com o mouse e feche em 11 pontos.',
         corrida: 'Digite a frase certinha antes de todo mundo.',
-        cartas: 'Contra a IA: mesma cor ou número, esvazie a mão.',
+        cartas: 'Cartas na mesa com a galera: +2 e +4 acumulam!',
         pistas: 'O mestre dá a pista e o time acha as palavras.',
         ludo: 'Tire 6, dê a volta e leve os peões ao centro.',
         sinuca: 'Bola 8 ou bola 9, com efeito e bola na mão.',
@@ -777,8 +775,6 @@
         ]);
         const doisJogadores = JOGOS.map((j) => ({ id: j.id, nome: NOMES[j.id], min: 2, max: 2, bot: true, abrir() { escolha.jogo = j.id; desenhar(); } }));
         const emGrupo = mesaApi ? Object.entries(VL.mesa.JOGOS).map(([id, j]) => ({ id, nome: j.nome, min: j.min || 2, max: j.max || j.min || 2, bot: !!(j.bots && j.bots.length), abrir() { fechar(); mesaApi.abrir(id); } })) : [];
-        // No lugar do antigo Vagacartas da mesa (o segundo da lista).
-        emGrupo.splice(Math.min(1, emGrupo.length), 0, { id: CARTAS.id, nome: CARTAS.nome, min: 2, max: 2, bot: true, abrir() { escolha.jogo = CARTAS.id; desenhar(); } });
         const destaque = emGrupo.find((j) => j.id === 'sinuca') || doisJogadores[0];
         const secao = (titulo, sub, lista, classe) => el('section', { class: 'vl-hub-sec' }, [
           el('header', null, [el('h3', { texto: titulo }), el('small', { texto: sub }), el('em', { texto: lista.length + ' jogos' })]),

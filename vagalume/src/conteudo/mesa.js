@@ -18,8 +18,8 @@
   .vl-jg.vl-ms { width: min(900px, calc(100vw - 24px)); }
   .vl-ms .vl-jg-corpo { padding: 14px 16px 16px; }
   .vl-ms-arte { position: absolute; inset: 0; pointer-events: none; }
-  .vl-jg-cartao .vl-jg-mini.corrida, .vl-jg-cartao .vl-jg-mini.pistas, .vl-jg-cartao .vl-jg-mini.ludo, .vl-jg-cartao .vl-jg-mini.sinuca,
-  .vl-jg-arte.corrida, .vl-jg-arte.pistas, .vl-jg-arte.ludo, .vl-jg-arte.sinuca { position: relative; overflow: hidden; -webkit-text-stroke: 0; }
+  .vl-jg-cartao .vl-jg-mini.corrida, .vl-jg-cartao .vl-jg-mini.pistas, .vl-jg-cartao .vl-jg-mini.ludo, .vl-jg-cartao .vl-jg-mini.sinuca, .vl-jg-cartao .vl-jg-mini.cartas,
+  .vl-jg-arte.corrida, .vl-jg-arte.pistas, .vl-jg-arte.ludo, .vl-jg-arte.sinuca, .vl-jg-arte.cartas { position: relative; overflow: hidden; -webkit-text-stroke: 0; }
   .vl-ms-convite-arte { position: relative; overflow: hidden; width: 72px; height: 72px; margin: 0 auto 10px; border-radius: 18px; font-size: 44px; box-shadow: 0 10px 22px rgba(0,0,0,.45); }
   /* Corrida: teclado com um vagalume correndo */
   .vl-jg-cartao .vl-jg-mini.corrida, .vl-jg-arte.corrida, .vl-ms-convite-arte.corrida { background: repeating-linear-gradient(0deg, transparent 0 17%, rgba(214,242,74,.13) 17% 19%), linear-gradient(160deg, #2a3346, #10141d); }
@@ -57,6 +57,10 @@
   .vl-ms-arte.sinuca i.b11 { left: 61%; top: 58%; background: linear-gradient(#f3efe4 0 27%, #e23a2e 27% 73%, #f3efe4 73%); }
   .vl-ms-arte.sinuca i.b8 { left: 51%; top: 28%; background: radial-gradient(circle at 50% 50%, #fff 0 23%, #2b2b2b 25%, #050505 75%); }
   .vl-ms-arte.sinuca i.b8::after { content: '8'; position: absolute; inset: 0; display: grid; place-items: center; font: 900 .15em/1 system-ui, sans-serif; color: #111; }
+  /* ZERA!: três cartas em pixel art */
+  .vl-jg-cartao .vl-jg-mini.cartas, .vl-jg-arte.cartas, .vl-ms-convite-arte.cartas { background: radial-gradient(ellipse at 50% 60%, #2f935b, #1d5c38 70%, #143f27); box-shadow: inset 0 0 0 3px #8c5a30, inset 0 0 0 5px #3a220e; }
+  .vl-ms-arte.cartas img { position: absolute; left: 14%; top: 12%; width: 72%; height: 76%; object-fit: contain; image-rendering: pixelated; filter: drop-shadow(0 .03em 0 rgba(0,0,0,.45)); }
+  .vl-jg-heroi.cartas { background: linear-gradient(120deg, rgba(255,204,0,.28), rgba(255,204,0,0) 60%), #1b2a38; }
   .vl-jg-heroi.corrida { background: linear-gradient(120deg, rgba(214,242,74,.26), rgba(214,242,74,0) 62%), #151a25; }
   .vl-jg-heroi.pistas { background: linear-gradient(120deg, rgba(150,110,230,.4), rgba(150,110,230,0) 62%), #151a25; }
   .vl-jg-heroi.ludo { background: linear-gradient(120deg, rgba(58,142,232,.42), rgba(185,220,46,.12) 50%, rgba(0,0,0,0) 72%), #151a25; }
@@ -114,6 +118,7 @@
     pistas: () => ['', 'l', '', 'r', 'b', 'l', '', 'r', ''].map((c) => el('i', { class: c || null })),
     ludo: () => [el('i'), el('i'), el('i'), el('i')],
     sinuca: () => ['b0', 'b1', 'b11', 'b8'].map((c) => el('i', { class: c })),
+    cartas: () => [el('img', { alt: '', src: VL.cartasArte ? VL.cartasArte.icone() : '', draggable: 'false' })],
   };
   function arte(id) {
     if (!ARTE[id]) return document.createTextNode(JOGOS[id] ? JOGOS[id].glifo : '');
@@ -181,6 +186,14 @@
         else if (tipo === 'erro') tom(170, 0.12, 0.05, 'square');
         else if (tipo === 'tique') tom(880, 0.05, 0.05, 'sine');
         else if (tipo === 'largada') tom(1320, 0.3, 0.08, 'triangle');
+        else if (tipo === 'compra') { ruido(0.05, 0.18, 3200, 0.9); tom(1500, 0.03, 0.02, 'sine'); }
+        else if (tipo === 'pular') { tom(330, 0.09, 0.08, 'square', 300); tom(180, 0.16, 0.08, 'square', 120, 0.09); }
+        else if (tipo === 'inverter') { tom(300, 0.22, 0.06, 'triangle', 900); tom(900, 0.22, 0.05, 'triangle', 300, 0.2); }
+        else if (tipo === 'coringa') [523, 659, 784, 1047, 1319].forEach((fr, k) => tom(fr, 0.14, 0.05, 'triangle', null, k * 0.06));
+        else if (tipo === 'acumulo') { ruido(0.12, 0.35, 160, 0.8); tom(220, 0.25, 0.07, 'sawtooth', 440, 0.04); }
+        else if (tipo === 'ultima') { [880, 1175, 880, 1175].forEach((fr, k) => tom(fr, 0.11, 0.07, 'square', null, k * 0.12)); }
+        else if (tipo === 'pegou') { tom(600, 0.18, 0.07, 'square', 300); tom(400, 0.3, 0.07, 'square', 160, 0.17); }
+        else if (tipo === 'embaralhar') { for (let k = 0; k < 10; k++) ruido(0.03, 0.22, 2600 + k * 90, 1.4, k * 0.055); }
         else if (tipo === 'ponto') { tom(880, 0.09, 0.06, 'triangle'); tom(1320, 0.14, 0.06, 'triangle', null, 0.07); }
       } catch (e) { /* sem som */ }
     }
@@ -360,7 +373,7 @@
       const def = JOGOS[mesa.jogo];
       if (mesa.jogadores.length >= def.max) return;
       const usados = new Set(mesa.jogadores.map((p) => p.nome));
-      const nome = NOMES_BOT.find((n) => !usados.has(n)) || ('Bot ' + mesa.jogadores.length);
+      const nome = (def.nomesBot || NOMES_BOT).find((n) => !usados.has(n)) || ('Bot ' + mesa.jogadores.length);
       mesa.jogadores.push({ nome, bot: def.bots.some(([id]) => id === nivel) ? nivel : (def.bots[0] || [])[0] });
       avisarSala();
     }

@@ -123,12 +123,12 @@
 
   // Novidades mostradas uma vez quando a versão instalada muda (o usuário pode desligar o aviso nas opções do módulo Comandos).
   const NOVIDADES = [
-    'Jogos com cara de jogo de verdade: cada um com janela, capa, cores e letras próprias (Xadrez de madeira, Ludo colorido, Sinuca de salão, Corrida neon...) e a lista de jogos em capas, como um fliperama.',
-    'Sinuca: a tacada não trava mais (às vezes as bolas ficavam paradas) e as bolas rolam de verdade, com o número e a listra girando.',
-    'Ping-pong: a bola não para mais esperando a devolução do outro; ela volta numa devolução prevista e se ajusta quando a jogada de verdade chega.',
+    'ZERA!: jogo de cartas novo em Jogos > Em grupo, no lugar do Vagacartas. Você senta à mesa de feltro de um quarto em pixel art, com os avatares de quem joga sentados em volta, fazendo cara de bravo, feliz ou surpreso.',
+    'Regras: mesma cor ou número, Pular, Inverter, +2, Coringa e Coringa +4. O +2 e o +4 acumulam para o próximo (em cima de +4, só outro +4).',
+    'Grite "ÚLTIMA!" quando ficar com uma carta: quem esquecer pode ser pego e compra 2. Dá para jogar com até 6 pessoas e bots em três níveis.',
   ];
 
-  const api = { PADROES, CATALOGO, GRUPOS, NOVIDADES, ESQUEMA: 1, VERSAO: '0.1.13' };
+  const api = { PADROES, CATALOGO, GRUPOS, NOVIDADES, ESQUEMA: 1, VERSAO: '0.1.14' };
   raiz.VL = raiz.VL || {};
   raiz.VL.padroes = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

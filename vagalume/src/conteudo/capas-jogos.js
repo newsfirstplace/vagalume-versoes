@@ -151,32 +151,6 @@
     c.fillStyle = 'rgba(255,255,255,.92)'; c.beginPath(); c.ellipse(x - r * .38, y - r * .44, r * .2, r * .12, -.6, 0, Math.PI * 2); c.fill();
   }
 
-  // ---------- carta (Vagacartas) ----------
-  const CORES_CARTA = { lima: '#8fc823', azul: '#2f7de1', rosa: '#e8457f', laranja: '#f28b1e' };
-  function carta(c, x, y, ang, cor, valor) {
-    const w = 58, h = 86;
-    c.save(); c.translate(x, y); c.rotate(ang);
-    c.save(); c.filter = 'blur(4px)'; c.fillStyle = 'rgba(0,0,0,.45)'; cantoRedondo(c, -w / 2 + 5, -h / 2 + 7, w, h, 8); c.fill(); c.restore();
-    c.fillStyle = '#fbfbfd'; cantoRedondo(c, -w / 2, -h / 2, w, h, 8); c.fill();
-    const fundoCarta = cor ? CORES_CARTA[cor] : '#15151c';
-    c.fillStyle = linear(c, 0, -h / 2, 0, h / 2, [fundoCarta, cor ? fundoCarta : '#2b2b36']); cantoRedondo(c, -w / 2 + 4, -h / 2 + 4, w - 8, h - 8, 6); c.fill();
-    c.save(); c.rotate(-.5); c.fillStyle = cor ? '#fff' : 'rgba(255,255,255,.12)'; c.beginPath(); c.ellipse(0, 0, w * .34, h * .4, 0, 0, Math.PI * 2); c.fill(); c.restore();
-    if (!cor) { // coringa: círculo de quatro cores
-      const k = Object.values(CORES_CARTA);
-      for (let i = 0; i < 4; i++) { c.fillStyle = k[i]; c.beginPath(); c.moveTo(0, 0); c.arc(0, 0, w * .27, i * Math.PI / 2 - .5, (i + 1) * Math.PI / 2 - .5); c.closePath(); c.fill(); }
-      c.strokeStyle = '#fff'; c.lineWidth = 2; c.beginPath(); c.arc(0, 0, w * .27, 0, Math.PI * 2); c.stroke();
-    } else {
-      c.font = '900 34px ' + FONTE; c.textAlign = 'center'; c.textBaseline = 'middle';
-      c.lineJoin = 'round'; c.lineWidth = 5; c.strokeStyle = 'rgba(0,0,0,.55)'; c.strokeText(valor, 0, 1);
-      c.fillStyle = fundoCarta; c.fillText(valor, 0, 1);
-    }
-    c.fillStyle = '#fff'; c.font = '800 11px ' + FONTE; c.textAlign = 'left'; c.textBaseline = 'top';
-    c.fillText(cor ? valor : '★', -w / 2 + 7, -h / 2 + 6);
-    c.save(); c.rotate(Math.PI); c.fillText(cor ? valor : '★', -w / 2 + 7, -h / 2 + 6); c.restore();
-    c.fillStyle = 'rgba(255,255,255,.22)'; cantoRedondo(c, -w / 2 + 4, -h / 2 + 4, w - 8, h * .22, 6); c.fill();
-    c.restore();
-  }
-
   // ---------- cenas ----------
   const CENAS = {
     xadrez(c) {
@@ -272,19 +246,21 @@
       vinheta(c);
     },
     cartas(c) {
-      fundo(c, 160, 110, 260, ['#3b2a8c', '#1a1250', '#08051f']);
-      c.save(); c.globalCompositeOperation = 'lighter';
-      for (let i = 0; i < 10; i++) { c.fillStyle = 'rgba(160,140,255,.05)'; c.beginPath(); c.moveTo(160, 120); c.arc(160, 120, 260, i * .63, i * .63 + .26); c.closePath(); c.fill(); }
-      c.restore();
-      c.fillStyle = radial(c, 160, 150, 10, 150, ['rgba(90,220,160,.35)', 'rgba(20,90,70,.0)']); c.beginPath(); c.ellipse(160, 150, 170, 56, 0, 0, Math.PI * 2); c.fill();
-      carta(c, 54, 78, -.42, null, '');
-      carta(c, 268, 70, .38, 'laranja', '+2');
-      const mao = [['azul', '7'], ['rosa', '3'], ['lima', '9'], ['laranja', '5'], ['azul', '⇄']];
-      mao.forEach(([cor, v], i) => {
-        const ang = (i - 2) * .26, x = 160 + Math.sin(ang) * 118, y = 206 - Math.cos(ang) * 118;
-        carta(c, x, y, ang, cor, v);
-      });
-      for (let i = 0; i < 14; i++) { const x = (i * 71) % 320, y = 10 + (i * 37) % 70; brilhoDeLuz(c, x, y, 5 + (i % 3) * 2, 'rgba(214,242,74,.5)'); }
+      // ZERA!: feltro verde com as cartas em pixel art (as mesmas do jogo).
+      c.fillStyle = '#1d6a3d'; c.fillRect(0, 0, BASE_L, BASE_A);
+      c.fillStyle = 'rgba(255,255,255,.06)';
+      for (let y = 0; y < BASE_A; y += 4) for (let x = (y / 4) % 2 ? 2 : 0; x < BASE_L; x += 4) c.fillRect(x, y, 1, 1);
+      c.fillStyle = radial(c, 160, 70, 10, 190, ['rgba(255,240,180,.22)', 'rgba(0,0,0,0)']); c.fillRect(0, 0, BASE_L, BASE_A);
+      c.fillStyle = '#8c5a30'; c.fillRect(0, 0, BASE_L, 9); c.fillStyle = '#b4773f'; c.fillRect(0, 9, BASE_L, 2); c.fillStyle = '#d8ad4e'; c.fillRect(0, 11, BASE_L, 1);
+      const A = globalThis.VL && globalThis.VL.cartasArte;
+      if (A) {
+        c.imageSmoothingEnabled = false;
+        const desenha = (k, x, y, ang, esc) => { c.save(); c.translate(x, y); c.rotate(ang); c.fillStyle = 'rgba(0,0,0,.35)'; c.fillRect(-13 * esc + 4, -18 * esc + 5, 26 * esc, 36 * esc); c.drawImage(A.carta(k, k && !k.cor ? 'azul' : null), -13 * esc, -18 * esc, 26 * esc, 36 * esc); c.restore(); };
+        desenha(null, 62, 66, -0.14, 2); desenha(null, 66, 62, -0.1, 2);
+        desenha({ cor: 'amarelo', valor: '+2' }, 252, 62, 0.18, 2);
+        const mao = [{ cor: 'vermelho', valor: '7' }, { cor: 'azul', valor: 'pular' }, { cor: null, valor: '+4' }, { cor: 'verde', valor: '5' }, { cor: 'amarelo', valor: 'inverter' }];
+        mao.forEach((k, i) => { const ang = (i - 2) * 0.2; desenha(k, 160 + Math.sin(ang) * 150, 248 - Math.cos(ang) * 150, ang, 3); });
+      }
       vinheta(c);
     },
     pistas(c) {
