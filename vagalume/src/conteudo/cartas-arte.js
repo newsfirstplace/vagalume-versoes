@@ -289,7 +289,8 @@
   }
 
   // ---------- cadeira (estofado vermelho, encosto do lado de trás) ----------
-  // lado 'L': a pessoa olha para +x (encosto em x pequeno); 'R': olha para +y (encosto em y pequeno).
+  // lado 'L': a pessoa olha para +x (encosto em x pequeno); 'R': olha para +y (encosto em y pequeno);
+  // 'F': a sua cadeira, de costas para a câmera (olha para -y; o encosto fica na frente e vai em `frente`).
   function cadeira(lado) {
     const Wc = 72, Hc = 76, OX = 36, OY = 56;
     const [cv, x] = tela(Wc, Hc);
@@ -302,7 +303,7 @@
       caixa(x, I, a, a, a + 0.1, b, S, 44, madeira);
       poli(x, [I(a + 0.1, a + 0.12, 41), I(a + 0.1, b - 0.12, 41), I(a + 0.1, b - 0.12, S + 6), I(a + 0.1, a + 0.12, S + 6)], '#b5342a');
       linha(x, I(a + 0.1, a + 0.12, 41), I(a + 0.1, b - 0.12, 41), '#e0584a');
-    } else {
+    } else if (lado === 'R') {
       caixa(x, I, a, a, b, a + 0.1, S, 44, madeira);
       poli(x, [I(a + 0.12, a + 0.1, 41), I(b - 0.12, a + 0.1, 41), I(b - 0.12, a + 0.1, S + 6), I(a + 0.12, a + 0.1, S + 6)], '#a52e25');
       linha(x, I(a + 0.12, a + 0.1, 41), I(b - 0.12, a + 0.1, 41), '#d4503f');
@@ -311,7 +312,14 @@
     caixa(x, I, a, a, b, b, S - 3, S, madeira);
     poli(x, [I(a + 0.04, a + 0.04, S + 2), I(b - 0.04, a + 0.04, S + 2), I(b - 0.04, b - 0.04, S + 2), I(a + 0.04, b - 0.04, S + 2)], '#c23a2e');
     linha(x, I(a + 0.04, a + 0.04, S + 2), I(b - 0.04, a + 0.04, S + 2), '#ee6a5a');
-    return { canvas: cv, ox: OX, oy: OY };
+    let frente = null;
+    if (lado === 'F') {
+      const [cf, xf] = tela(Wc, Hc);
+      caixa(xf, I, a, b - 0.1, b, b, S, 44, madeira);
+      linha(xf, I(a + 0.06, b, 39), I(b - 0.06, b, 39), '#b07a45'); linha(xf, I(a + 0.06, b, 28), I(b - 0.06, b, 28), '#b07a45');
+      frente = cf;
+    }
+    return { canvas: cv, frente, ox: OX, oy: OY };
   }
 
   // ---------- peças pequenas ----------
@@ -346,6 +354,17 @@
     return cv;
   }
 
+  // Coroa dourada do pódio (pixel a pixel, com contorno).
+  let coroaUrl = null;
+  function coroa() {
+    if (coroaUrl) return coroaUrl;
+    const mapa = ['.r.....b.....r.', '.y.....y.....y.', '.yy...yyy...yy.', '.yyy.yyyyy.yyy.', '.yyyyyyyyyyyyy.', '.yYyYyYyYyYyYy.', '.yyyyyyyyyyyyy.', '..ooooooooooo..'];
+    const cor = { y: '#ffd23a', Y: '#e09a00', r: '#e2392b', b: '#2a72dc', o: '#9a6a00' };
+    const [cv, x] = tela(17, 10);
+    mapa.forEach((l, j) => { for (let i = 0; i < l.length; i++) if (l[i] !== '.') ret(x, i, j, 3, 3, PRETO); });
+    mapa.forEach((l, j) => { for (let i = 0; i < l.length; i++) if (l[i] !== '.') ret(x, i + 1, j + 1, 1, 1, cor[l[i]]); });
+    return (coroaUrl = cv.toDataURL('image/png'));
+  }
   // Três cartas em escada (arte da sala de espera, do convite e da lista de jogos).
   let iconeUrl = null;
   function icone() {
@@ -355,5 +374,5 @@
     return (iconeUrl = cv.toDataURL('image/png'));
   }
 
-  VL.cartasArte = { CW, CH, COR, ORDEM_CORES, ALTURA_MESA, carta, url, icone, sala, mesa, cadeira, deitada, leque, iconePular, isoDe, poli, linha, tela, glifo, P };
+  VL.cartasArte = { CW, CH, COR, ORDEM_CORES, ALTURA_MESA, carta, url, icone, coroa, sala, mesa, cadeira, deitada, leque, iconePular, isoDe, poli, linha, tela, glifo, P };
 })(typeof globalThis !== 'undefined' ? globalThis : this);

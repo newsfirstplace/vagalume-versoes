@@ -123,12 +123,12 @@
 
   // Novidades mostradas uma vez quando a versão instalada muda (o usuário pode desligar o aviso nas opções do módulo Comandos).
   const NOVIDADES = [
-    'Jogos em grupo com quem está no quarto: a partida agora chega a quem entrou na mesa (antes a pessoa ficava parada na sala de espera) e os avatares aparecem com o visual certo.',
-    'ZERA!: jogo de cartas em Jogos > Em grupo, na mesa de feltro de um quarto em pixel art, com os avatares de quem joga sentados em volta, fazendo cara de bravo, feliz ou surpreso.',
-    'Regras do ZERA!: +2 e +4 acumulam para o próximo (em cima de +4, só outro +4). Grite "ÚLTIMA!" quando ficar com uma carta, senão alguém pega você e você compra 2.',
+    'ZERA!: agora você também aparece sentado à mesa, de costas, no lado da frente, e os seus balões saem em cima do seu boneco.',
+    'ZERA!: o botão ÚLTIMA! só aparece na hora certa: na sua vez, com duas cartas e uma delas podendo ser jogada.',
+    'ZERA!: tela de vitória nova, no jeito do jogo, com os avatares em pé no pódio, o vencedor de coroa acenando e os pontos de cada um.',
   ];
 
-  const api = { PADROES, CATALOGO, GRUPOS, NOVIDADES, ESQUEMA: 1, VERSAO: '0.1.15' };
+  const api = { PADROES, CATALOGO, GRUPOS, NOVIDADES, ESQUEMA: 1, VERSAO: '0.1.16' };
   raiz.VL = raiz.VL || {};
   raiz.VL.padroes = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

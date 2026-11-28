@@ -244,18 +244,18 @@
       const resAntigo = corpo.querySelector('.vl-ms-res');
       if (resAntigo) resAntigo.remove();
       if (fim) {
-        corpo.appendChild(telaResultado(fim));
+        if (!def.resultadoProprio) corpo.appendChild(telaResultado(fim));
         if (!mesa.festejado) {
           mesa.festejado = true;
           const vencedores = fim.vencedores || (fim.ordem || []).slice(0, 1);
           const venci = vencedores.some((n) => mesmo(n, eu()));
           const pos = (fim.ordem || []).findIndex((n) => mesmo(n, eu()));
-          if (op.festa) op.festa(janela, venci ? 'venceu' : 'perdeu', venci ? 'Vitória!' : pos > 0 && !fim.vencedores ? (pos + 1) + 'º lugar' : 'Fim de jogo', String(fim.texto || ''));
+          if (op.festa) op.festa(def.resultadoProprio ? null : janela, venci ? 'venceu' : 'perdeu', venci ? 'Vitória!' : pos > 0 && !fim.vencedores ? (pos + 1) + 'º lugar' : 'Fim de jogo', String(fim.texto || ''));
         }
       }
     }
     function apiTela() {
-      return { eu: eu(), agir, anfitriao: () => mesa && mesa.souAnfitriao, cabeca: rosto, som, opcoes: () => (mesa ? opcoesValidas(JOGOS[mesa.jogo], mesa.opcoes) : {}) };
+      return { eu: eu(), agir, anfitriao: () => mesa && mesa.souAnfitriao, nomeAnfitriao: () => mesa && mesa.anfitriao, deNovo() { if (mesa && mesa.souAnfitriao) deNovo(); }, sair, cabeca: rosto, som, opcoes: () => (mesa ? opcoesValidas(JOGOS[mesa.jogo], mesa.opcoes) : {}) };
     }
     // Botões de escolha no jeito da sala do Xadrez.
     function seg(rotulo, opcoes, atual, escolher, desligado) {

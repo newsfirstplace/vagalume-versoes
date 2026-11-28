@@ -15,13 +15,14 @@
   const LUGAR = { L2: ['L', -1, 2], L1: ['L', -1, 1], L0: ['L', -1, 0], R0: ['R', 0, -1], R1: ['R', 1, -1], R2: ['R', 2, -1] };
   const POR_QTD = { 1: ['L0'], 2: ['L1', 'R1'], 3: ['L1', 'L0', 'R1'], 4: ['L1', 'L0', 'R0', 'R1'], 5: ['L2', 'L1', 'L0', 'R0', 'R1'] };
   const MONTE = [1.05, 1.95], DESCARTE = [1.95, 1.05];
+  const MEU_LUGAR = { id: 'EU', lado: 'F', sx: 1, sy: 3, dir: 0 }; // você, de costas, no lado da frente da mesa
   const IMAGER = 'https://imaging.habblet.city/avatarimage?figure=';
   const VISUAL_PADRAO = 'hd-180-1.ch-210-66.lg-270-82.sh-290-80.hr-100-61';
   const VISUAIS_BOT = [
     'hd-180-1.hr-828-61.ch-3030-110.lg-275-110.sh-290-62', 'hd-600-1.hr-515-33.ch-635-70.lg-716-66.sh-735-68',
     'hd-190-2.hr-115-42.ch-215-82.lg-285-82.sh-305-62', 'hd-180-7.hr-893-45.ch-3030-64.lg-275-64.sh-290-110',
     'hd-600-2.hr-890-40.ch-660-73.lg-700-62.sh-725-62', 'hd-205-1.hr-165-45.ch-210-66.lg-270-82.sh-290-80',
-    'hd-600-1.hr-515-61.ch-635-82.lg-716-62.sh-735-62', 'hd-180-3.hr-828-45.ch-3030-82.lg-275-62.sh-290-92',
+    'hd-600-1.hr-515-61.ch-635-82.lg-716-62.sh-735-62', VISUAL_PADRAO,
   ];
   const NOMES_BOT = ['Bot Zeca', 'Bot Lulu', 'Bot Tonho', 'Bot Mel', 'Bot Dudu', 'Bot Bia', 'Bot Caio'];
   const FONTE = "Goldfish, Volter, 'Ubuntu', system-ui, sans-serif";
@@ -99,6 +100,35 @@
   .vl-zr-painel .cancelar { margin-top: 12px; }
   .vl-zr-contagem { height: 8px; margin: 12px 18px 0; background: #b7b7ad; border: 2px solid #000; }
   .vl-zr-contagem i { display: block; height: 100%; background: #e1372a; }
+  .vl-zr-fim { position: absolute; inset: 0; z-index: 30; display: grid; place-items: center; overflow: auto; background: rgba(6,10,18,.5); animation: vl-zr-surge .35s ease-out; }
+  .vl-zr-fim-caixa { position: relative; width: min(680px, calc(100% - 28px)); background: #e9e9e1; color: #111; border: 2px solid #000; border-radius: 8px; box-shadow: 0 8px 0 rgba(0,0,0,.45);
+    text-align: center; font: 18px/1.2 ${FONTE}; animation: vl-zr-balao .35s cubic-bezier(.2,1.4,.4,1); }
+  .vl-zr-fim-caixa > h4 { display: flex; align-items: center; gap: 8px; margin: 0; padding: 6px 12px 7px; border-radius: 6px 6px 0 0; border-bottom: 2px solid #000; background: linear-gradient(#4a93c4, #2a6690);
+    color: #fff; font: 700 18px/1 ${FONTE}; text-shadow: 0 2px 0 rgba(0,0,0,.4); text-align: left; }
+  .vl-zr-fim-caixa > h4 img { width: 32px; height: 24px; object-fit: contain; image-rendering: pixelated; }
+  .vl-zr-fim h2 { margin: 10px 14px 0; font: 700 32px/1.05 ${FONTE}; color: #ffcc00; text-shadow: ${CONTORNO}, 0 5px 0 rgba(0,0,0,.35); }
+  .vl-zr-fim .sub { margin: 4px 16px 6px; color: #4a5563; font-size: 15px; }
+  .vl-zr-podio { display: flex; align-items: flex-end; justify-content: center; gap: 8px; padding: 0 12px; }
+  .vl-zr-degrau { position: relative; width: 150px; display: flex; flex-direction: column; align-items: center; }
+  .vl-zr-degrau .av { position: relative; width: 96px; height: 162px; overflow: hidden; }
+  .vl-zr-degrau .av img { position: absolute; left: -46px; top: -66px; width: 180px; height: 260px; image-rendering: pixelated; }
+  .vl-zr-degrau .coroa { position: absolute; top: -4px; left: 50%; width: 34px; height: 20px; margin-left: -19px; image-rendering: pixelated; z-index: 1; animation: vl-zr-seta .8s ease-in-out infinite alternate; }
+  .vl-zr-degrau b { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 700 17px/1.1 ${FONTE}; margin-top: 2px; }
+  .vl-zr-degrau small { display: block; max-width: 100%; white-space: nowrap; font: 14px/1.2 ${FONTE}; color: #4a5563; margin: 1px 0 5px; }
+  .vl-zr-degrau.p1 small { color: #8a5d00; font-weight: 700; }
+  .vl-zr-degrau .bloco { width: 100%; display: grid; place-items: center; border: 2px solid #000; border-bottom: 0; border-radius: 5px 5px 0 0; font: 700 26px/1 ${FONTE}; color: #fff; text-shadow: ${CONTORNO};
+    box-shadow: inset 0 4px 0 rgba(255,255,255,.45), inset 0 -8px 0 rgba(0,0,0,.18); }
+  .vl-zr-degrau.p1 .bloco { height: 56px; background: #f2c12e; } .vl-zr-degrau.p2 .bloco { height: 40px; background: #c3ccd8; } .vl-zr-degrau.p3 .bloco { height: 28px; background: #cf8a4f; }
+  .vl-zr-chao { height: 8px; margin: 0 12px; background: #8c5a30; border: 2px solid #000; border-radius: 0 0 4px 4px; box-shadow: inset 0 2px 0 #b4773f; }
+  .vl-zr-resto { display: flex; flex-wrap: nowrap; justify-content: center; gap: 6px; margin: 10px 12px 0; }
+  .vl-zr-resto > span { display: flex; align-items: center; gap: 5px; min-width: 0; padding: 2px 8px 2px 2px; border: 2px solid #000; border-radius: 6px; background: #fff; font: 14px/1 ${FONTE}; white-space: nowrap; }
+  .vl-zr-resto em { font-style: normal; max-width: 110px; overflow: hidden; text-overflow: ellipsis; }
+  .vl-zr-resto i { position: relative; flex: none; width: 26px; height: 26px; overflow: hidden; border-radius: 4px; background: #c9d6e2; }
+  .vl-zr-resto i img { position: absolute; left: -32px; top: -38px; width: 90px; height: 130px; image-rendering: pixelated; }
+  .vl-zr-fim-botoes { display: flex; gap: 10px; justify-content: center; align-items: center; margin: 12px 0; }
+  .vl-zr-ord { font-family: system-ui, 'Segoe UI', sans-serif; font-weight: 800; }
+  .vl-zr-b.ouro { background: linear-gradient(#fff07a, #f5b81c); }
+  @keyframes vl-zr-surge { from { opacity: 0; } }
   @keyframes vl-zr-pisca { 50% { opacity: .35; } }
   @keyframes vl-zr-seta { to { transform: translateY(4px); } }
   @keyframes vl-zr-balao { from { opacity: 0; scale: .4; } }
@@ -156,7 +186,7 @@
 
     // ---------- tamanho da cena ----------
     let W = 0, OX = 0, I = null, fundo = null, tampo = null;
-    const cadeiras = { L: A.cadeira('L'), R: A.cadeira('R') };
+    const cadeiras = { L: A.cadeira('L'), R: A.cadeira('R'), F: A.cadeira('F') };
     function medir() {
       const largura = Math.max(560, Math.min(1000, cena.clientWidth || 880));
       const w = Math.floor(largura / ESC);
@@ -182,6 +212,7 @@
         const [lado, sx, sy] = LUGAR[id];
         lugares.set(nomes[(i + k) % nomes.length], { id, lado, sx, sy, dir: lado === 'L' ? 2 : 4 });
       }
+      if (nomes.includes(eu)) lugares.set(eu, Object.assign({}, MEU_LUGAR));
     }
     const figura = (nome) => textoVisual(v && v.visuais && v.visuais[nome]) || visualLocal(nome) || VISUAL_PADRAO;
     // Pede as imagens de cada avatar (a de sempre primeiro, depois as caras); o visual pode chegar só depois.
@@ -193,6 +224,7 @@
       for (const [n, l] of pendentes) {
         const f = figura(n);
         preparados.add(f + '|' + l.dir);
+        if (l.lado === 'F') { imagem(urlAvatar(f, l.dir, l.dir, 'sml', 'sit,wav')); continue; } // de costas: as caras não aparecem
         [3, l.lado === 'L' ? 1 : 5].forEach((cab) => imagem(urlAvatar(f, l.dir, cab, 'std')));
         ['eyb', 'agr', 'sad', 'sml', 'srp', 'spk'].forEach((g) => imagem(urlAvatar(f, l.dir, l.dir, g)));
         imagem(urlAvatar(f, l.dir, l.dir, 'sml', 'sit,wav'));
@@ -333,7 +365,7 @@
       if (velho) velho.remove();
       const lado = lugares.get(nome) ? (lugares.get(nome).lado === 'L' ? ' l' : ' r') : '';
       const b = el('div', { class: 'vl-zr-balao' + lado + (tipo ? ' ' + tipo : ''), texto });
-      if (nome === eu) euBox.appendChild(b);
+      if (nome === eu && !lugares.has(eu)) euBox.appendChild(b);
       else {
         const l = lugares.get(nome);
         if (!l || !I) return;
@@ -481,6 +513,8 @@
           if (ev.quem !== eu) reagir(eu, 'sad', 3500);
           confete();
           anunciar('ZEROU!', '#ffcc00', ev.quem === eu ? 'Você venceu!' : ev.quem + ' venceu!');
+          fimLiberado = performance.now() + 1800;
+          setTimeout(mostrarFim, 1850);
           return 0;
         }
         default: return 0;
@@ -509,7 +543,7 @@
     }
     // Para onde cada um olha: para quem está jogando (para você, na sua vez).
     function olhar(nome, l) {
-      if (!v || v.fim) return l.dir;
+      if (!v || v.fim || l.lado === 'F') return l.dir;
       const alvo = v.esquecido ? v.esquecido.nome : v.vez;
       if (alvo === nome) return l.dir;
       if (alvo === eu) return 3;
@@ -589,7 +623,7 @@
         ctx.drawImage(A.carta(D.topo, D.topo.cor ? null : D.cor), Math.round(x0 - A.CW / 2), Math.round(y0 - A.CH - 6 + bob));
       }
       // Leques nas mãos de quem está na mesa.
-      for (const [nome, l] of lugares) { const n = D.qtd[nome] || 0; if (!n) continue; const p = pontos(l); ctx.drawImage(leque(n), Math.round(p.fx - 20), Math.round(p.fy - 8)); }
+      for (const [nome, l] of lugares) { const n = D.qtd[nome] || 0; if (!n || l.lado === 'F') continue; const p = pontos(l); ctx.drawImage(leque(n), Math.round(p.fx - 20), Math.round(p.fy - 8)); }
       // Onda da cor escolhida no coringa.
       for (let i = ondas.length - 1; i >= 0; i--) {
         const o = ondas[i], p = (t - o.t0) / 900;
@@ -598,6 +632,14 @@
         ctx.globalAlpha = 1 - p; ctx.fillStyle = o.cor;
         for (let k = 0; k < 90; k++) { const a = k / 90 * Math.PI * 2, [px, py] = I(DESCARTE[0] + Math.cos(a) * r, DESCARTE[1] + Math.sin(a) * r, z); ctx.fillRect(Math.round(px), Math.round(py), 2, 2); }
         ctx.globalAlpha = 1;
+      }
+      // A sua cadeira e o seu boneco, de costas, na frente da mesa (o encosto fica na frente dele).
+      const minha = lugares.get(eu);
+      if (minha) {
+        const ch = cadeiras.F, [cx, cy] = I(minha.sx + 0.5, minha.sy + 0.5, 0), p = pontos(minha), img = imagemDoAvatar(eu, minha, t);
+        ctx.drawImage(ch.canvas, Math.round(cx - ch.ox), Math.round(cy - ch.oy));
+        if (img) ctx.drawImage(img, Math.round(p.ax - 45), Math.round(p.ay - 104));
+        ctx.drawImage(ch.frente, Math.round(cx - ch.ox), Math.round(cy - ch.oy));
       }
       // Cartas voando.
       for (let i = voos.length - 1; i >= 0; i--) {
@@ -642,14 +684,14 @@
         let tag = tags.get(nome);
         if (!tag) { tag = el('div', { class: 'vl-zr-tag' }); tags.set(nome, tag); sobre.appendChild(tag); }
         const p = pontos(l), n = D.qtd[nome] || 0, vez = !!v && !v.fim && (v.esquecido ? v.esquecido.nome : v.vez) === nome;
-        tag.className = 'vl-zr-tag ' + (l.lado === 'L' ? 'l' : 'r') + (vez ? ' vez' : '');
+        tag.className = 'vl-zr-tag' + (l.lado === 'L' ? ' l' : l.lado === 'R' ? ' r' : ' eu') + (vez ? ' vez' : '');
         tag.style.left = p.ax * ESC + 'px'; tag.style.top = (p.ay - 72) * ESC + 'px';
-        tag.replaceChildren(...[el('span', { texto: nome }), el('span', { class: 'n', texto: n, title: n + ' cartas' }), D.ultima[nome] && n === 1 ? el('span', { class: 'um', texto: '1!' }) : null,
+        tag.replaceChildren(...[el('span', { texto: nome === eu ? 'Você' : nome }), el('span', { class: 'n', texto: n, title: n + ' cartas' }), D.ultima[nome] && n === 1 ? el('span', { class: 'um', texto: '1!' }) : null,
           vez && v.tempo ? el('span', { class: 'vl-zr-tempo', 'data-relogio': '1' }, [el('i')]) : null].filter(Boolean));
       }
       if (!monteNum) { monteNum = el('div', { class: 'vl-zr-monte' }); sobre.appendChild(monteNum); }
-      const [mx, my] = I(MONTE[0] - 0.25, MONTE[1] + 0.4, A.ALTURA_MESA);
-      monteNum.style.left = mx * ESC + 'px'; monteNum.style.top = my * ESC + 2 + 'px';
+      const [mx, my] = I(MONTE[0], MONTE[1], A.ALTURA_MESA + alturaMonte() + 2); // em cima do monte
+      monteNum.style.left = mx * ESC + 'px'; monteNum.style.top = my * ESC - 10 + 'px';
       monteNum.textContent = D.pilha;
       if (D.acumulado > 0) {
         if (!acumuloEl) { acumuloEl = el('div', { class: 'vl-zr-acumulo' }); sobre.appendChild(acumuloEl); }
@@ -687,17 +729,19 @@
       const minha = minhaVez(), pode = podeAgir(), meus = D ? D.mao.length : 0;
       euBox.classList.toggle('vez', minha);
       euQtd.textContent = meus + (meus === 1 ? ' carta' : ' cartas') + (D && D.ultima[eu] && meus === 1 ? ' · ÚLTIMA!' : '');
+      const euNaMesa = v && v.jogadores.find((p) => p.nome === eu);
+      const gritar = !!euNaMesa && minha && v.mao.length === 2 && !euNaMesa.ultima && v.mao.some(servir);
       const corEl = v && v.cor ? [' · Cor: ', el('i', { style: 'background:' + A.COR[v.cor].base }), NOME_COR[v.cor]] : [];
       let partes;
       if (!v || v.fim) partes = [v && v.fim ? (v.fim.vencedor === eu ? 'Você zerou a mão!' : v.fim.vencedor + ' zerou a mão!') : 'Preparando a mesa…'];
       else if (v.esquecido) partes = v.esquecido.nome === eu ? [el('b', { texto: 'Você esqueceu de gritar ÚLTIMA!' }), ' Rápido!'] : [el('b', { texto: v.esquecido.nome }), ' esqueceu de gritar ÚLTIMA! Pegue!'];
       else if (minha) partes = v.acumulado ? [el('b', { texto: '+' + v.acumulado + ' na mesa: ' }), v.ultimoMais === '+4' ? 'jogue um +4 ou compre.' : 'jogue +2 ou +4, ou compre.']
-        : v.comprada != null ? [el('b', { texto: 'A comprada serve! ' }), 'Jogue ou passe.'] : [el('b', { texto: 'Sua vez!' }), ' Jogue uma carta que brilha.'].concat(corEl);
+        : gritar ? [el('b', { texto: 'Sua vez!' }), ' Grite ÚLTIMA! e jogue a penúltima.'] : v.comprada != null ? [el('b', { texto: 'A comprada serve! ' }), 'Jogue ou passe.']
+        : v.mao.some(servir) ? [el('b', { texto: 'Sua vez!' }), ' Jogue uma carta que brilha.'].concat(corEl) : [el('b', { texto: 'Sua vez!' }), ' Nenhuma serve: compre do monte.'].concat(corEl);
       else partes = ['Vez de ', el('b', { texto: v.vez }), v.acumulado ? ' · +' + v.acumulado + ' acumulado' : ''].concat(corEl);
       status.replaceChildren(...partes);
       const lista = [];
-      const euNaMesa = v && v.jogadores.find((p) => p.nome === eu);
-      if (euNaMesa && !v.fim && !v.esquecido && v.mao.length <= 2 && v.mao.length > 0 && !euNaMesa.ultima) {
+      if (gritar) {
         lista.push(el('button', { type: 'button', class: 'vl-zr-b ultima', texto: 'ÚLTIMA!', title: 'Grite antes de ficar com uma carta', onclick() { agir({ tipo: 'ultima' }); } }));
       }
       if (minha && v.comprada != null) lista.push(el('button', { type: 'button', class: 'vl-zr-b', texto: 'Passar', disabled: !pode, onclick() { if (podeAgir()) agir({ tipo: 'passar' }); } }));
@@ -729,6 +773,43 @@
       }
       if (painel) { cena.appendChild(painel); const b = painel.querySelector('button'); if (b) b.focus({ preventScroll: true }); }
     }
+    // ---------- fim da partida: pódio com os avatares em pé ----------
+    let fimEl = null, fimLiberado = 0;
+    const avatarEmPe = (nome, gesto, acenar) => IMAGER + encodeURIComponent(figura(nome)) + '&direction=2&head_direction=3&gesture=' + gesto + (acenar ? '&action=wav' : '') + '&size=m';
+    function mostrarFim() {
+      if (fimEl || !v || !v.fim || !raizEl.isConnected) return;
+      const f = v.fim, ordem = f.ordem && f.ordem.length ? f.ordem : [f.vencedor];
+      const nomeDe = (n) => (n === eu ? 'Você' : n);
+      const detalhe = (n, i) => (i === 0 ? (f.pontos ? '+' + f.pontos + ' pontos' : 'Zerou a mão')
+        : f.qtd && f.qtd[n] != null ? f.qtd[n] + (f.qtd[n] === 1 ? ' carta · ' : ' cartas · ') + ((f.pts && f.pts[n]) || 0) + ' pts' : '');
+      const degrau = (i) => {
+        const n = ordem[i];
+        if (!n) return el('div', { class: 'vl-zr-degrau vazio' });
+        return el('div', { class: 'vl-zr-degrau p' + (i + 1) }, [
+          i === 0 ? el('img', { class: 'coroa', alt: '', src: A.coroa() }) : null,
+          el('div', { class: 'av' }, [el('img', { alt: '', draggable: 'false', src: avatarEmPe(n, i === 0 ? 'sml' : i === 1 ? 'std' : 'sad', i === 0) })]),
+          el('b', { texto: nomeDe(n) }), el('small', { texto: detalhe(n, i) }),
+          el('div', { class: 'bloco' }, [el('span', { texto: String(i + 1) })]),
+        ]);
+      };
+      const venci = f.vencedor === eu;
+      fimEl = el('div', { class: 'vl-zr-fim', role: 'dialog', 'aria-label': 'Fim de partida' }, [el('div', { class: 'vl-zr-fim-caixa' }, [
+        el('h4', null, [el('img', { alt: '', src: A.icone() }), 'Fim de partida']),
+        el('h2', { texto: venci ? 'Você zerou!' : nomeDe(f.vencedor) + ' zerou!' }),
+        el('p', { class: 'sub', texto: venci ? 'As cartas que sobraram com os outros viraram seus pontos.' : 'Quem zera primeiro leva os pontos das cartas dos outros.' }),
+        el('div', { class: 'vl-zr-podio' }, [degrau(1), degrau(0), degrau(2)]),
+        el('div', { class: 'vl-zr-chao' }),
+        ordem.length > 3 ? el('div', { class: 'vl-zr-resto' }, ordem.slice(3).map((n, k) => el('span', null, [
+          el('i', null, [el('img', { alt: '', src: IMAGER + encodeURIComponent(figura(n)) + '&headonly=1&direction=2&head_direction=3&size=m' })]),
+          el('b', { class: 'vl-zr-ord', texto: (k + 4) + 'º' }), el('em', { texto: nomeDe(n) }), ' · ' + ((f.pts && f.pts[n]) || 0) + ' pts']))) : null,
+        el('div', { class: 'vl-zr-fim-botoes' }, [
+          api.anfitriao() ? el('button', { type: 'button', class: 'vl-zr-b ouro', texto: 'Jogar de novo', onclick() { if (api.deNovo) api.deNovo(); } })
+            : el('span', { texto: 'Esperando ' + ((api.nomeAnfitriao && api.nomeAnfitriao()) || 'quem abriu a mesa') + '…' }),
+          el('button', { type: 'button', class: 'vl-zr-b', texto: 'Sair', onclick() { if (api.sair) api.sair(); } }),
+        ]),
+      ])]);
+      raizEl.appendChild(fimEl);
+    }
     let painelChave = '';
     function desenharDom() {
       desenharSobre();
@@ -736,6 +817,7 @@
       desenharBarra();
       const chave = v ? (v.esquecido ? 'j' + v.esquecido.nome + v.n : '') + '|' + (escolhendo == null ? '' : 'c' + escolhendo) + (v.fim ? 'f' : '') : '';
       if (chave !== painelChave) { painelChave = chave; desenharPaineis(); }
+      if (v && v.fim && !fimEl && !ocupado() && performance.now() >= fimLiberado) mostrarFim();
     }
     // Relógios (vez e janela do "Última!") andam a cada quadro.
     function atualizarRelogios(t) {
@@ -766,7 +848,7 @@
   }
 
   VL.mesa.registrar('cartas', {
-    nome: 'ZERA!', glifo: '🃏', min: 2, max: 6, nomesBot: NOMES_BOT,
+    nome: 'ZERA!', glifo: '🃏', min: 2, max: 6, nomesBot: NOMES_BOT, resultadoProprio: true,
     texto: 'Jogue a mesma cor ou o mesmo número da carta de cima. +2 e +4 acumulam para o próximo. Grite "ÚLTIMA!" quando ficar com uma carta, senão alguém pega você. Zere a mão para vencer!',
     fatos: ['De 2 a 6 jogadores', 'Bots em 3 níveis', '+2 e +4 acumulam'],
     bots: [['facil', 'Fácil'], ['normal', 'Normal'], ['dificil', 'Difícil']],
@@ -774,7 +856,14 @@
     nova(jogadores, op) {
       const e = K.nova(jogadores, op);
       e.visuais = {};
-      for (const p of jogadores) if (p.bot) e.visuais[p.nome] = VISUAIS_BOT[hashNome(p.nome) % VISUAIS_BOT.length];
+      const usados = new Set();
+      for (const p of jogadores) {
+        if (!p.bot) continue;
+        let i = hashNome(p.nome) % VISUAIS_BOT.length;
+        while (usados.has(i) && usados.size < VISUAIS_BOT.length) i = (i + 1) % VISUAIS_BOT.length;
+        usados.add(i);
+        e.visuais[p.nome] = VISUAIS_BOT[i];
+      }
       return e;
     },
     aplicar: (e, nome, a) => K.aplicar(e, nome, a),

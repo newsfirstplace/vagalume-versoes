@@ -401,13 +401,6 @@
   .vl-jg.vl-nativo.tema-cartas .vl-jg-botao { font-family: Goldfish, Volter, 'Ubuntu', system-ui, sans-serif; font-size: 16px; border-radius: 6px; }
   .vl-jg.vl-nativo.tema-cartas .vl-jg-botao.forte { border: 2px solid #000; box-shadow: inset 0 -4px 0 rgba(0,0,0,.18), 0 3px 0 #000; text-transform: none; }
   .vl-jg.vl-nativo.tema-cartas .vl-jg-heroi h2 { letter-spacing: 2px; }
-  .vl-jg.vl-nativo.tema-cartas .vl-ms-res { position: absolute; left: 50%; top: 150px; transform: translateX(-50%); z-index: 20; width: min(560px, calc(100% - 40px)); margin: 0;
-    background: #e9e9e1; color: #111; border: 2px solid #000; border-radius: 8px; box-shadow: 0 8px 0 rgba(0,0,0,.45); }
-  .vl-jg.vl-nativo.tema-cartas .vl-ms-res h3 { color: #111; font: 700 26px/1 Goldfish, Volter, 'Ubuntu', system-ui, sans-serif; }
-  .vl-jg.vl-nativo.tema-cartas .vl-ms-res b, .vl-jg.vl-nativo.tema-cartas .vl-ms-res span { color: #111; }
-  .vl-jg.vl-nativo.tema-cartas .vl-ms-res small, .vl-jg.vl-nativo.tema-cartas .vl-ms-res .vl-jg-nota { color: #4a5563; }
-  .vl-jg.vl-nativo.tema-cartas .vl-ms-resto div { background: rgba(0,0,0,.06); }
-  .vl-jg.vl-nativo.tema-cartas .vl-ms-res .vl-jg-botao.discreto { background: #fff; color: #111; border: 2px solid #000; }
   /* Duelo de Pistas: dossiê de espião. */
   .vl-jg.vl-nativo.tema-pistas { --n-fundo: radial-gradient(ellipse at 50% 0%, #22343a 0%, #111a1d 60%, #070b0c 100%); --n-barra: linear-gradient(180deg, #2a3d42, #162225); --n-borda: rgba(224,72,72,.35);
     --n-acento: #e04848; --n-acento-texto: #fff; --n-acento-sombra: #7a1a1a; --n-texto: #eef2ea; --n-suave: #a7b5ae;
@@ -598,7 +591,7 @@
         voltar: () => abrirHub(),
         cabeca: (nome) => cabeca(nome),
         // Fim da partida na mesa: a mesma festa e a mesma fanfarra do xadrez e das damas.
-        festa(alvo, resultado, titulo, sub) { if (ctx.secao().som !== false) fanfarra(resultado); festejarEm(alvo, resultado, titulo, sub); },
+        festa(alvo, resultado, titulo, sub) { if (ctx.secao().som !== false) fanfarra(resultado); if (alvo) festejarEm(alvo, resultado, titulo, sub); },
       }) : null;
       // ---------- tabuleiros no quarto e os dois cliques ----------
       const tabuleiros = new Set(); // ids dos tabuleiros do quarto atual

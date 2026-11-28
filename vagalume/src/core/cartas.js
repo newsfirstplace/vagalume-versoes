@@ -65,6 +65,14 @@
     if (e.acumulado > 0) return c.valor === '+4' || (c.valor === '+2' && e.ultimoMais === '+2');
     return coringa(c) || c.cor === e.cor || c.valor === topo(e).valor;
   }
+  // "Última!" só vale na hora de jogar a penúltima: na sua vez, com duas cartas e uma delas podendo ir para a mesa
+  // (na janela de quem esqueceu, só quem esqueceu pode gritar).
+  function podeAvisar(e, nome) {
+    const mao = e.maos[nome];
+    if (e.fim || !mao) return false;
+    if (e.esquecido) return e.esquecido.nome === nome;
+    return daVez(e) === nome && mao.length === 2 && !e.ultima[nome] && mao.some((c) => pode(e, c) && (e.comprada == null || c.id === e.comprada));
+  }
   function evento(e, ev, dura, agora) {
     ev.n = ++e.n;
     e.eventos.push(ev);
@@ -132,7 +140,7 @@
     }
     if (a.tipo === 'pegar') return false;
     if (a.tipo === 'ultima') {
-      if (mao.length > 2 || e.ultima[nome]) return false;
+      if (!podeAvisar(e, nome)) return false;
       e.ultima[nome] = true;
       evento(e, { t: 'ultima', quem: nome }, DURA.ultima, t);
       return true;
@@ -261,7 +269,7 @@
       if (t < Math.max(e.livre, e.desde) + e.pensa) return false;
       const mao = e.maos[nome];
       // Antes de jogar a penúltima, o bot avisa "Última!" (ou esquece, conforme o nível).
-      if (!e.decidiu && mao.length === 2 && !e.ultima[nome] && mao.some((c) => pode(e, c) && (e.comprada == null || c.id === e.comprada))) {
+      if (!e.decidiu && podeAvisar(e, nome)) {
         e.decidiu = true;
         if (e.rnd() < (nivel === 'facil' ? 0.55 : nivel === 'dificil' ? 1 : 0.82)) { aplicar(e, nome, { tipo: 'ultima' }, t); e.pensa = 350; return true; }
       }
@@ -307,7 +315,8 @@
       pilha: e.pilha.length, eventos: e.eventos.slice(-18), n: e.n,
       esquecido: e.esquecido ? { nome: e.esquecido.nome, resta: Math.max(0, e.esquecido.ate - t) } : null,
       tempo: e.limite && !e.bots[vez] && !e.fim && !e.esquecido ? { limite: e.limite, resta: Math.max(0, Math.max(e.desde, e.livre) + e.limite - t) } : null,
-      livreEm: Math.max(0, e.livre - t), fim: e.fim ? { vencedor: e.fim.ordem[0], pontos: e.fim.pontos } : null,
+      livreEm: Math.max(0, e.livre - t),
+      fim: e.fim ? { vencedor: e.fim.ordem[0], pontos: e.fim.pontos, ordem: e.fim.ordem.slice(), qtd: Object.fromEntries(e.fim.ordem.map((n) => [n, (e.maos[n] || []).length])), pts: Object.fromEntries(e.fim.ordem.map((n) => [n, pontosDaMao(e.maos[n] || [])])) } : null,
     };
   }
   function resultado(e) {
@@ -320,7 +329,7 @@
     return { ordem: e.fim.ordem, texto: e.fim.texto || e.fim.ordem[0] + ' zerou a mão!', detalhe };
   }
 
-  const api = { CORES, JANELA, baralho, embaralhar, nova, aplicar, pode, jogadaDoBot, tick, sair, visao, resultado, topo, daVez, pontosDe, pontosDaMao };
+  const api = { CORES, JANELA, baralho, embaralhar, nova, aplicar, pode, podeAvisar, jogadaDoBot, tick, sair, visao, resultado, topo, daVez, pontosDe, pontosDaMao };
   raiz.VL = raiz.VL || {};
   raiz.VL.cartas = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
