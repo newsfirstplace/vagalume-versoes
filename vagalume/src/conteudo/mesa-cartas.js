@@ -173,6 +173,7 @@
 
   function montar(api) {
     const eu = api.eu;
+    const assistindo = () => !!(api.assistindo && api.assistindo());
     const canvas = el('canvas', { width: '440', height: String(H), 'aria-hidden': 'true' });
     const ctx = canvas.getContext('2d');
     const sobre = el('div', { class: 'vl-zr-sobre' });
@@ -213,7 +214,8 @@
         const [lado, sx, sy] = LUGAR[id];
         lugares.set(nomes[(i + k) % nomes.length], { id, lado, sx, sy, dir: lado === 'L' ? 2 : 4 });
       }
-      if (nomes.includes(eu)) { const [lado, sx, sy] = LUGAR[MEU]; lugares.set(eu, { id: MEU, lado, sx, sy, dir: 2 }); }
+      // Quem assiste vê a mesa do lugar do primeiro jogador.
+      if (nomes.length) { const [lado, sx, sy] = LUGAR[MEU]; lugares.set(nomes[i], { id: MEU, lado, sx, sy, dir: 2 }); }
     }
     const figura = (nome) => textoVisual(v && v.visuais && v.visuais[nome]) || visualLocal(nome) || VISUAL_PADRAO;
     // Pede as imagens de cada avatar (a de sempre primeiro, depois as caras); o visual pode chegar só depois.
@@ -717,6 +719,13 @@
     }
     function agir(a) { esperando = performance.now() + 2500; api.agir(a); desenharDom(); }
     function desenharBarra() {
+      if (assistindo()) {
+        euBox.classList.remove('vez');
+        euQtd.textContent = 'Assistindo';
+        status.replaceChildren(...(!v || v.fim ? [v && v.fim ? v.fim.vencedor + ' zerou a mão!' : 'Preparando a mesa…'] : ['Vez de ', el('b', { texto: v.vez }), v.acumulado ? ' · +' + v.acumulado + ' acumulado' : '']));
+        botoes.replaceChildren();
+        return;
+      }
       const minha = minhaVez(), pode = podeAgir(), meus = D ? D.mao.length : 0;
       euBox.classList.toggle('vez', minha);
       euQtd.textContent = meus + (meus === 1 ? ' carta' : ' cartas') + (D && D.ultima[eu] && meus === 1 ? ' · ÚLTIMA!' : '');
@@ -742,7 +751,7 @@
     let painel = null;
     function desenharPaineis() {
       if (painel) { painel.remove(); painel = null; }
-      if (!v || v.fim) return;
+      if (!v || v.fim || assistindo()) return;
       if (v.esquecido) {
         const souEu = v.esquecido.nome === eu;
         painel = el('div', { class: 'vl-zr-painel', role: 'dialog', 'aria-label': 'Última carta' }, [
@@ -840,10 +849,13 @@
       if (!v) return null;
       if (v.fim) return { texto: v.fim.vencedor === eu ? 'Você zerou!' : v.fim.vencedor + ' zerou!', minha: false };
       if (v.esquecido) return { texto: v.esquecido.nome === eu ? 'Grite ÚLTIMA!' : v.esquecido.nome + ' esqueceu do ÚLTIMA!', minha: true };
+      if (assistindo()) return { texto: 'Assistindo · vez de ' + v.vez, minha: false };
       const n = v.mao.length, minha = v.vez === eu;
       return { texto: (minha ? 'Sua vez' + (v.acumulado ? ' · +' + v.acumulado + ' na mesa' : '') : 'Vez de ' + v.vez) + ' · você tem ' + n + (n === 1 ? ' carta' : ' cartas'), minha };
     }
-    return { el: raizEl, atualizar, resumo };
+    // Fala do chat da partida: balão em cima de quem falou (quem assiste não tem lugar na mesa).
+    function fala(nome, texto) { if (lugares.has(nome)) falar(nome, texto.length > 44 ? texto.slice(0, 43) + '…' : texto); }
+    return { el: raizEl, atualizar, resumo, fala };
   }
 
   VL.mesa.registrar('cartas', {

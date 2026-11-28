@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Vagalume",
   "short_name": "Vagalume",
-  "version": "0.1.17",
+  "version": "0.1.18",
   "description": "Chat, comandos, construção, wired, loja, visual, amigos e ajustes de tela para o Habblet. Independente, sem vínculo com o Habblet.",
   "minimum_chrome_version": "116",
   "icons": {

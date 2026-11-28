@@ -219,7 +219,8 @@
           palco.classList.remove('esperando');
           if (ultimaContagem !== 0 && falta > -700) { ultimaContagem = 0; contagem.replaceChildren(el('span', { class: 'ja', texto: 'Já!' })); api.som('largada'); }
           else if (falta <= -700 && contagem.firstChild) contagem.replaceChildren();
-          if (campo.disabled && meuFim == null) { campo.disabled = false; campo.placeholder = 'Digite aqui…'; campo.focus(); }
+          if (api.assistindo && api.assistindo()) campo.placeholder = 'Assistindo a corrida';
+          else if (campo.disabled && meuFim == null) { campo.disabled = false; campo.placeholder = 'Digite aqui…'; campo.focus(); }
           const resta = C.DURACAO - (agora - inicio);
           relogioEl.textContent = meuFim != null ? '✓ ' + (meuFim / 1000).toFixed(1) + ' s' : '⏱ ' + relogioTexto(resta);
           relogioEl.classList.toggle('pouco', meuFim == null && resta < 10000);

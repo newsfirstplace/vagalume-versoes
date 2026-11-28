@@ -56,7 +56,36 @@
   .vl-jg-cab button { background: rgba(255,255,255,.06); color: #dfe6f2; border: 1px solid rgba(255,255,255,.12); border-radius: 8px; width: 28px; height: 26px; cursor: pointer; font-size: 15px; }
   .vl-jg-cab button:hover { background: rgba(214,242,74,.2); color: #fff; }
   .vl-jg.minimizada .vl-jg-corpo { display: none; }
-  .vl-jg.minimizada { width: auto !important; min-width: 300px; max-width: calc(100vw - 24px); }
+  /* Quem está numa partida: ícone em cima da cabeça (clique para assistir). */
+  .vl-jg-sobre { pointer-events: auto; position: fixed; z-index: 20; left: 0; top: 0; transform: translate(-50%, calc(-100% - 12px)); width: 30px; height: 30px; padding: 0; display: grid; place-items: center;
+    border-radius: 9px; border: 2px solid #000; background: linear-gradient(180deg, #fff3a6, #ffc400 60%, #e09a00); box-shadow: 0 2px 0 #000, 0 0 14px rgba(255,196,0,.55);
+    color: #2b1d00; font: 16px/1 'Segoe UI Emoji', 'Apple Color Emoji', system-ui, sans-serif; cursor: pointer; animation: vl-jg-sobre 1.8s ease-in-out infinite; }
+  .vl-jg-sobre::after { content: ''; position: absolute; left: 50%; bottom: -8px; margin-left: -6px; border: 6px solid transparent; border-top-color: #000; border-bottom-width: 0; }
+  .vl-jg-sobre .vivo { position: absolute; right: -7px; top: -7px; width: 12px; height: 12px; border-radius: 50%; background: #e5484d; border: 2px solid #000; box-shadow: 0 0 6px #e5484d; }
+  .vl-jg-sobre.eu .vivo { display: none; }
+  .vl-jg-sobre:hover, .vl-jg-sobre:focus-visible { filter: brightness(1.12); outline: none; box-shadow: 0 2px 0 #000, 0 0 0 3px #d6f24a, 0 0 18px rgba(255,196,0,.8); }
+  .vl-jg-sobre[hidden] { display: none !important; }
+  .vl-jg-sobre .vl-jg-dama { width: 16px; height: 16px; }
+  @keyframes vl-jg-sobre { 50% { margin-top: -4px; } }
+  @media (prefers-reduced-motion: reduce) { .vl-jg-sobre { animation: none; } }
+  /* Placar ao vivo do ping-pong (quem assiste). */
+  .vl-pp-plateia { display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 4px 0; }
+  .vl-pp-plateia .vl-ms-assistindo { align-self: stretch; margin: 0; }
+  .vl-pp-plateia-meio { display: flex; align-items: center; justify-content: center; gap: 28px; padding: 10px 0; }
+  .vl-pp-lado { display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 150px; text-align: center; }
+  .vl-pp-lado .vl-jg-cabeca { width: 60px; height: 60px; font-size: 22px; }
+  .vl-pp-lado .vl-jg-cabeca img { transform: translate(-50%, -52%) scale(1.3); }
+  .vl-pp-lado strong { font: 800 64px/1 system-ui, sans-serif; color: var(--n-acento, #d6f24a); text-shadow: 0 3px 0 #000; }
+  .vl-pp-plateia-meio .x { font: 800 30px/1 system-ui, sans-serif; opacity: .55; }
+  /* Lista de jogos: quem está jogando agora no quarto. */
+  .vl-hub-aovivo { display: flex; flex-wrap: wrap; gap: 10px; }
+  .vl-hub-live { display: flex; align-items: center; gap: 10px; padding: 8px 14px 8px 8px; border-radius: 14px; border: 1px solid rgba(229,72,77,.45); background: rgba(229,72,77,.1); color: inherit; cursor: pointer; font: inherit; text-align: left; }
+  .vl-hub-live:hover, .vl-hub-live:focus-visible { background: rgba(229,72,77,.22); outline: none; }
+  .vl-hub-live .quem { display: flex; flex-direction: column; }
+  .vl-hub-live small { opacity: .75; }
+  .vl-hub-live .ao-vivo { color: #ff8b8f; font-weight: 800; font-size: 12px; margin-left: 6px; white-space: nowrap; }
+  .vl-jg.minimizada { width: max-content !important; min-width: 300px; max-width: calc(100vw - 24px); }
+  .vl-jg.minimizada .vl-jg-cab b { white-space: nowrap; }
   .vl-jg-cab .vl-jg-fase { display: none; min-width: 0; max-width: 380px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 4px 12px; border-radius: 999px; background: rgba(0,0,0,.38);
     font: 600 12.5px/1.25 system-ui, 'Segoe UI', sans-serif; color: #fff; cursor: pointer; }
   .vl-jg.minimizada .vl-jg-cab .vl-jg-fase:not(:empty) { display: inline-block; }
@@ -624,6 +653,9 @@
 
       // ---------- janela ----------
       let janela = null, corpo = null, minimizada = false;
+      // Chat da partida (o mesmo da mesa): com o adversário e com quem assiste.
+      const chat1 = VL.mesa && VL.mesa.criarChat ? VL.mesa.criarChat({ mandar: falarNaPartida }) : null;
+      let chatDa = null;
       let escolha = { jogo: 'xadrez', nivel: 'medio', cor: 'w', ritmo: 'livre' };
       let partida = null;   // a partida em andamento (ver comecar)
       let convidando = null; // convite que eu mandei: { via, nome, id, sessao, jogo, cor, amigo, relogio }
@@ -685,6 +717,7 @@
         const p = partida;
         if (!p) return { texto: '', minha: false };
         if (p.fim) return { texto: 'Fim de partida', minha: false };
+        if (p.modo === 'assistir') return { texto: 'Assistindo · ' + (p.jogo === 'pingpong' ? p.nomes.w + ' ' + p.pt[0] + ' x ' + p.pt[1] + ' ' + p.nomes.b : 'vez de ' + nomeDe(p.estado.vez)), minha: false };
         const outro = p.minhaCor === 'w' ? 'b' : 'w';
         if (p.jogo === 'pingpong') {
           const st = p.pp && p.pp.estado ? p.pp.estado() : null, pt = st && st.pontos;
@@ -715,12 +748,13 @@
           el('button', { type: 'button', class: 'vl-jg-voltar', title: 'Todos os jogos', 'aria-label': 'Todos os jogos', texto: '‹', onclick: voltarAosJogos }),
           el('span', { class: 'vl-jg-ic', 'aria-hidden': 'true', texto: '♞' + VS }),
           el('b', { class: 'vl-jg-titulo', texto: 'Jogos' }), el('span', { class: 'vl-jg-fase', role: 'status', title: 'Abrir', onclick: alternarMinimizada }), el('span', { class: 'vl-jg-esp' }),
+          chat1 ? chat1.botao : null,
           el('button', { type: 'button', class: 'vl-jg-tam', title: 'Diminuir a janela', 'aria-label': 'Diminuir a janela', texto: '⤡', onclick: alternarTamanho }),
           el('button', { type: 'button', class: 'vl-jg-min', title: 'Minimizar', 'aria-label': 'Minimizar', texto: '−', onclick: alternarMinimizada }),
           el('button', { type: 'button', title: 'Fechar', 'aria-label': 'Fechar', texto: '×', onclick: fechar }),
         ]);
         corpo = el('div', { class: 'vl-jg-corpo' });
-        janela = el('div', { class: 'vl-jg', role: 'dialog', 'aria-label': 'Jogos do Vagalume', tabindex: '0' }, [cab, corpo]);
+        janela = el('div', { class: 'vl-jg', role: 'dialog', 'aria-label': 'Jogos do Vagalume', tabindex: '0' }, [cab, corpo, chat1 ? chat1.painel : null]);
         janela.addEventListener('keydown', function (ev) {
           if ((ev.key === 'ArrowLeft' || ev.key === 'ArrowRight') && partida && partida.jogo !== 'pingpong' && !/^(INPUT|TEXTAREA|SELECT)$/.test(ev.target.tagName)) {
             ev.preventDefault(); ev.stopPropagation();
@@ -761,7 +795,11 @@
         janela.querySelector('.vl-jg-titulo').textContent = jogo ? NOMES[jogo] : 'Jogos';
         janela.querySelector('.vl-jg-ic').replaceChildren(jogo ? iconeJogo(jogo) : document.createTextNode('🎮'));
         janela.querySelector('.vl-jg-voltar').hidden = !jogo || !!(partida && !partida.fim);
-        camada.trocar(corpo, partida ? (partida.jogo === 'pingpong' ? telaPingPong() : telaPartida()) : jogo ? telaInicio() : telaHub());
+        if (chat1) {
+          if (partida && chatDa !== partida) { chatDa = partida; chat1.limpar(); }
+          chat1.mostrar(!!partida && (partida.modo === 'rede' || partida.modo === 'assistir' || !!(partida.plateia && partida.plateia.size)));
+        }
+        camada.trocar(corpo, partida ? (partida.jogo === 'pingpong' ? (partida.modo === 'assistir' ? telaPlacarPP() : telaPingPong()) : telaPartida()) : jogo ? telaInicio() : telaHub());
         if (partida && partida.fim && !partida.festejado && !partida.animando) { partida.festejado = true; festejar(partida); }
         mostrarFase();
       }
@@ -837,6 +875,7 @@
               el('span', { class: 'cta', 'aria-hidden': 'true', texto: '▶  Jogar agora' }),
             ]),
           ]),
+          aoVivoNoQuarto(),
           secao('Um contra um', 'Contra o bot, no quarto ou com um amigo', doisJogadores),
           emGrupo.length ? secao('Em grupo', 'Para jogar com quem está no quarto', emGrupo, 'grupo') : null,
         ])];
@@ -942,6 +981,7 @@
           via: o.via || 'quarto', oponenteId: o.oponenteId != null ? String(o.oponenteId) : null, animando: false, fila: [], job: null, mostrado: null,
           pre: null, preSel: null, setas: [], circulos: [], ver: null,
           ritmo: o.jogo === 'xadrez' ? ritmoValido(o.ritmo) : 'livre', relogio: null,
+          plateia: new Map(), plateiaId: novaSessao(), lances: [],
         };
         const tempo = TEMPO[partida.ritmo];
         if (tempo) partida.relogio = { w: tempo[0] * 1000, b: tempo[0] * 1000, inc: tempo[1] * 1000, desde: Date.now() };
@@ -957,7 +997,7 @@
         const p = partida = {
           jogo: 'pingpong', modo: o.modo, nivel: o.nivel, minhaCor: o.minhaCor, oponente: o.oponente || null, sessao: o.sessao || null,
           via: o.via || 'quarto', oponenteId: o.oponenteId != null ? String(o.oponenteId) : null, fim: null, historico: [],
-          ppSeq: 0, ppRecebido: 0, ppPendentes: new Map(), ppFila: new Map(),
+          ppSeq: 0, ppRecebido: 0, ppPendentes: new Map(), ppFila: new Map(), plateia: new Map(), plateiaId: novaSessao(),
         };
         avisoInicio = '';
         p.pp = VL.pingPongTela.criar({
@@ -992,6 +1032,7 @@
       }
       function nomeDe(cor) {
         if (!partida) return '';
+        if (partida.modo === 'assistir') return partida.nomes[cor] || '?';
         if (cor === partida.minhaCor) return (VL.pessoas && VL.pessoas.eu && VL.pessoas.eu()) || 'Você';
         return partida.modo === 'bot' ? 'Bot ' + NIVEIS.find(([id]) => id === partida.nivel)[1].toLowerCase() : partida.oponente;
       }
@@ -1007,6 +1048,7 @@
           sobrou = Math.round(r[antes.vez]);
         }
         p.historico.push({ nota: regras.nota(antes, lance), cor: antes.vez, ultimo: regras.ultimo(lance) });
+        if (p.lances) p.lances.push(regras.texto(lance));
         p.estados.push(antes);
         p.estado = regras.jogar(antes, lance);
         if (lance.capturas) p.tomou[antes.vez] += lance.capturas.length;
@@ -1017,6 +1059,7 @@
         if (meu && p.modo === 'rede') mandarLance(regras.texto(lance), sobrou);
         p.fila.push({ antes, lance, depois: p.estado });
         if (!p.animando) proximaAnimacao(p);
+        if (p.plateia && p.plateia.size) { p.plateiaEm = Date.now(); mandarPlateia(p); }
       }
 
       // ---------- animação dos lances (pedido do usuário: o bot jogava rápido demais para entender) ----------
@@ -1137,12 +1180,12 @@
           if (lance) aplicar(lance, false); else desenhar();
         }, 120);
       }
-      function minhaVez() { return partida && !partida.fim && !partida.pensando && !partida.animando && partida.estado.vez === partida.minhaCor && !(partida.modo === 'rede' && partida.pendente && partida.pendente.travado); }
+      function minhaVez() { return partida && partida.modo !== 'assistir' && !partida.fim && !partida.pensando && !partida.animando && partida.estado.vez === partida.minhaCor && !(partida.modo === 'rede' && partida.pendente && partida.pendente.travado); }
 
       // Clique numa casa: escolhe a peça e depois o destino (xadrez) ou cada pouso do caminho (damas).
       function clicarCasa(i) {
         const p = partida;
-        if (!p || p.ver != null) return;
+        if (!p || p.ver != null || p.modo === 'assistir') return;
         if (p.jogo === 'xadrez' && !p.fim && p.estado.vez !== p.minhaCor) { escolherPre(i); return; }
         if (!minhaVez()) return;
         const regras = REGRAS[partida.jogo];
@@ -1252,6 +1295,7 @@
       }
       // Revisão: mostra a posição depois de n lances (null = ao vivo). Só na sua tela.
       function verLance(n) {
+        if (partida && partida.semRevisao) return; // quem assiste chegou no meio: não tem as posições antigas
         const p = partida;
         if (!p || p.jogo === 'pingpong') return;
         const total = p.historico.length;
@@ -1317,14 +1361,15 @@
         const tomadas = (cor) => el('div', { class: 'vl-jg-tomadas ' + (cor === 'w' ? 'pretas' : 'brancas'), title: 'Peças tomadas', texto: tomadasPor(cor) });
         const vez = (p.mostrado || p.estado).vez; // a vez de verdade, mesmo revendo lances antigos
         const jogador = (cor) => el('div', { class: 'vl-jg-jogador' + (!p.fim && vez === cor ? ' vez' : '') }, [
-          p.modo === 'bot' && cor !== eu ? el('span', { class: 'vl-jg-cabeca', 'aria-hidden': 'true', texto: '🤖' }) : cabeca(nomeDe(cor)),
+          (p.modo === 'bot' && cor !== eu) || (p.modo === 'assistir' && /^Bot /.test(nomeDe(cor))) ? el('span', { class: 'vl-jg-cabeca', 'aria-hidden': 'true', texto: '🤖' }) : cabeca(nomeDe(cor)),
           el('span', { class: 'nome' }, [el('b', { texto: nomeDe(cor) }), el('small', { texto: (cor === 'w' ? 'Brancas' : 'Pretas') + (!p.fim && vez === cor ? ' · jogando' : '') })]),
           p.relogio ? el('span', { class: 'vl-jg-relogio', 'data-cor': cor, role: 'timer', 'aria-label': 'Relógio das ' + (cor === 'w' ? 'brancas' : 'pretas') }) : null,
           el('span', { class: 'vl-jg-cor ' + cor, 'aria-hidden': 'true' }),
         ]);
         setTimeout(pintarRelogios, 0);
         let estado;
-        if (p.fim) estado = regras.motivoFim(p.fim, p.minhaCor, p.modo);
+        if (p.modo === 'assistir') estado = p.fim ? (p.fim.vencedor ? nomeDe(p.fim.vencedor) + ' venceu' : 'Empate') + (p.fim.motivo ? ' (' + p.fim.motivo + ')' : '') + '.' : (!revendo && reiEmXeque >= 0 ? 'Xeque! ' : '') + 'Vez de ' + nomeDe(vez) + '.';
+        else if (p.fim) estado = regras.motivoFim(p.fim, p.minhaCor, p.modo);
         else if (p.pensando) estado = 'O bot está pensando…';
         else if (vez === eu) estado = (!revendo && reiEmXeque >= 0 ? 'Xeque! ' : '') + (p.pendente && p.pendente.travado ? 'Sem resposta de ' + p.oponente + '…' : 'Sua vez.') + (p.jogo === 'damas' && todos.length && todos[0].capturas.length ? ' Captura obrigatória: ' + todos[0].capturas.length + (todos[0].capturas.length > 1 ? ' peças.' : ' peça.') : '');
         else estado = (!revendo && reiEmXeque >= 0 ? 'Xeque! ' : '') + 'Vez de ' + nomeDe(vez) + '.';
@@ -1353,7 +1398,8 @@
         ]);
         const avisoRevisao = revendo ? el('div', { class: 'vl-jg-revendo', texto: 'Revendo: ' + (p.ver ? 'depois do lance ' + p.ver : 'início') + ' de ' + total + '. Só você vê.' }) : null;
         const acoes = [];
-        if (!p.fim) {
+        if (p.modo === 'assistir') acoes.push(el('button', { type: 'button', class: 'vl-jg-botao discreto', texto: 'Parar de assistir', onclick: sairDaPartida }));
+        else if (!p.fim) {
           if (p.modo === 'bot' && !p.relogio) acoes.push(el('button', { type: 'button', class: 'vl-jg-botao discreto', texto: 'Voltar lance', disabled: !p.estados.length || p.pensando || p.animando, onclick: voltarLance }));
           if (p.modo === 'rede') {
             if (p.empateProposto === 'deles') {
@@ -1366,14 +1412,15 @@
           acoes.push(el('button', { type: 'button', class: 'vl-jg-botao forte', texto: p.modo === 'bot' ? 'Jogar de novo' : 'Revanche', onclick: revanche }));
         }
         acoes.push(el('button', { type: 'button', class: 'vl-jg-botao discreto', texto: 'Virar tabuleiro', onclick() { p.virado = !p.virado; desenhar(); } }));
-        acoes.push(el('button', { type: 'button', class: 'vl-jg-botao discreto', texto: 'Menu', title: 'Voltar ao menu do jogo', onclick: sairDaPartida }));
+        if (p.modo !== 'assistir') acoes.push(el('button', { type: 'button', class: 'vl-jg-botao discreto', texto: 'Menu', title: 'Voltar ao menu do jogo', onclick: sairDaPartida }));
         return [el('div', { class: 'vl-jg-partida' }, [
           tab,
           el('div', { class: 'vl-jg-lado' }, [
+            p.modo === 'assistir' ? el('div', { class: 'vl-ms-assistindo', role: 'status' }, [el('i', { 'aria-hidden': 'true' }), el('span', null, ['Assistindo ao vivo · pela tela de ', el('b', { texto: p.fonte })])]) : null,
             jogador(p.virado ? 'w' : 'b'), tomadas(p.virado ? 'w' : 'b'),
             el('div', { class: 'vl-jg-estado' + (p.fim ? ' fim' : ''), role: 'status', 'aria-live': 'polite', texto: estado }),
             listaLances,
-            revisao, avisoRevisao,
+            p.semRevisao ? null : revisao, avisoRevisao,
             tomadas(p.virado ? 'b' : 'w'), jogador(p.virado ? 'b' : 'w'),
             el('div', { class: 'vl-jg-acoes' }, acoes),
             linhaVelocidade(),
@@ -1411,6 +1458,7 @@
         const p = partida;
         if (!p || !p.relogio || p.fim) return;
         pintarRelogios();
+        if (p.modo === 'assistir') return; // o tempo de quem joga é decidido por quem joga
         const vez = p.estado.vez, ms = restante(p, vez);
         if (vez === p.minhaCor && ms <= 0) {
           if (p.modo === 'rede') enviar({ t: 'jg:fim', m: 'tempo' });
@@ -1430,6 +1478,7 @@
         do {
           p.estado = p.estados.pop();
           p.historico.pop();
+          if (p.lances) p.lances.pop();
           p.ply--;
         } while (p.estados.length && p.estado.vez !== p.minhaCor);
         p.fim = null; p.sel = null; p.caminho = null; p.ultimo = []; p.pre = null; p.preSel = null; p.ver = null; p.festejado = false;
@@ -1440,6 +1489,7 @@
         if (!partida || partida.fim) return;
         partida.fim = st;
         partida.pensando = false;
+        mandarPlateia(partida);
         desenhar();
       }
       function desistir() {
@@ -1722,7 +1772,13 @@
 
       function aoDireto(m) {
         if (!m || m.de !== 'sala' || m.tipo !== 'presenca:direto' || !m.dado || typeof m.dado !== 'object') return;
-        receber({ via: 'quarto', nome: String(m.nome || ''), id: null }, m.dado);
+        const d = m.dado, nome = String(m.nome || '').slice(0, 40);
+        // Do quarto: quem está jogando, quem quer assistir e o que quem assiste recebe.
+        if (d.t === 'jg:status') { anotarStatus(nome, d); return; }
+        if (d.t === 'jg:assistir') { servirPlateia(nome, d.s); return; }
+        if (d.t === 'jg:plateia') { verDaPlateia(nome, d); return; }
+        if (d.t === 'jg:pchat') { chatDaPlateia(nome, d); return; }
+        receber({ via: 'quarto', nome, id: null }, d);
       }
       // Mensagem da partida, venha do quarto ou da sala com o amigo (de: { via, nome, id }).
       function receber(de, d) {
@@ -1747,6 +1803,11 @@
         const p = partida;
         if (!p || p.modo !== 'rede' || p.sessao !== d.s || !mesmaPessoa(adversario(p), de)) return;
         if (/^pp:/.test(d.t)) { if (p.jogo === 'pingpong' && p.pp) receberPP(p, d); return; }
+        if (d.t === 'jg:chat') {
+          const x = VL.mesa ? VL.mesa.limparFala(d.x) : '', autor = typeof d.de === 'string' && d.de ? d.de.slice(0, 40) : p.oponente;
+          if (x && chat1) { chat1.nova(autor, x, false); paraPlateia(p, { t: 'jg:pchat', de: autor, x }); }
+          return;
+        }
         const regras = REGRAS[p.jogo];
         if (!regras && /^jg:(lance|ok|pedirEstado|estado)$/.test(d.t)) return;
         if (d.t === 'jg:lance') {
@@ -1811,9 +1872,277 @@
       const relogioLista = setInterval(function () { if (janela && janela.style.display !== 'none' && !partida && !minimizada) desenhar(); }, 4000);
       ctx.aoParar(() => clearInterval(relogioLista));
       ctx.aoParar(conexao.ouvir('entrada', ENTRADA.QUARTO_PRONTO, function () {
-        // Quarto novo: a partida com alguém do quarto acaba; contra o bot ou com um amigo de outro quarto, continua.
+        // Quarto novo: quem estava jogando ficou para trás; assistir alguém daqui acaba.
+        jogando.clear(); atualizarIcones();
+        if (partida && partida.modo === 'assistir') { partida = null; desenhar(); }
+        const m = mesaApi && mesaApi.mesa();
+        if (m && m.assistindo && mesaApi.sair) mesaApi.sair();
+        // A partida com alguém do quarto acaba; contra o bot ou com um amigo de outro quarto, continua.
         if (partida && partida.modo === 'rede' && partida.via !== 'canal' && !partida.fim) { enviar({ t: 'jg:fim', m: 'saiu' }); encerrar({ fim: true, vencedor: null, motivo: 'você mudou de quarto' }); }
       }));
+
+      // ---------- chat da partida ----------
+      function falarNaPartida(texto) {
+        const p = partida, x = VL.mesa ? VL.mesa.limparFala(texto) : '';
+        if (!p || !x || !chat1) return;
+        chat1.nova(eu(), x, true);
+        if (p.modo === 'assistir') { if (VL.comunidade && VL.comunidade.direto) VL.comunidade.direto(p.fonte, { t: 'jg:pchat', s: p.plateiaId, x }); return; }
+        if (p.modo === 'rede') enviar({ t: 'jg:chat', x });
+        paraPlateia(p, { t: 'jg:pchat', de: eu(), x });
+      }
+      // Para quem assiste a minha partida (menos quem escreveu).
+      function paraPlateia(p, dado, menos) {
+        if (!p || !p.plateia || !p.plateia.size || !VL.comunidade || !VL.comunidade.direto) return;
+        const msg = Object.assign({ s: p.plateiaId }, dado);
+        for (const x of p.plateia.values()) if (!menos || nomeChave(x.nome) !== nomeChave(menos)) VL.comunidade.direto(x.nome, msg);
+      }
+      // Fala de quem assiste: na minha partida, mostro e repasso; assistindo, é a de quem joga ou de outro da plateia.
+      function chatDaPlateia(nome, d) {
+        const p = partida, x = VL.mesa ? VL.mesa.limparFala(d.x) : '';
+        if (!p || !x || !chat1 || d.s !== p.plateiaId) return;
+        if (p.modo === 'assistir') { if (nomeChave(nome) === nomeChave(p.fonte)) chat1.nova(typeof d.de === 'string' && d.de ? d.de.slice(0, 40) : nome, x, false); return; }
+        const quem = p.plateia && p.plateia.get(nomeChave(nome));
+        if (!quem || Date.now() - (quem.falou || 0) < 600) return;
+        quem.falou = Date.now();
+        chat1.nova(nome, x, false);
+        if (p.modo === 'rede') enviar({ t: 'jg:chat', x, de: nome });
+        paraPlateia(p, { t: 'jg:pchat', de: nome, x }, nome);
+      }
+
+      // ---------- plateia: quem assiste a minha partida ----------
+      // Quem assiste pede de novo a cada 20 s; quem parou de pedir sai da lista. A cada lance (e a cada 5 s) vai
+      // a posição inteira, então não importa se uma mensagem se perde.
+      function servirPlateia(nome, sessao) {
+        const p = partida;
+        if (!p || p.modo === 'assistir' || !p.plateiaId || sessao !== p.plateiaId || !nome) return;
+        const k = nomeChave(nome), novo = !p.plateia.has(k);
+        if (novo && p.plateia.size >= 12) return;
+        p.plateia.set(k, Object.assign(p.plateia.get(k) || {}, { nome, em: Date.now() }));
+        mandarPlateia(p, nome);
+        if (novo) { camada.aviso(nome + ' está assistindo a sua partida.'); desenhar(); }
+      }
+      function retratoPlateia(p) {
+        const base = { t: 'jg:plateia', s: p.plateiaId, j: p.jogo, w: nomeDe('w'), b: nomeDe('b'), f: p.fim ? { v: p.fim.vencedor || null, m: String(p.fim.motivo || '').slice(0, 80) } : null };
+        if (p.jogo === 'pingpong') { const st = p.pp && p.pp.estado ? p.pp.estado() : null; return Object.assign(base, { pt: st && st.pontos ? [st.pontos.w, st.pontos.b] : [0, 0] }); }
+        const regras = REGRAS[p.jogo], ultimo = p.historico.length ? p.historico[p.historico.length - 1].ultimo || [] : [];
+        return Object.assign(base, { n: p.ply, l: p.lances && p.lances.length ? p.lances[p.lances.length - 1] : null, p: regras.posicao(p.estado), u: ultimo.slice(0, 12), h: p.historico.slice(-80).map((x) => x.nota),
+          rel: p.relogio ? [Math.max(0, Math.round(restante(p, 'w'))), Math.max(0, Math.round(restante(p, 'b')))] : null });
+      }
+      function mandarPlateia(p, so) {
+        if (!p || p.modo === 'assistir' || !p.plateia || !p.plateia.size || !VL.comunidade || !VL.comunidade.direto) return;
+        const agora = Date.now();
+        for (const [k, x] of p.plateia) if (agora - x.em > 50000) p.plateia.delete(k);
+        const dado = retratoPlateia(p);
+        for (const x of p.plateia.values()) if (!so || nomeChave(x.nome) === nomeChave(so)) VL.comunidade.direto(x.nome, dado);
+      }
+      const relogioPlateia = setInterval(function () {
+        const p = partida;
+        if (!p) return;
+        if (p.modo === 'assistir') { // quem assiste: pede de novo a cada 20 s e percebe quando a transmissão parou
+          const agora = Date.now();
+          if (p.fim) return;
+          if (agora - p.recebidoEm > 20000) { p.fim = { fim: true, vencedor: null, motivo: 'a transmissão parou' }; desenhar(); return; }
+          if (agora - p.pedidoEm > 20000 && VL.comunidade && VL.comunidade.direto) { p.pedidoEm = agora; VL.comunidade.direto(p.fonte, { t: 'jg:assistir', s: p.plateiaId }); }
+          return;
+        }
+        if (!p.plateia || !p.plateia.size) return;
+        const agora = Date.now(), st = p.jogo === 'pingpong' && p.pp && p.pp.estado ? p.pp.estado() : null;
+        const marca = st && st.pontos ? st.pontos.w + ':' + st.pontos.b : '';
+        if (marca !== (p.plateiaMarca || '') || agora - (p.plateiaEm || 0) > 5000) { p.plateiaMarca = marca; p.plateiaEm = agora; mandarPlateia(p); }
+      }, 1000);
+      ctx.aoParar(() => clearInterval(relogioPlateia));
+
+      // ---------- assistir a partida de alguém do quarto ----------
+      let aguardando = null; // { nome, s }: pedi para assistir e espero a primeira resposta
+      function assistirUm(nome, info) {
+        if (!VL.comunidade || !VL.comunidade.direto) return;
+        const pedido = aguardando = { nome, s: info.s };
+        VL.comunidade.direto(nome, { t: 'jg:assistir', s: info.s });
+        camada.aviso('Entrando para assistir ' + nome + '…');
+        setTimeout(function () { if (aguardando === pedido) { aguardando = null; camada.aviso(nome + ' não respondeu. A partida pode ter acabado.', { tipo: 'erro' }); } }, 8000);
+      }
+      function verDaPlateia(nome, d) {
+        if (!sessaoValida(d.s) || !NOMES[d.j]) return;
+        let p = partida;
+        if (!(p && p.modo === 'assistir' && p.plateiaId === d.s && nomeChave(p.fonte) === nomeChave(nome))) {
+          if (!aguardando || aguardando.s !== d.s || nomeChave(aguardando.nome) !== nomeChave(nome)) return;
+          aguardando = null;
+          p = comecarAssistir(nome, d);
+          if (!p) return;
+        }
+        atualizarAssistir(p, d);
+      }
+      function comecarAssistir(nome, d) {
+        const base = { jogo: d.j, modo: 'assistir', fonte: nome, plateiaId: d.s, nomes: { w: '?', b: '?' }, minhaCor: 'w', fim: null, historico: [], festejado: true, plateia: null, pedidoEm: Date.now(), recebidoEm: Date.now() };
+        if (d.j === 'pingpong') partida = Object.assign(base, { pt: [0, 0] });
+        else {
+          let estado;
+          try { estado = REGRAS[d.j].dePosicao(String(d.p || '').slice(0, 120)); } catch (e) { return null; }
+          partida = Object.assign(base, { estado, estados: [], ultimo: [], sel: null, caminho: null, promocao: null, ply: Number(d.n) || 0, tomou: { w: 0, b: 0 }, pendente: null, empateProposto: null, virado: false,
+            pensando: false, via: 'quarto', oponenteId: null, animando: false, fila: [], job: null, mostrado: null, pre: null, preSel: null, setas: [], circulos: [], ver: null, ritmo: 'livre', relogio: null, lances: [], semRevisao: true, entrou: true });
+        }
+        escolha.jogo = d.j;
+        if (!janela) montarJanela();
+        abrir();
+        return partida;
+      }
+      function atualizarAssistir(p, d) {
+        p.recebidoEm = Date.now();
+        p.nomes = { w: String(d.w || p.nomes.w).slice(0, 40), b: String(d.b || p.nomes.b).slice(0, 40) };
+        if (p.jogo === 'pingpong') {
+          if (Array.isArray(d.pt)) p.pt = [Math.max(0, Number(d.pt[0]) || 0), Math.max(0, Number(d.pt[1]) || 0)];
+        } else {
+          const regras = REGRAS[p.jogo], n = Number(d.n) || 0, posicao = String(d.p || '').slice(0, 120);
+          let foi = false;
+          if (!p.entrou && n === p.ply + 1 && d.l && !p.fim) {
+            const lance = regras.lanceDe(p.estado, String(d.l).slice(0, 80));
+            if (lance) { aplicar(lance, false); foi = regras.posicao(p.estado) === posicao; }
+          }
+          // Fora de ordem (ou o lance não deu na mesma posição): a posição de uma vez, sem animação.
+          if (!foi && (p.entrou || n !== p.ply || regras.posicao(p.estado) !== posicao)) {
+            try { p.estado = regras.dePosicao(posicao); } catch (e) { return; }
+            clearTimeout(p.relogioAnim); p.fila = []; p.job = null; p.animando = false; p.mostrado = null;
+            p.ply = n; p.estados = [];
+            p.ultimo = Array.isArray(d.u) ? d.u.filter((x) => Number.isInteger(x) && x >= 0 && x < 64) : [];
+            if (p.jogo === 'damas') { const conta = { w: 0, b: 0 }; for (const x of p.estado.tab) if (x) conta[D.corDe(x)]++; p.tomou = { w: 12 - conta.b, b: 12 - conta.w }; }
+          }
+          if (!foi) p.historico = (Array.isArray(d.h) ? d.h : []).slice(-80).map((x) => ({ nota: String(x).slice(0, 16), cor: '' }));
+          p.entrou = false;
+          if (Array.isArray(d.rel)) p.relogio = { w: Math.max(0, Number(d.rel[0]) || 0), b: Math.max(0, Number(d.rel[1]) || 0), inc: 0, desde: Date.now() };
+        }
+        if (d.f && typeof d.f === 'object' && !p.fim) p.fim = { fim: true, vencedor: d.f.v === 'w' || d.f.v === 'b' ? d.f.v : null, motivo: String(d.f.m || '').slice(0, 80) };
+        desenhar();
+      }
+      // Ping-pong de quem assiste: o placar ao vivo (a mesa em 3D roda só na tela de quem joga).
+      function telaPlacarPP() {
+        const p = partida;
+        const lado = (cor, i) => el('div', { class: 'vl-pp-lado' }, [/^Bot /.test(p.nomes[cor]) ? el('span', { class: 'vl-jg-cabeca', 'aria-hidden': 'true', texto: '🤖' }) : cabeca(p.nomes[cor]), el('b', { texto: p.nomes[cor] }), el('strong', { texto: String(p.pt[i]) })]);
+        const fim = p.fim ? (p.fim.vencedor ? (p.nomes[p.fim.vencedor] || '?') + ' venceu' : 'Partida encerrada') + (p.fim.motivo ? ' (' + p.fim.motivo + ')' : '') + '.' : null;
+        return [el('div', { class: 'vl-pp-plateia' }, [
+          el('div', { class: 'vl-ms-assistindo', role: 'status' }, [el('i', { 'aria-hidden': 'true' }), el('span', null, ['Placar ao vivo · pela tela de ', el('b', { texto: p.fonte })])]),
+          el('div', { class: 'vl-pp-plateia-meio', 'aria-live': 'polite' }, [lado('w', 0), el('span', { class: 'x', 'aria-hidden': 'true', texto: '×' }), lado('b', 1)]),
+          fim ? el('div', { class: 'vl-jg-estado fim', role: 'status', texto: fim }) : el('p', { class: 'vl-jg-nota', texto: 'A mesa em 3D roda só na tela de quem joga; aqui o placar muda a cada ponto.' }),
+          el('div', { class: 'vl-jg-acoes' }, [el('button', { type: 'button', class: 'vl-jg-botao discreto', texto: 'Parar de assistir', onclick: sairDaPartida })]),
+        ])];
+      }
+
+      // ---------- quem está jogando no quarto: aviso entre Vagalumes e o ícone em cima da cabeça ----------
+      // Cada um avisa os Vagalumes do quarto (canal direto, sem o limite das ações) ao começar, a cada 10 s e ao
+      // parar; quem deixou de avisar some depois de 35 s.
+      const jogando = new Map(); // apelido (minúsculo) -> { nome, j, k, s, a, c, em }
+      const nomeDoJogo = (j) => NOMES[j] || (VL.mesa && VL.mesa.JOGOS[j] ? VL.mesa.JOGOS[j].nome : 'um jogo');
+      const glifoDoJogo = (j) => (NOMES[j] ? iconeJogo(j) : document.createTextNode((VL.mesa && VL.mesa.JOGOS[j] && VL.mesa.JOGOS[j].glifo) || '🎮'));
+      function anotarStatus(nome, d) {
+        const k = nomeChave(nome);
+        if (!d.j || !(NOMES[d.j] || (VL.mesa && VL.mesa.JOGOS[d.j])) || !sessaoValida(d.s)) { if (jogando.delete(k)) atualizarIcones(); return; }
+        jogando.set(k, { nome, j: d.j, k: d.k === 'mesa' ? 'mesa' : 'um', s: d.s, a: d.a ? String(d.a).slice(0, 40) : null, c: /^9\d{11}$/.test(String(d.c || '')) ? String(d.c) : null, em: Date.now() });
+        atualizarIcones();
+      }
+      function meuStatus() {
+        const m = mesaApi && mesaApi.mesa && mesaApi.mesa();
+        if (m && m.fase === 'jogo' && !m.assistindo) return { t: 'jg:status', j: m.jogo, k: 'mesa', s: m.sessao, a: m.anfitriao, c: m.canal || null };
+        const p = partida;
+        if (p && !p.fim && p.modo !== 'assistir' && p.plateiaId) return { t: 'jg:status', j: p.jogo, k: 'um', s: p.plateiaId };
+        return null;
+      }
+      let statusEnviado = '', statusEm = 0;
+      const relogioStatus = setInterval(function () {
+        const agora = Date.now();
+        for (const [k, x] of jogando) if (agora - x.em > 35000) jogando.delete(k);
+        const st = meuStatus(), marca = st ? JSON.stringify(st) : '';
+        if (marca !== statusEnviado || (st && agora - statusEm > 10000)) {
+          statusEnviado = marca; statusEm = agora;
+          if (VL.comunidade && VL.comunidade.direto) for (const n of vagalumesNoQuarto()) VL.comunidade.direto(n, st || { t: 'jg:status', j: null });
+        }
+        atualizarIcones();
+      }, 1000);
+      ctx.aoParar(() => clearInterval(relogioStatus));
+
+      // Posição da cabeça pelo motor do jogo (a ponte da construção, no mundo da página, responde na hora).
+      function cabecasNaTela(ids) {
+        let r = null;
+        const ouvir = (ev) => { try { const d = JSON.parse(ev.detail); if (d && d.tipo === 'resposta' && d.id === 'jg-cabecas') r = d; } catch (e) { /* outra resposta */ } };
+        document.addEventListener('vl:construcao:pagina', ouvir);
+        try { document.dispatchEvent(new CustomEvent('vl:construcao:extensao', { detail: JSON.stringify({ acao: 'cabecas', id: 'jg-cabecas', ids }) })); } finally { document.removeEventListener('vl:construcao:pagina', ouvir); }
+        return r && r.ok ? r.cabecas : null;
+      }
+      function canvasDoQuarto() {
+        for (const sel of (VL.jogo && VL.jogo.SELETORES && VL.jogo.SELETORES.quarto) || ['canvas']) { const c = document.querySelector(sel); if (c && c.offsetWidth > 100) return c; }
+        return null;
+      }
+      const icones = new Map(); // apelido (minúsculo) ou '' (eu) -> botão
+      let quadroIcones = 0, ultimoIcone = 0;
+      function atualizarIcones() { if (!quadroIcones) quadroIcones = requestAnimationFrame(desenharIcones); }
+      function desenharIcones(t) {
+        quadroIcones = 0;
+        const quem = [];
+        if (VL.pessoas && VL.pessoas.indiceDe) for (const [k, x] of jogando) { const i = VL.pessoas.indiceDe(x.nome); if (i != null) quem.push({ k, i, x }); }
+        const st = meuStatus(), meu = st && VL.pessoas && VL.pessoas.meuIndice ? VL.pessoas.meuIndice() : null;
+        if (st && meu != null) quem.push({ k: '', i: meu, x: { nome: eu(), j: st.j, eu: true } });
+        const vivos = new Set(quem.map((q) => q.k));
+        for (const [k, no] of icones) if (!vivos.has(k)) { no.remove(); icones.delete(k); }
+        if (!quem.length) return;
+        quadroIcones = requestAnimationFrame(desenharIcones); // acompanha o avatar andando e a câmera
+        if (t - ultimoIcone < 33) return; // uns 30 quadros por segundo bastam
+        ultimoIcone = t;
+        const pos = cabecasNaTela(quem.map((q) => q.i)), c = canvasDoQuarto();
+        const r = c && c.getBoundingClientRect(), escala = r && r.width ? c.offsetWidth / r.width : 1;
+        for (const q of quem) {
+          let no = icones.get(q.k);
+          if (!no) {
+            no = el('button', { type: 'button', class: 'vl-jg-sobre' + (q.x.eu ? ' eu' : ''), hidden: true, onclick() { clicarIcone(q.k); } }, [el('span', { class: 'g', 'aria-hidden': 'true' }), el('span', { class: 'vivo', 'aria-hidden': 'true' })]);
+            icones.set(q.k, no);
+            camada.area().appendChild(no);
+          }
+          if (no.dataset.j !== q.x.j) {
+            no.dataset.j = q.x.j;
+            no.firstChild.replaceChildren(glifoDoJogo(q.x.j));
+            const rotulo = q.x.eu ? 'Você está jogando ' + nomeDoJogo(q.x.j) + ' · clique para abrir' : q.x.nome + ' está jogando ' + nomeDoJogo(q.x.j) + ' · clique para assistir';
+            no.title = rotulo; no.setAttribute('aria-label', rotulo);
+          }
+          const p = pos && pos[q.i];
+          if (!p || !r) { no.hidden = true; continue; }
+          no.hidden = false;
+          no.style.left = Math.round(r.left + p[0] / escala) + 'px';
+          no.style.top = Math.round(r.top + p[1] / escala) + 'px';
+        }
+      }
+      ctx.aoParar(function () { cancelAnimationFrame(quadroIcones); for (const no of icones.values()) no.remove(); icones.clear(); });
+      function clicarIcone(k) {
+        if (k === '') { // o meu: abre a minha partida
+          const m = mesaApi && mesaApi.mesa();
+          if (m && m.fase === 'jogo' && !m.assistindo) mesaApi.abrir(m.jogo); else abrir();
+          return;
+        }
+        const x = jogando.get(k);
+        if (x) assistirQuem(x);
+      }
+      // Assistir: a mesa (jogos em grupo) pede ao anfitrião; um contra um, à própria pessoa.
+      function assistirQuem(x) {
+        if (partida && !partida.fim && partida.modo !== 'assistir') { camada.aviso('Termine a sua partida antes de assistir outra.', { tipo: 'erro' }); abrir(); return; }
+        const m = mesaApi && mesaApi.mesa();
+        if (x.k === 'mesa') {
+          if (!mesaApi || !mesaApi.assistir) return;
+          if (partida && partida.modo === 'assistir') partida = null;
+          if (janela) janela.style.display = 'none'; // a mesa tem a janela dela
+          mesaApi.assistir({ j: x.j, s: x.s, a: x.a || x.nome, c: x.c });
+          return;
+        }
+        if (m && !m.assistindo && m.fase !== 'fim') { camada.aviso('Saia da mesa de ' + nomeDoJogo(m.jogo) + ' antes de assistir outra partida.', { tipo: 'erro' }); return; }
+        if (m && m.assistindo && mesaApi.sair) mesaApi.sair();
+        assistirUm(x.nome, x);
+      }
+      // Na lista de jogos: quem está jogando agora no quarto.
+      function aoVivoNoQuarto() {
+        const lista = [...jogando.values()].filter((x) => VL.pessoas && VL.pessoas.indiceDe && VL.pessoas.indiceDe(x.nome) != null);
+        if (!lista.length) return null;
+        return el('section', { class: 'vl-hub-sec' }, [
+          el('header', null, [el('h3', { texto: 'Jogando agora neste quarto' }), el('small', { texto: 'Clique para assistir ao vivo' }), el('em', { texto: lista.length + (lista.length === 1 ? ' pessoa' : ' pessoas') })]),
+          el('div', { class: 'vl-hub-aovivo' }, lista.map((x) => el('button', { type: 'button', class: 'vl-hub-live', 'data-foco': 'ver-' + x.nome, 'aria-label': 'Assistir ' + x.nome + ' jogando ' + nomeDoJogo(x.j), onclick() { assistirQuem(x); } }, [
+            cabeca(x.nome), el('span', { class: 'quem' }, [el('b', { texto: x.nome }), el('small', { texto: 'jogando ' + nomeDoJogo(x.j) })]), el('span', { class: 'ao-vivo', 'aria-hidden': 'true', texto: '● Assistir' }),
+          ]))),
+        ]);
+      }
 
       ctx.comando({
         nome: 'jogos',

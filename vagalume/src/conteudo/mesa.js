@@ -14,6 +14,80 @@
   const camada = VL.camada;
   const el = camada.el;
   const JOGOS = {};
+
+  // ---------- chat da partida (a mesa e a janela de um contra um usam) ----------
+  const limparFala = (x) => String(x == null ? '' : x).replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 140);
+  // Botão 💬 (com as não lidas) para o título da janela e um painel por cima do jogo; op.mandar(texto) envia.
+  function criarChat(op) {
+    let aberto = false, naoLidas = 0, ultimo = 0;
+    const contador = el('span', { class: 'vl-chat-n', 'aria-hidden': 'true', hidden: true });
+    const botao = el('button', { type: 'button', class: 'vl-jg-chat-bt', title: 'Chat da partida', 'aria-label': 'Chat da partida', 'aria-pressed': 'false', hidden: true, onclick() { alternar(); } },
+      [el('span', { 'aria-hidden': 'true', texto: '💬' }), contador]);
+    const vazio = el('p', { class: 'vl-chat-vazio', texto: 'Mande um oi! Quem joga e quem assiste lê aqui.' });
+    const lista = el('div', { class: 'vl-chat-lista', role: 'log', 'aria-live': 'polite', 'aria-label': 'Mensagens da partida' });
+    const campo = el('input', { type: 'text', maxlength: '140', autocomplete: 'off', placeholder: 'Escreva aqui…', 'aria-label': 'Mensagem para a partida' });
+    campo.addEventListener('keydown', function (ev) { ev.stopPropagation(); if (ev.key === 'Escape') alternar(false); }); // o jogo não reage ao que se digita aqui
+    const painel = el('div', { class: 'vl-chat', hidden: true, role: 'dialog', 'aria-label': 'Chat da partida' }, [
+      el('div', { class: 'vl-chat-cab' }, [el('b', { texto: 'Chat da partida' }), el('button', { type: 'button', title: 'Fechar o chat', 'aria-label': 'Fechar o chat', texto: '×', onclick() { alternar(false); } })]),
+      vazio, lista,
+      el('form', { class: 'vl-chat-form', onsubmit(ev) {
+        ev.preventDefault();
+        const x = limparFala(campo.value);
+        if (!x || Date.now() - ultimo < 700) return;
+        ultimo = Date.now();
+        campo.value = '';
+        op.mandar(x);
+      } }, [campo, el('button', { type: 'submit', class: 'vl-jg-botao', texto: 'Enviar' })]),
+    ]);
+    function contar() { contador.hidden = !naoLidas; contador.textContent = naoLidas > 9 ? '9+' : String(naoLidas); botao.classList.toggle('novas', naoLidas > 0); }
+    function alternar(abrir) {
+      aberto = typeof abrir === 'boolean' ? abrir : !aberto;
+      painel.hidden = !aberto;
+      botao.setAttribute('aria-pressed', String(aberto));
+      if (aberto) { naoLidas = 0; contar(); lista.scrollTop = lista.scrollHeight; setTimeout(() => campo.focus(), 0); }
+    }
+    return {
+      botao, painel,
+      nova(de, texto, minha) {
+        const x = limparFala(texto);
+        if (!x) return;
+        vazio.hidden = true;
+        lista.appendChild(el('div', { class: 'vl-chat-msg' + (minha ? ' minha' : '') }, [el('b', { texto: minha ? 'Você' : String(de || '?').slice(0, 40) }), el('span', { texto: x })]));
+        while (lista.childElementCount > 60) lista.firstElementChild.remove();
+        lista.scrollTop = lista.scrollHeight;
+        if (!aberto && !minha) { naoLidas++; contar(); }
+      },
+      limpar() { lista.replaceChildren(); vazio.hidden = false; naoLidas = 0; contar(); },
+      mostrar(sim) { botao.hidden = !sim; if (!sim && aberto) alternar(false); },
+    };
+  }
+  const CSS_CHAT = `
+  .vl-jg-chat-bt { position: relative; }
+  .vl-jg-chat-bt.novas { animation: vl-chat-pisca .9s ease-in-out infinite alternate; }
+  @keyframes vl-chat-pisca { to { box-shadow: 0 0 0 2px var(--n-acento, #d6f24a), 0 0 12px var(--n-acento, #d6f24a); } }
+  .vl-chat-n { position: absolute; top: -6px; right: -6px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: #e5484d; color: #fff; border: 1px solid #000; font: 700 10px/14px system-ui, sans-serif; }
+  .vl-jg-corpo { isolation: isolate; } /* o que o jogo empilha fica dentro do corpo; o chat fica na frente */
+  .vl-chat { position: absolute; z-index: 40; right: 10px; top: 58px; bottom: 10px; width: min(290px, calc(100% - 20px)); display: flex; flex-direction: column; border-radius: 12px; overflow: hidden;
+    background: #0e131c; border: 1px solid rgba(255,255,255,.14); box-shadow: 0 14px 40px rgba(0,0,0,.55); color: #e9eef7; font: 13px/1.35 system-ui, 'Segoe UI', sans-serif; }
+  .vl-chat[hidden], .vl-jg-chat-bt[hidden], .vl-chat-vazio[hidden], .vl-chat-n[hidden] { display: none !important; }
+  .vl-jg.minimizada .vl-chat { display: none !important; }
+  .vl-chat-cab { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px 8px 12px; background: rgba(255,255,255,.05); border-bottom: 1px solid rgba(255,255,255,.08); }
+  .vl-chat-cab button { width: 24px; height: 24px; border-radius: 50%; border: 1px solid rgba(255,255,255,.15); background: transparent; color: inherit; cursor: pointer; }
+  .vl-chat-vazio { margin: 12px; color: #8f9bb0; font-size: 12px; }
+  .vl-chat-lista { flex: 1; min-height: 0; overflow: auto; padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; }
+  .vl-chat-msg { align-self: flex-start; max-width: 92%; padding: 6px 9px; border-radius: 10px 10px 10px 3px; background: rgba(255,255,255,.07); overflow-wrap: anywhere; }
+  .vl-chat-msg b { display: block; font-size: 11px; color: var(--n-acento, #d6f24a); }
+  .vl-chat-msg.minha { align-self: flex-end; border-radius: 10px 10px 3px 10px; background: color-mix(in srgb, var(--n-acento, #d6f24a) 22%, transparent); }
+  .vl-chat-msg.minha b { color: #fff; }
+  .vl-chat-form { display: flex; gap: 6px; padding: 8px; border-top: 1px solid rgba(255,255,255,.08); }
+  .vl-chat-form input { flex: 1; min-width: 0; padding: 7px 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,.16); background: rgba(0,0,0,.35); color: #fff; font: inherit; }
+  .vl-chat-form input:focus { outline: none; border-color: var(--n-acento, #d6f24a); }
+  .vl-chat-form .vl-jg-botao { padding: 6px 12px; font-size: 12px; }
+  .vl-ms-assistindo { display: flex; align-items: center; gap: 8px; padding: 8px 12px; margin: -4px 0 12px; border-radius: 10px; background: rgba(229,72,77,.14); border: 1px solid rgba(229,72,77,.4); font-size: 12.5px; }
+  .vl-ms-assistindo i { width: 8px; height: 8px; border-radius: 50%; background: #e5484d; box-shadow: 0 0 8px #e5484d; animation: vl-ms-pisca 1.2s ease-in-out infinite; }
+  .vl-ms-assistindo .vl-jg-esp { flex: 1; }
+  .vl-ms-assistindo .vl-jg-botao { padding: 4px 12px; font-size: 12px; }
+  `;
   const CSS = `
   .vl-jg.vl-ms { width: min(900px, calc(100vw - 24px)); }
   .vl-ms .vl-jg-corpo { padding: 14px 16px 16px; }
@@ -164,9 +238,9 @@
 
   function iniciar(ctx, opcoesMesa) {
     const op = opcoesMesa || {};
-    const estilo = el('style', { texto: CSS });
+    const estilo = el('style', { texto: CSS + CSS_CHAT });
     camada.area().appendChild(estilo);
-    let janela = null, corpo = null, titulo = null, icone = null, voltarBotao = null, fase = null, minimizada = false, compacta = false;
+    let janela = null, corpo = null, titulo = null, icone = null, voltarBotao = null, fase = null, minimizada = false, compacta = false, chat = null, chatDaMesa = null;
     function alternarMinimizada() {
       if (!janela) return;
       minimizada = !minimizada;
@@ -191,6 +265,7 @@
       if (!mesa) return { texto: '', minha: false };
       if (mesa.fase === 'sala') return { texto: 'Sala de espera · ' + mesa.jogadores.length + ' na mesa', minha: false };
       if (mesa.fase === 'fim') return { texto: 'Fim de partida', minha: false };
+      if (mesa.assistindo && mesa.visao && typeof mesa.visao.vez === 'string') return { texto: 'Assistindo · vez de ' + mesa.visao.vez, minha: false };
       if (mesa.tela && mesa.tela.resumo) { try { const r = mesa.tela.resumo(); if (r) return r; } catch (e) { /* segue com a vez */ } }
       const v = mesa.visao || {}, vez = typeof v.vez === 'string' ? v.vez : null;
       return vez ? { texto: mesmo(vez, eu()) ? 'Sua vez' : 'Vez de ' + vez, minha: mesmo(vez, eu()) } : { texto: JOGOS[mesa.jogo].nome + ' em andamento', minha: false };
@@ -310,6 +385,51 @@
       ctx.aoParar(function () { chrome.runtime.onMessage.removeListener(aoAvisoDaSala); });
     }
     const pessoas = () => mesa.jogadores.filter((p) => !p.bot && !mesmo(p.nome, eu()));
+    // Quem recebe as mensagens da mesa: os jogadores (menos eu e os bots) e quem assiste.
+    const quemRecebe = () => pessoas().map((p) => p.nome).concat(mesa.plateia ? [...mesa.plateia.values()].map((x) => x.nome) : []);
+
+    // ---------- chat ----------
+    let falouEm = new Map(); // anfitrião: quando cada um falou (uma fala a cada 0,6 s por pessoa)
+    function falar(texto) {
+      const x = limparFala(texto);
+      if (!x || !mesa) return;
+      if (mesa.souAnfitriao) { espalharFala(eu(), x); return; }
+      mandar(mesa.anfitriao, { t: 'ms:chat', x });
+      mostrarFala(eu(), x);
+    }
+    function mostrarFala(de, x) {
+      if (chat) chat.nova(de, x, mesmo(de, eu()));
+      try { if (mesa && mesa.tela && mesa.tela.fala) mesa.tela.fala(de, x); } catch (e) { /* a tela pode não ter onde mostrar */ }
+    }
+    // Anfitrião: mostra e repassa a fala a todos, menos a quem falou.
+    function espalharFala(de, x) {
+      mostrarFala(de, x);
+      for (const nome of quemRecebe()) if (!mesmo(nome, de)) mandar(nome, { t: 'ms:chat', de, x });
+    }
+
+    // ---------- assistir uma partida em andamento ----------
+    // Quem assiste pede ao anfitrião (no quarto ou pela sala da partida) e pede de novo a cada 20 s.
+    function assistir(info) {
+      const def = JOGOS[info && info.j];
+      if (!def || !/^[a-f0-9]{16}$/.test(String(info.s || '')) || !info.a) return;
+      if (mesa && mesa.sessao === info.s) { mostrar(); return; }
+      if (mesa && !mesa.assistindo && mesa.fase !== 'fim') { camada.aviso('Saia da mesa de ' + JOGOS[mesa.jogo].nome + ' antes de assistir outra.', { tipo: 'erro' }); mostrar(); return; }
+      if (mesa) sair();
+      naSala = new Map(); esperasNaSala = [];
+      const canal = /^9\d{11}$/.test(String(info.c || '')) ? String(info.c) : null;
+      const m = mesa = { jogo: info.j, sessao: info.s, canal, anfitriao: String(info.a), souAnfitriao: false, assistindo: true, jogadores: [], fase: 'jogo', versao: 0, opcoes: opcoesValidas(def, null) };
+      mostrar();
+      const pedir = () => { if (mesa === m) mandar(m.anfitriao, { t: 'ms:assistir' }); };
+      const noQuarto = vagalumesNoQuarto().some((n) => mesmo(n, m.anfitriao));
+      const pronto = noQuarto || !canal ? Promise.resolve(true) : entrarNaSala(canal).then((ok) => (ok ? esperarNaSala(m.anfitriao, 6000) : false));
+      pronto.then(function (ok) {
+        if (mesa !== m) return;
+        if (!ok) { camada.aviso('Não deu para assistir a mesa de ' + m.anfitriao + ' agora.', { tipo: 'erro' }); sair(); return; }
+        pedir();
+        m.manter = setInterval(pedir, 20000);
+      });
+      setTimeout(function () { if (mesa === m && !m.visao && m.fase === 'jogo') { camada.aviso(m.anfitriao + ' não respondeu. A partida pode ter acabado.', { tipo: 'erro' }); sair(); } }, 9000);
+    }
 
     // ---------- janela ----------
     function montarJanela() {
@@ -317,13 +437,15 @@
       icone = el('span', { class: 'vl-jg-ic', 'aria-hidden': 'true' });
       voltarBotao = el('button', { type: 'button', class: 'vl-jg-voltar', title: 'Todos os jogos', 'aria-label': 'Todos os jogos', texto: '‹', onclick() { if (mesa && mesa.fase === 'jogo') return; sair(); if (op.voltar) op.voltar(); } });
       fase = el('span', { class: 'vl-jg-fase', role: 'status', title: 'Abrir', onclick: alternarMinimizada });
+      chat = criarChat({ mandar: falar });
       const cab = el('div', { class: 'vl-jg-cab' }, [voltarBotao, icone, titulo, fase, el('span', { class: 'vl-jg-esp' }),
+        chat.botao,
         el('button', { type: 'button', class: 'vl-jg-tam', title: 'Diminuir a janela', 'aria-label': 'Diminuir a janela', texto: '⤡', onclick: alternarTamanho }),
         el('button', { type: 'button', class: 'vl-jg-min', title: 'Minimizar', 'aria-label': 'Minimizar', texto: '−', onclick: alternarMinimizada }),
         el('button', { type: 'button', title: 'Fechar', 'aria-label': 'Fechar', texto: '×', onclick: sair })]);
       cab.addEventListener('dblclick', function (ev) { if (!ev.target.closest('button')) alternarMinimizada(); });
       corpo = el('div', { class: 'vl-jg-corpo vl-ms-corpo' });
-      janela = el('div', { class: 'vl-jg vl-ms', role: 'dialog', 'aria-label': 'Mesa de jogos', tabindex: '0' }, [cab, corpo]);
+      janela = el('div', { class: 'vl-jg vl-ms', role: 'dialog', 'aria-label': 'Mesa de jogos', tabindex: '0' }, [cab, corpo, chat.painel]);
       janela.addEventListener('keydown', function (ev) { ev.stopPropagation(); if (ev.key === 'Escape' && !(mesa && mesa.fase === 'jogo')) sair(); });
       cab.addEventListener('pointerdown', function (ev) {
         if (ev.button !== 0 || ev.target.closest('button')) return;
@@ -346,8 +468,15 @@
       janela.className = String(janela.className || 'vl-jg vl-ms').replace(/\s*\b(tema-[\w-]+|vl-nativo)\b/g, '') + ' vl-nativo tema-' + mesa.jogo;
       icone.textContent = def.glifo;
       voltarBotao.hidden = mesa.fase === 'jogo';
-      if (mesa.fase === 'sala') { camada.trocar(corpo, telaSala(def)); return; }
-      if (!mesa.tela) { mesa.tela = def.montar(apiTela()); corpo.replaceChildren(mesa.tela.el); }
+      if (chatDaMesa !== mesa.sessao) { chatDaMesa = mesa.sessao; chat.limpar(); }
+      chat.mostrar(!!(mesa.assistindo || mesa.plateia && mesa.plateia.size || mesa.jogadores.some((p) => !p.bot && !mesmo(p.nome, eu()))));
+      if (mesa.fase === 'sala') { camada.trocar(corpo, telaSala(def)); mostrarFase(); return; }
+      if (mesa.assistindo && !mesa.visao) { camada.trocar(corpo, [el('div', { class: 'vl-jg-vazio' }, [el('b', { texto: 'Entrando para assistir…' }), el('span', { texto: 'Pedindo a partida a ' + mesa.anfitriao + '.' })])]); mostrarFase(); return; }
+      if (!mesa.tela) {
+        mesa.tela = def.montar(apiTela());
+        corpo.replaceChildren(mesa.assistindo ? el('div', { class: 'vl-ms-assistindo', role: 'status' }, [el('i', { 'aria-hidden': 'true' }), el('span', null, ['Assistindo a mesa de ', el('b', { texto: mesa.anfitriao })]), el('span', { class: 'vl-jg-esp' }),
+          el('button', { type: 'button', class: 'vl-jg-botao discreto', texto: 'Parar de assistir', onclick: sair })]) : '', mesa.tela.el);
+      }
       if (mesa.visao) mesa.tela.atualizar(mesa.visao);
       mostrarFase();
       const fim = mesa.fase === 'fim' && mesa.resultado;
@@ -355,6 +484,7 @@
       if (resAntigo) resAntigo.remove();
       if (fim) {
         if (!def.resultadoProprio) corpo.appendChild(telaResultado(fim));
+        if (!mesa.festejado && mesa.assistindo) mesa.festejado = true;
         if (!mesa.festejado) {
           mesa.festejado = true;
           const vencedores = fim.vencedores || (fim.ordem || []).slice(0, 1);
@@ -365,7 +495,7 @@
       }
     }
     function apiTela() {
-      return { eu: eu(), agir, anfitriao: () => mesa && mesa.souAnfitriao, nomeAnfitriao: () => mesa && mesa.anfitriao, deNovo() { if (mesa && mesa.souAnfitriao) deNovo(); }, sair, cabeca: rosto, som, opcoes: () => (mesa ? opcoesValidas(JOGOS[mesa.jogo], mesa.opcoes) : {}) };
+      return { eu: eu(), agir, assistindo: () => !!(mesa && mesa.assistindo), anfitriao: () => mesa && mesa.souAnfitriao, nomeAnfitriao: () => mesa && mesa.anfitriao, deNovo() { if (mesa && mesa.souAnfitriao) deNovo(); }, sair, cabeca: rosto, som, opcoes: () => (mesa ? opcoesValidas(JOGOS[mesa.jogo], mesa.opcoes) : {}) };
     }
     // Botões de escolha no jeito da sala do Xadrez.
     function seg(rotulo, opcoes, atual, escolher, desligado) {
@@ -492,7 +622,7 @@
       if (mesa && mesa.fase !== 'fim' && mesa.jogo !== jogo) { camada.aviso('Termine ou saia da mesa de ' + JOGOS[mesa.jogo].nome + ' primeiro.', { tipo: 'erro' }); mostrar(); return; }
       if (!mesa || mesa.jogo !== jogo || mesa.fase === 'fim') {
         naSala = new Map(); esperasNaSala = [];
-        const m = mesa = { jogo, sessao: sessaoNova(), canal: novoCanal(), anfitriao: eu(), souAnfitriao: true, jogadores: [{ nome: eu(), bot: null }], fase: 'sala', chamados: new Set(), opcoes: opcoesValidas(def, null) };
+        const m = mesa = { jogo, sessao: sessaoNova(), canal: novoCanal(), anfitriao: eu(), souAnfitriao: true, jogadores: [{ nome: eu(), bot: null }], fase: 'sala', chamados: new Set(), opcoes: opcoesValidas(def, null), plateia: new Map() };
         entrarNaSala(m.canal).then(function (ok) { if (mesa === m) { m.naSala = ok; desenhar(); } });
       }
       mostrar();
@@ -530,7 +660,7 @@
       avisarSala();
     }
     function avisarSala() {
-      for (const p of pessoas()) mandar(p.nome, { t: 'ms:sala', j: mesa.jogo, a: mesa.anfitriao, js: mesa.jogadores, op: mesa.opcoes });
+      for (const nome of quemRecebe()) mandar(nome, { t: 'ms:sala', j: mesa.jogo, a: mesa.anfitriao, js: mesa.jogadores, op: mesa.opcoes });
       desenhar();
     }
     function comecar() {
@@ -557,6 +687,13 @@
       const fim = def.fim(mesa.estado);
       if (fim && mesa.fase === 'jogo') { mesa.fase = 'fim'; mesa.resultado = fim; clearInterval(relogio); }
       for (const p of pessoas()) mandar(p.nome, { t: 'ms:estado', j: mesa.jogo, v: mesa.versao, vi: def.visao(mesa.estado, p.nome), f: mesa.fase === 'fim' ? fim : null, js: mesa.jogadores, a: mesa.anfitriao });
+      // Quem assiste vê o que ninguém esconde (sem a mão de ninguém).
+      if (mesa.plateia && mesa.plateia.size) {
+        const agora = Date.now();
+        for (const [k, x] of mesa.plateia) if (agora - x.em > 50000) mesa.plateia.delete(k); // não pediu de novo: foi embora
+        const vista = def.visao(mesa.estado, '');
+        for (const x of mesa.plateia.values()) mandar(x.nome, { t: 'ms:estado', j: mesa.jogo, v: mesa.versao, vi: vista, f: mesa.fase === 'fim' ? fim : null, js: mesa.jogadores, a: mesa.anfitriao });
+      }
       mesa.visao = def.visao(mesa.estado, eu());
       desenhar();
     }
@@ -567,10 +704,11 @@
     }
     function sair() {
       if (mesa) {
-        if (mesa.souAnfitriao) for (const p of pessoas()) mandar(p.nome, { t: 'ms:fim', m: mesa.anfitriao + ' fechou a mesa.' });
+        if (mesa.souAnfitriao) for (const nome of quemRecebe()) mandar(nome, { t: 'ms:fim', m: mesa.anfitriao + ' fechou a mesa.' });
         else mandar(mesa.anfitriao, { t: 'ms:sair' });
       }
       clearInterval(relogio);
+      if (mesa && mesa.manter) clearInterval(mesa.manter);
       const tinhaSala = !!(mesa && mesa.canal);
       mesa = null;
       if (janela) janela.style.display = 'none';
@@ -595,6 +733,20 @@
           if (mesa.fase === 'jogo' && JOGOS[mesa.jogo].sair) { JOGOS[mesa.jogo].sair(mesa.estado, p.nome); publicar(); }
           else avisarSala();
           camada.aviso(de + ' saiu da mesa.');
+        } else if (d.t === 'ms:sair' && mesa.plateia && mesa.plateia.delete(de.toLowerCase())) {
+          desenhar();
+        } else if (d.t === 'ms:assistir' && !p) {
+          const k = de.toLowerCase(), novo = !mesa.plateia.has(k);
+          if (novo && mesa.plateia.size >= 12) return;
+          mesa.plateia.set(k, { nome: de, em: Date.now() });
+          if (novo) { camada.aviso(de + ' está assistindo a mesa.'); desenhar(); }
+          if (mesa.fase === 'sala') mandar(de, { t: 'ms:sala', j: mesa.jogo, a: mesa.anfitriao, js: mesa.jogadores, op: mesa.opcoes });
+          if (novo && mesa.fase !== 'sala') publicar();
+        } else if (d.t === 'ms:chat' && (p || mesa.plateia.has(de.toLowerCase()))) {
+          const x = limparFala(d.x), agora = Date.now();
+          if (!x || agora - (falouEm.get(de.toLowerCase()) || 0) < 600) return;
+          falouEm.set(de.toLowerCase(), agora);
+          espalharFala(p ? p.nome : de, x);
         } else if (d.t === 'ms:acao' && p && mesa.fase === 'jogo' && d.a && typeof d.a === 'object') {
           if (JOGOS[mesa.jogo].aplicar(mesa.estado, p.nome, d.a)) publicar();
         }
@@ -612,7 +764,9 @@
         if (d.f) { mesa.fase = 'fim'; mesa.resultado = d.f; }
         else if (mesa.fase === 'fim') { mesa.fase = 'jogo'; mesa.resultado = null; mesa.festejado = false; }
         desenhar();
-      } else if (d.t === 'ms:fim') { camada.aviso(String(d.m || 'A mesa foi fechada.').slice(0, 120)); mesa = null; if (janela) janela.style.display = 'none'; sairDaSala(); }
+      } else if (d.t === 'ms:chat' && typeof d.de === 'string') {
+        mostrarFala(d.de.slice(0, 40), limparFala(d.x));
+      } else if (d.t === 'ms:fim') { if (mesa.manter) clearInterval(mesa.manter); camada.aviso(String(d.m || 'A mesa foi fechada.').slice(0, 120)); mesa = null; if (janela) janela.style.display = 'none'; sairDaSala(); }
     }
     function mostrarConvite(de, d) {
       if (convite) fecharConvite();
@@ -670,8 +824,8 @@
     };
     ligar();
     ctx.aoParar(function () { clearInterval(relogioFase); sair(); sairDaSala(); fecharConvite(); if (tirarOuvinte) tirarOuvinte(); estilo.remove(); if (janela) janela.remove(); janela = null; });
-    return { abrir, receber, mesa: () => mesa };
+    return { abrir, receber, assistir, sair, mesa: () => mesa };
   }
 
-  VL.mesa = { registrar, iniciar, arte, JOGOS };
+  VL.mesa = { registrar, iniciar, arte, JOGOS, criarChat, limparFala };
 })(typeof globalThis !== 'undefined' ? globalThis : this);

@@ -73,6 +73,22 @@
     const p = c.geometry.getScreenPoint({ x, y, z });
     return p && { x: p.x * c.scale + c.width / 2 + c.screenOffsetX, y: p.y * c.scale + c.height / 2 + c.screenOffsetY };
   }
+  // Topo da cabeça dos avatares (índices do quarto), em pixels do canvas antes do zoom da câmera: o módulo
+  // Jogos põe ali o ícone de quem está numa partida. Os desvios da imagem estão na escala do motor (c.scale).
+  function cabecas(ids) {
+    const c = cena();
+    if (!c || !c.geometry || !Array.isArray(ids)) return null;
+    const saida = {};
+    for (const id of ids.slice(0, 60)) {
+      if (!Number.isInteger(id) || id < 0) continue;
+      const o = motor.getRoomObject(motor.activeRoomId, id, 100);
+      const loc = o && o.getLocation(), r = o && o.visualization && o.visualization.getBoundingRectangle();
+      const p = loc && r && r.width > 0 ? projetar(c, loc.x, loc.y, loc.z) : null;
+      if (p) saida[id] = [Math.round(p.x + (r.x + r.width / 2) * c.scale), Math.round(p.y + r.y * c.scale)];
+    }
+    return { cabecas: saida };
+  }
+
   function informarMapa() {
     const c = cena();
     if (!c || !c.geometry) return;
@@ -358,6 +374,7 @@
           ok = alturaForcada == null || remendarPilha();
           break;
         case 'ocultar': if (!motor) preparar(); ok = !!motor && ocultar(d.ids); break;
+        case 'cabecas': if (!motor) preparar(); extra = motor ? cabecas(d.ids) : null; ok = !!extra; break;
         case 'cancelar': pararSelecao(); pararPrevia(); break;
         case 'desativar':
           ativo = false; pararSelecao(); pararPrevia(); pararColocacao(); ocultar([]);
