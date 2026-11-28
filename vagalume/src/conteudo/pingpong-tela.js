@@ -1,8 +1,9 @@
 // Vagalume — tela do ping-pong em 3D (pedido do usuário em 2026-11-23, com um vídeo mostrando o estilo): mesa em
 // perspectiva vista de trás de quem joga, bola em arco com sombra e marca do quique, a sua raquete grande na frente
-// seguindo o mouse (para os lados e para a frente) e o adversário no fundo. Cenário: arena de campeonato em tigela (quadra,
-// placas, arquibancada com público e refletores), mesa azul com pés de metal e raquetes com espessura. Regras e física
-// em core/pingpong.js.
+// seguindo o mouse (para os lados e para a frente) e o adversário no fundo, em pé atrás da mesa. Em pixel art no jeito do
+// ZERA! (a cena é desenhada pequena e ampliada sem suavizar): um quarto do hotel com parede listrada, janela, a faixa do
+// torneio, chão de tacos e tapete vermelho, torcida de avatares do hotel, mesa azul com pés de metal e raquetes com
+// espessura. Regras e física em core/pingpong.js.
 // Contra o bot tudo roda aqui. Entre duas pessoas, quem recebe a bola decide o lance (rebatida, quique, rede, fora) e
 // manda a rebatida ou o ponto ao outro (com confirmação, pelo módulo Jogos); a raquete de cada um vai para o outro
 // várias vezes por segundo só para aparecer. Do lado de quem bateu, a bola espera na raquete do outro até a resposta.
@@ -21,11 +22,21 @@
   const sorteio = (a, b) => a + Math.random() * (b - a);
   // Por que o ponto aconteceu (aviso grande e linha de baixo).
   const MOTIVO = { fora: 'Fora!', rede: 'Na rede!', dois: 'Quicou duas vezes', passou: 'Passou!', proprio: 'Quicou do lado errado' };
-  // Ginásio: chão da quadra (altura do piso, em metros abaixo do tampo), placas, arquibancada e público fixos.
+  // Quarto do hotel: chão (altura do piso, em metros abaixo do tampo), paredes nas laterais (±x) e no fundo (y1).
   const CHAO = -0.76;
-  const QUADRA = { x: 4.6, y0: -1.4, y1: L + 5 };
-  // Tigela da arena: centro, raios do muro e o arco desenhado (o lado de trás da câmera fica de fora).
-  const ARENA = { cx: 0, cy: MEIO + 1, rx: 8.2, ry: 9.5, ang0: 0.12, ang1: Math.PI - 0.12, segmentos: 44 };
+  const SALA = { x: 4.2, y0: -1.4, y1: L + 3.2, alto: 3.1 };
+  const PIXEL = 2; // pontos da tela por ponto do desenho (como o ZERA!, ampliado 2×)
+  const FONTE = 'Goldfish, Volter, Ubuntu, system-ui, sans-serif';
+  // Avatares do hotel (torcida e adversário): visuais prontos para completar quem não tem.
+  const IMAGER = 'https://imaging.habblet.city/avatarimage?figure=';
+  const VISUAIS = ['hd-180-1.hr-828-61.ch-3030-110.lg-275-110.sh-290-62', 'hd-600-1.hr-515-33.ch-635-70.lg-716-66.sh-735-68', 'hd-190-2.hr-115-42.ch-215-82.lg-285-82.sh-305-62',
+    'hd-180-7.hr-893-45.ch-3030-64.lg-275-64.sh-290-110', 'hd-600-2.hr-890-40.ch-660-73.lg-700-62.sh-725-62', 'hd-205-1.hr-165-45.ch-210-66.lg-270-82.sh-290-80',
+    'hd-600-1.hr-515-61.ch-635-82.lg-716-62.sh-735-62', 'hd-180-1.ch-210-66.lg-270-82.sh-290-80.hr-100-61'];
+  // Lugares da torcida (em metros, na vista de quem joga) e para onde cada um olha: fundo de frente, laterais para a mesa.
+  const TORCIDA = [
+    { x: -3.0, y: SALA.y1 - 0.6, dir: 3 }, { x: -2.0, y: SALA.y1 - 0.85, dir: 3 }, { x: 2.0, y: SALA.y1 - 0.85, dir: 3 }, { x: 3.0, y: SALA.y1 - 0.6, dir: 3 },
+    { x: -SALA.x + 0.7, y: 3.6, dir: 2 }, { x: -SALA.x + 0.7, y: 1.6, dir: 2 }, { x: SALA.x - 0.7, y: 2.6, dir: 4 }, { x: SALA.x - 0.7, y: 4.4, dir: 4 },
+  ];
 
   function criar(o) {
     const eu = o.minhaCor, ele = P.outra(eu), bot = o.modo === 'bot';
@@ -57,7 +68,9 @@
       estado,
       el('p', { class: 'vl-pp-dica', texto: 'Leve a raquete até a bola com o mouse (ou setas / WASD). Na hora da batida, empurre para a frente para bater mais forte (forte demais vai para fora) e puxe para o lado para dar efeito: a bola faz curva. Clique ou espaço para sacar.' }),
     ]);
-    const g = canvas.getContext('2d');
+    // A cena é desenhada numa tela pequena (um ponto do desenho = PIXEL pontos da tela) e ampliada sem suavizar.
+    const buf = document.createElement('canvas');
+    const g = buf.getContext('2d'), gTela = canvas.getContext('2d');
 
     // ---------- controles ----------
     const dpr = () => Math.min(2, raiz.devicePixelRatio || 1);
@@ -150,6 +163,7 @@
       if (placar) s.pontos = placar; else s.pontos[ganhou]++;
       s.fase = 'ponto'; s.ate = agora() + 1.4; s.segura = false; s.escala = 1; s.previsao = null; s.desvio = null;
       s.ultimoPonto = { ganhou, motivo: MOTIVO[motivo] ? motivo : null };
+      s.vibra = agora();
       o.som('ponto');
       const v = P.vencedor(s.pontos);
       if (v) { s.venceu = v; avisar(v === eu ? 'Você venceu!' : o.nome(v) + ' venceu!', 3); if (v === eu) festa(); }
@@ -375,14 +389,18 @@
     function poligono(pts) { g.beginPath(); pts.forEach((p, i) => (i ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y))); g.closePath(); }
     function desenhar() {
       medir();
-      const W = canvas.width, H = canvas.height, d = dpr();
+      const W = canvas.width, H = canvas.height, d = dpr(), k = PIXEL * d;
+      const bw = Math.ceil(W / k), bh = Math.ceil(H / k);
+      if (buf.width !== bw || buf.height !== bh) { buf.width = bw; buf.height = bh; }
+      g.setTransform(1 / k, 0, 0, 1 / k, 0, 0); // o desenho continua nas medidas da tela grande
       const cam = (s.camera = montarCamera(W, H));
       const t = agora();
-      ginasio(cam, d, W, H, t);
+      sala(cam, d, W, H, t);
       // Depois do ponto a bola pode rolar no chão para trás da câmera: aí ela some (a conta da tela daria raio negativo).
       const b0 = bolaVisivel(), b = b0 && vista(b0.x, b0.y).y > cam.C.y + 0.3 ? b0 : null;
       const bolaEmbaixo = b && escondidaPelaMesa(cam, b);
       sombrasNoChao(cam, d, b);
+      adversario(cam); // em pé atrás da mesa: o tampo esconde as pernas
       if (bolaEmbaixo) bola(cam, b, d);
       mesa(cam, d);
       sombras(cam, d);
@@ -435,164 +453,133 @@
         g.translate(W / 2, H * 0.3);
         const escala = 1 + Math.max(0, 0.25 - vida) * 1.2;
         g.scale(escala, escala);
-        g.font = '800 ' + Math.round(H * 0.11) + 'px system-ui, "Segoe UI", sans-serif';
-        g.textAlign = 'center'; g.textBaseline = 'middle';
-        g.lineWidth = H * 0.018; g.strokeStyle = 'rgba(10,14,26,.85)'; g.strokeText(s.aviso.texto, 0, 0);
-        g.fillStyle = '#f2ffc0'; g.fillText(s.aviso.texto, 0, 0);
+        g.font = '700 ' + Math.round(H * 0.1) + 'px ' + FONTE;
+        g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineJoin = 'round';
+        g.lineWidth = H * 0.03; g.strokeStyle = '#000000'; g.strokeText(s.aviso.texto, 0, 0);
+        g.fillStyle = '#ffcc00'; g.fillText(s.aviso.texto, 0, 0);
         g.restore();
       }
+      // Amplia sem suavizar: pixel art.
+      gTela.imageSmoothingEnabled = false;
+      gTela.clearRect(0, 0, W, H);
+      gTela.drawImage(buf, 0, 0, bw * k, bh * k);
     }
     function bolaVisivel() {
       if (s.bola) return s.bola;
       if (s.fase === 'saque') { const q = sacadorAgora(); const b = P.posicaoDeSaque(q, s.raq[q].x); b.z = 0.24 + Math.sin(agora() * 4) * 0.03; return b; }
       return null;
     }
-    // Arena de campeonato em forma de tigela: dois anéis de arquibancada com o público na penumbra, faixas de LED,
-    // escadas iluminadas e refletores no teto. Essa parte é desenhada uma vez numa tela à parte (com a câmera no meio)
-    // e copiada a cada quadro com o deslocamento da câmera; piso, placas e flashes são desenhados ao vivo.
-    let arenaCache = null;
+    // ---------- quarto do hotel (no jeito do quarto do ZERA!) ----------
+    // Desenhado a cada quadro (é pouca coisa e a câmera anda um pouco para os lados), na vista de quem joga.
     function pol(c, pts) { c.beginPath(); pts.forEach((p, i) => (i ? c.lineTo(p.x, p.y) : c.moveTo(p.x, p.y))); c.closePath(); }
     const ok = (...pts) => pts.every((p) => p.s > 0 && Number.isFinite(p.x) && Number.isFinite(p.y));
-    const tigela = (r, a, z) => ({ x: ARENA.cx + (ARENA.rx + r) * Math.cos(a), y: ARENA.cy + (ARENA.ry + r) * Math.sin(a), z });
-    function pintarArena(c, cam, W, H) {
-      const ceu = c.createLinearGradient(0, 0, 0, H);
-      ceu.addColorStop(0, '#020308'); ceu.addColorStop(0.6, '#070b16'); ceu.addColorStop(1, '#0a0e1a');
-      c.fillStyle = ceu; c.fillRect(0, 0, W, H);
-      // Piso vinho até o muro da tigela.
-      const chao = [cam.p(ARENA.rx + 1, -1.4, CHAO)]; // canto direito, arco da direita para a esquerda, canto esquerdo
-      for (let i = 0; i <= 40; i++) { const a = ARENA.ang0 - 0.1 + i * (ARENA.ang1 - ARENA.ang0 + 0.2) / 40, q = tigela(0.3, a, CHAO), p = cam.p(q.x, q.y, CHAO); if (ok(p)) chao.push(p); }
-      chao.push(cam.p(-ARENA.rx - 1, -1.4, CHAO));
-      const piso = c.createLinearGradient(0, H * 0.3, 0, H);
-      piso.addColorStop(0, '#3a101d'); piso.addColorStop(1, '#6a1f2e');
-      c.fillStyle = piso; pol(c, chao); c.fill();
-      const P3 = (r, a, z) => { const q = tigela(r, a, z); return cam.p(q.x, q.y, z); };
-      const quad = (r0, r1, a0, a1, z0, z1, cor) => { // trecho de superfície entre dois raios/alturas
-        const pts = [P3(r0, a0, z0), P3(r0, a1, z0), P3(r1, a1, z1), P3(r1, a0, z1)];
-        if (!ok(...pts)) return; c.fillStyle = cor; pol(c, pts); c.fill();
-      };
-      const N = ARENA.segmentos, a0 = ARENA.ang0, da = (ARENA.ang1 - ARENA.ang0) / N;
-      const corredor = (i) => i % 7 === 3; // escadas
-      // Teto: treliça escura em anel e as caixas de luz.
-      for (let i = 0; i < 26; i++) {
-        const a = 0.15 + i * (Math.PI - 0.3) / 25, q = { x: Math.cos(a) * 7.5, y: MEIO + 2 + Math.sin(a) * 8.5 }, p = cam.p(q.x, q.y, CHAO + 15);
-        if (!ok(p) || p.y > H * 0.6) continue;
-        const w = 0.9 * p.s, h = 0.32 * p.s;
-        const brilho = c.createRadialGradient(p.x, p.y, 0, p.x, p.y, w * 2.2);
-        brilho.addColorStop(0, 'rgba(235,240,255,.35)'); brilho.addColorStop(1, 'rgba(235,240,255,0)');
-        c.fillStyle = brilho; c.fillRect(p.x - w * 2.2, p.y - w * 2.2, w * 4.4, w * 4.4);
-        c.fillStyle = '#1a1f2c'; c.fillRect(p.x - w * 0.6, p.y - h * 0.65, w * 1.2, h * 1.3);
-        c.fillStyle = '#f6f8ff';
-        for (let k = -1; k <= 1; k++) c.fillRect(p.x + k * w * 0.36 - w * 0.14, p.y - h * 0.35, w * 0.28, h * 0.7);
-      }
-      // Anel de cima (do fundo para a frente), faixa de LED do meio, anel de baixo e o muro.
-      const fileiras = (rIni, zIni, n, alto) => {
-        for (let k = n - 1; k >= 0; k--) {
-          const r = rIni + k * 0.8, z = zIni + k * alto;
-          for (let i = 0; i < N; i++) {
-            const aa = a0 + i * da, ab = aa + da;
-            quad(r, r + 0.8, aa, ab, z, z, corredor(i) ? '#1d2436' : (k % 2 ? '#111725' : '#141b2b'));
-            quad(r, r, aa, ab, z - alto, z, '#0b101c');
-            if (corredor(i)) { const p = P3(r + 0.1, aa + da / 2, z); if (ok(p)) { c.fillStyle = 'rgba(120,200,255,.55)'; c.fillRect(p.x - 1.2, p.y - 0.6, 2.4, 1.2); } continue; }
-            for (let j = 0; j < 4; j++) { // público
-              const h = Math.sin(i * 12.9898 + k * 78.233 + j * 37.719) * 43758.5453, q = h - Math.floor(h);
-              if (q < 0.1) continue;
-              const a = aa + da * (j + 0.5) / 4, corpo = P3(r + 0.42, a, z + 0.28), cab = P3(r + 0.42, a, z + 0.62);
-              if (!ok(corpo, cab)) continue;
-              const luz = 0.3 + 0.35 * (1 - k / n) + q * 0.1; // na penumbra, mais claro perto da quadra
-              c.fillStyle = 'hsl(' + Math.floor(q * 360) + ',' + Math.floor(12 + q * 18) + '%,' + Math.floor(9 + luz * 16) + '%)';
-              c.beginPath(); c.ellipse(corpo.x, corpo.y, 0.12 * corpo.s, 0.16 * corpo.s, 0, 0, Math.PI * 2); c.fill();
-              c.fillStyle = 'hsl(24,' + Math.floor(18 + q * 15) + '%,' + Math.floor(14 + luz * 20) + '%)';
-              c.beginPath(); c.arc(cab.x, cab.y, 0.075 * cab.s, 0, Math.PI * 2); c.fill();
-            }
-          }
-        }
-      };
-      const zBaixo = CHAO + 1.05, zCima = zBaixo + 10 * 0.42 + 0.9;
-      fileiras(9.2, zCima, 11, 0.5);
-      // Faixa de LED do meio (como um painel contínuo) com o nome do torneio no centro.
-      for (let i = 0; i < N; i++) {
-        const aa = a0 + i * da, ab = aa + da;
-        const pts = [P3(8.4, aa, zCima - 0.9), P3(8.4, ab, zCima - 0.9), P3(8.4, ab, zCima - 0.2), P3(8.4, aa, zCima - 0.2)];
-        if (!ok(...pts)) continue;
-        const gr = c.createLinearGradient(0, pts[3].y, 0, pts[0].y);
-        gr.addColorStop(0, '#5ee7ff'); gr.addColorStop(0.5, '#1a7fe0'); gr.addColorStop(1, '#0a2f7a');
-        c.fillStyle = gr; pol(c, pts); c.fill();
-      }
-      const mid = P3(8.4, Math.PI / 2, zCima - 0.55);
-      if (ok(mid)) {
-        c.font = '800 ' + Math.round(0.5 * mid.s) + 'px system-ui, "Segoe UI", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
-        c.fillStyle = '#ffffff'; c.fillText('VAGALUME OPEN', mid.x, mid.y);
-      }
-      fileiras(0.4, zBaixo + 0.42, 10, 0.42);
-      // Muro da tigela com faixa de LED em cima.
-      for (let i = 0; i < N; i++) {
-        const aa = a0 + i * da, ab = aa + da;
-        quad(0, 0, aa, ab, CHAO, zBaixo, '#0c1222');
-        const pts = [P3(0, aa, zBaixo - 0.3), P3(0, ab, zBaixo - 0.3), P3(0, ab, zBaixo - 0.05), P3(0, aa, zBaixo - 0.05)];
-        if (ok(...pts)) { c.fillStyle = i % 2 ? '#1e88ff' : '#2aa3ff'; pol(c, pts); c.fill(); }
-      }
-      // Névoa de luz sobre a arena.
-      const ar = c.createRadialGradient(W / 2, H * 0.1, 0, W / 2, H * 0.1, H);
-      ar.addColorStop(0, 'rgba(140,170,255,.10)'); ar.addColorStop(1, 'rgba(140,170,255,0)');
-      c.fillStyle = ar; c.fillRect(0, 0, W, H);
+    const imagens = new Map();
+    function avatar(fig, dir, acao) {
+      const url = IMAGER + encodeURIComponent(fig) + '&direction=' + dir + '&head_direction=' + dir + '&action=' + (acao || 'std') + '&gesture=sml&size=m';
+      let im = imagens.get(url);
+      if (!im) { im = new Image(); im.decoding = 'async'; im.src = url; imagens.set(url, im); }
+      return im.complete && im.naturalWidth ? im : null;
     }
-    // Flashes de câmera na arquibancada: lugares fixos, cada um pisca às vezes.
-    const FLASHES = Array.from({ length: 36 }, (_, i) => { const h = Math.sin(i * 91.17) * 43758.5453, q = h - Math.floor(h); return { r: 1 + q * 16, a: ARENA.ang0 + 0.2 + ((i * 0.618) % 1) * (ARENA.ang1 - ARENA.ang0 - 0.4), z: 0, fase: q * 40 }; });
-    FLASHES.forEach((f) => { f.z = f.r < 8.4 ? CHAO + 1.6 + (f.r / 8) * 4 : CHAO + 7 + ((f.r - 9) / 8) * 5; });
-    function ginasio(cam, d, W, H, t) {
-      const margem = Math.round(W * 0.12);
-      if (!arenaCache || arenaCache.w !== W || arenaCache.h !== H) {
-        const tela = document.createElement('canvas'); tela.width = W + margem * 2; tela.height = H;
-        const ctx = tela.getContext('2d');
-        if (ctx) pintarArena(ctx, montarCamera(W + margem * 2, H, 0), W + margem * 2, H);
-        arenaCache = { w: W, h: H, tela, cam: montarCamera(W + margem * 2, H, 0) };
-      }
-      // Deslocamento da câmera: casa um ponto do fundo da arena entre a câmera fixa e a de agora.
-      const ref = { x: 0, y: ARENA.cy + ARENA.ry + 5, z: CHAO + 5 };
-      const vivo = cam.p(ref.x, ref.y, ref.z), fixo = arenaCache.cam.p(ref.x, ref.y, ref.z);
-      g.drawImage(arenaCache.tela, Math.round(vivo.x - fixo.x) - margem + 0, Math.round(vivo.y - fixo.y));
-      for (const f of FLASHES) {
-        const k = Math.sin(t * 0.7 + f.fase);
-        if (k < 0.985) continue;
-        const q = tigela(f.r, f.a, f.z), p = cam.p(q.x, q.y, f.z);
-        if (!ok(p)) continue;
-        const r = 9 * d * (k - 0.985) / 0.015;
-        const br = g.createRadialGradient(p.x, p.y, 0, p.x, p.y, r);
-        br.addColorStop(0, 'rgba(255,255,255,.95)'); br.addColorStop(1, 'rgba(255,255,255,0)');
-        g.fillStyle = br; g.fillRect(p.x - r, p.y - r, r * 2, r * 2);
-      }
-      const cm = cam.p(0, MEIO, CHAO);
-      const reflexo = g.createRadialGradient(cm.x, cm.y, 0, cm.x, cm.y, W * 0.5);
-      reflexo.addColorStop(0, 'rgba(255,225,235,.14)'); reflexo.addColorStop(1, 'rgba(255,225,235,0)');
-      g.fillStyle = reflexo; g.fillRect(0, 0, W, H);
-      // Placas em volta da área de jogo: painéis azuis com faixas coloridas e o nome.
-      const hp = 0.8;
-      const painel = (pA, pB, rot) => { // pA, pB: pontas de baixo (x, y) do painel
-        const P = (u, v) => cam.p(pA.x + (pB.x - pA.x) * u, pA.y + (pB.y - pA.y) * u, CHAO + hp * v);
-        const base = [P(0, 0), P(1, 0), P(1, 1), P(0, 1)];
-        if (!ok(...base)) return;
-        const gr = g.createLinearGradient(base[0].x, 0, base[1].x, 0);
-        gr.addColorStop(0, '#0f3fb8'); gr.addColorStop(1, '#2d72f0');
-        g.fillStyle = gr; poligono(base); g.fill();
-        g.save(); poligono(base); g.clip();
-        for (const [u, larg, cor] of [[0.05, 0.12, '#ff3d8b'], [0.2, 0.06, '#22d3ee'], [0.62, 0.1, '#8b5cf6'], [0.78, 0.05, '#ff3d8b']]) {
-          g.fillStyle = cor; poligono([P(u, 0), P(u + larg, 0), P(u + larg + 0.12, 1), P(u + 0.12, 1)]); g.fill();
+    // Pés no chão em (x, y); 1,9 m de altura na escala de onde está.
+    function desenharAvatar(cam, im, x, y, pulo) {
+      const p = cam.p(x, y, CHAO);
+      if (!ok(p)) return;
+      const h = 1.9 * p.s, w = h * im.naturalWidth / im.naturalHeight;
+      g.drawImage(im, p.x - w / 2, p.y - h * 0.94 - (pulo || 0) * p.s, w, h);
+    }
+    // Torcida: quem está no quarto do hotel (com o visual de cada um) e, para completar, visuais prontos.
+    const torcida = (function () {
+      const jogando = new Set([eu, ele].map((c) => String(o.nome(c) || '').toLowerCase()));
+      const figs = [];
+      try {
+        for (const n of (VL.pessoas && VL.pessoas.lista ? VL.pessoas.lista() : [])) {
+          if (figs.length >= TORCIDA.length) break;
+          if (jogando.has(String(n).toLowerCase())) continue;
+          const v = VL.pessoas.visualDe ? VL.pessoas.visualDe(n) : null, fig = typeof v === 'string' ? v : v && typeof v.visual === 'string' ? v.visual : null;
+          if (fig) figs.push(fig);
         }
-        g.restore();
-        if (rot) {
-          const c = P(0.5, 0.5);
-          g.font = 'italic 800 ' + Math.max(6, Math.round(0.24 * c.s)) + 'px system-ui, "Segoe UI", sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
-          g.lineWidth = Math.max(1, 0.05 * c.s); g.strokeStyle = 'rgba(5,20,60,.6)'; g.strokeText(rot, c.x, c.y);
-          g.fillStyle = '#ffffff'; g.fillText(rot, c.x, c.y);
-          const pt = P(0.1, 0.5);
-          g.fillStyle = '#d6f24a'; g.beginPath(); g.arc(pt.x, pt.y, 0.08 * pt.s, 0, Math.PI * 2); g.fill();
-        }
-        const t1 = P(0, 1), t2 = P(1, 1);
-        g.strokeStyle = 'rgba(255,255,255,.5)'; g.lineWidth = 1 * d; g.beginPath(); g.moveTo(t1.x, t1.y); g.lineTo(t2.x, t2.y); g.stroke();
-      };
-      const fx = QUADRA.x, y1 = QUADRA.y1, n = 5, larg = (2 * fx) / n;
-      for (const x of [-fx, fx]) for (let i = 0; i < 4; i++) { const ya = QUADRA.y0 + i * (y1 - QUADRA.y0) / 4, yb = ya + (y1 - QUADRA.y0) / 4; painel({ x, y: ya }, { x, y: yb }, ''); }
-      for (let i = 0; i < n; i++) painel({ x: -fx + i * larg, y: y1 }, { x: -fx + (i + 1) * larg, y: y1 }, i % 2 ? 'OPEN' : 'VAGALUME');
+      } catch (e) { /* sem a lista do quarto */ }
+      for (let i = 0; figs.length < TORCIDA.length; i++) figs.push(VISUAIS[i % VISUAIS.length]);
+      return TORCIDA.map((l, i) => Object.assign({ fig: figs[i], fase: i * 0.9 }, l));
+    })();
+    function sala(cam, d, W, H, t) {
+      const Z0 = CHAO, Z1 = CHAO + SALA.alto, X = SALA.x, Y0 = SALA.y0, Y1 = SALA.y1, um = PIXEL * d;
+      const P = (x, y, z) => cam.p(x, y, z);
+      const quad = (pts, cor) => { if (!ok(...pts)) return; g.fillStyle = cor; pol(g, pts); g.fill(); };
+      const traco = (a, b, cor, lw) => { if (!ok(a, b)) return; g.strokeStyle = cor; g.lineWidth = lw || um; g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke(); };
+      // Muitas linhas ou tacos de uma cor só: um caminho só (a tela do jogo pode rodar a 180 quadros por segundo).
+      const linhas = (pares, cor) => { g.beginPath(); for (const [a, b] of pares) if (ok(a, b)) { g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); } g.strokeStyle = cor; g.lineWidth = um; g.stroke(); };
+      g.fillStyle = '#07080c'; g.fillRect(0, 0, W, H); // acima das paredes: o escuro do hotel
+      // Chão de tacos (xadrez suave) com rejunte.
+      quad([P(-X, Y0, Z0), P(X, Y0, Z0), P(X, Y1, Z0), P(-X, Y1, Z0)], '#9d7650');
+      const T = 0.6, rejunte = [];
+      g.beginPath();
+      for (let i = 0; Y0 + i * T < Y1; i++) for (let j = 0; -X + j * T < X; j++) {
+        if ((i + j) % 2) continue;
+        const y = Y0 + i * T, x = -X + j * T, pts = [P(x, y, Z0), P(Math.min(X, x + T), y, Z0), P(Math.min(X, x + T), Math.min(Y1, y + T), Z0), P(x, Math.min(Y1, y + T), Z0)];
+        if (!ok(...pts)) continue;
+        pts.forEach((p, k) => (k ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y))); g.closePath();
+      }
+      g.fillStyle = '#a68058'; g.fill();
+      for (let y = Y0; y <= Y1 + 1e-6; y += T) rejunte.push([P(-X, y, Z0), P(X, y, Z0)]);
+      for (let x = -X; x <= X + 1e-6; x += T) rejunte.push([P(x, Y0, Z0), P(x, Y1, Z0)]);
+      linhas(rejunte, '#86613d');
+      // Tapete vermelho com barra dourada debaixo da mesa.
+      const tx = 1.55, ta = -0.8, tb = L + 0.8;
+      const tapete = (m, cor) => quad([P(-tx + m, ta + m, Z0), P(tx - m, ta + m, Z0), P(tx - m, tb - m, Z0), P(-tx + m, tb - m, Z0)], cor);
+      tapete(0, '#d1a03c'); tapete(0.08, '#8a2424'); tapete(0.21, '#d1a03c'); tapete(0.26, '#a32d2d');
+      const listrasTapete = [];
+      for (let y = ta + 0.7; y < tb - 0.5; y += 0.5) listrasTapete.push([P(-tx + 0.27, y, Z0), P(tx - 0.27, y, Z0)]);
+      linhas(listrasTapete, '#972929');
+      // Paredes (a da esquerda mais clara, como no hotel): listras finas, rodapé de madeira e a borda de cima.
+      const paredes = [
+        { a: { x: -X, y: Y0 }, b: { x: -X, y: Y1 }, cor: '#5a7a9c', listra: '#6687a9', rodape: '#6b4428', friso: '#9b6a3e', topo: '#7d9cbd' },
+        { a: { x: X, y: Y1 }, b: { x: X, y: Y0 }, cor: '#48657f', listra: '#536f8b', rodape: '#5a381f', friso: '#87592f', topo: '#6584a2' },
+        { a: { x: -X, y: Y1 }, b: { x: X, y: Y1 }, cor: '#52718f', listra: '#5f7f9f', rodape: '#633f24', friso: '#93643a', topo: '#7393b3' },
+      ];
+      for (const w of paredes) {
+        const Q = (u, z) => P(w.a.x + (w.b.x - w.a.x) * u, w.a.y + (w.b.y - w.a.y) * u, z);
+        quad([Q(0, Z1), Q(1, Z1), Q(1, Z0), Q(0, Z0)], w.cor);
+        const n = Math.round(Math.hypot(w.b.x - w.a.x, w.b.y - w.a.y) / 0.3);
+        linhas(Array.from({ length: Math.max(0, n - 1) }, (_, i) => [Q((i + 1) / n, Z0 + 0.3), Q((i + 1) / n, Z1 - 0.1)]), w.listra);
+        quad([Q(0, Z0 + 0.28), Q(1, Z0 + 0.28), Q(1, Z0), Q(0, Z0)], w.rodape);
+        traco(Q(0, Z0 + 0.28), Q(1, Z0 + 0.28), w.friso);
+        traco(Q(0, Z0 + 0.3), Q(1, Z0 + 0.3), '#2e1c0e');
+        quad([Q(0, Z1), Q(1, Z1), Q(1, Z1 - 0.09), Q(0, Z1 - 0.09)], w.topo);
+        traco(Q(0, Z1 - 0.09), Q(1, Z1 - 0.09), '#2b3d50');
+      }
+      // Parede do fundo: quadro com duas cartas, a faixa do torneio e a janela com a noite.
+      const F = (x, z) => P(x, Y1 - 0.01, z);
+      const ret = (x0, x1, z0, z1, cor) => quad([F(x0, z1), F(x1, z1), F(x1, z0), F(x0, z0)], cor);
+      ret(-3.05, -1.75, Z0 + 1.25, Z0 + 2.2, '#c79a3a'); ret(-2.97, -1.83, Z0 + 1.33, Z0 + 2.12, '#2d5b3a');
+      ret(-2.62, -2.42, Z0 + 1.55, Z0 + 1.88, '#f3f3f3'); ret(-2.6, -2.44, Z0 + 1.57, Z0 + 1.86, '#d8342a');
+      ret(-2.38, -2.18, Z0 + 1.52, Z0 + 1.85, '#f3f3f3'); ret(-2.36, -2.2, Z0 + 1.54, Z0 + 1.83, '#2f86e6');
+      ret(1.75, 3.05, Z0 + 1.15, Z0 + 2.35, '#e8e2d0'); ret(1.83, 2.97, Z0 + 1.23, Z0 + 2.27, '#101a3a');
+      for (let i = 0; i < 9; i++) { const q = Math.abs(Math.sin(i * 12.9898) * 43758.5453) % 1, p = F(1.9 + q * 1.0, Z0 + 1.3 + ((i * 0.37) % 1) * 0.9); if (ok(p)) { g.fillStyle = '#ffffff'; g.fillRect(p.x, p.y, um, um); } }
+      const lua = F(2.75, Z0 + 2.05);
+      if (ok(lua)) { g.fillStyle = '#fff3b0'; g.fillRect(lua.x - 3 * um, lua.y - 3 * um, 6 * um, 6 * um); g.fillStyle = '#101a3a'; g.fillRect(lua.x - 3 * um, lua.y - 3 * um, 3 * um, 3 * um); }
+      const jm = F(2.4, Z0 + 1.75), lw = Math.max(um, 0.05 * jm.s);
+      traco(F(2.4, Z0 + 1.23), F(2.4, Z0 + 2.27), '#e8e2d0', lw); traco(F(1.83, Z0 + 1.75), F(2.97, Z0 + 1.75), '#e8e2d0', lw);
+      ret(-1.2, 1.2, Z0 + 2.15, Z0 + 2.75, '#000000'); ret(-1.16, 1.16, Z0 + 2.19, Z0 + 2.71, '#ffcc00'); ret(-1.1, 1.1, Z0 + 2.25, Z0 + 2.65, '#1f3b5c');
+      const meio = F(0, Z0 + 2.45);
+      if (ok(meio)) {
+        g.font = '700 ' + Math.max(6, Math.round(0.27 * meio.s)) + 'px ' + FONTE; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineJoin = 'round';
+        g.lineWidth = Math.max(um, 0.05 * meio.s); g.strokeStyle = '#000000'; g.strokeText('VAGALUME OPEN', meio.x, meio.y);
+        g.fillStyle = '#ffcc00'; g.fillText('VAGALUME OPEN', meio.x, meio.y);
+      }
+      // Torcida (do fundo para a frente); pula um pouco depois de cada ponto.
+      const pulando = s.vibra && t - s.vibra < 1.2;
+      [...torcida].sort((a, b) => b.y - a.y).forEach(function (q) {
+        const im = avatar(q.fig, q.dir, pulando ? 'wav' : 'std');
+        if (im) desenharAvatar(cam, im, q.x, q.y, pulando ? Math.abs(Math.sin((t - s.vibra) * 9 + q.fase)) * 0.12 : 0);
+      });
+    }
+    // O adversário em pé atrás da ponta dele, acompanhando a raquete (a raquete é desenhada na frente, na mão).
+    function adversario(cam) {
+      const im = avatar((o.visual && o.visual(ele)) || VISUAIS[0], 3);
+      if (!im) return;
+      const v = vista(s.raq[ele].x, s.raq[ele].y);
+      desenharAvatar(cam, im, v.x + 0.3, Math.max(L + 0.25, v.y + 0.15)); // de frente para você: a raquete fica na mão direita dele
     }
     // A mesa esconde a bola quando ela está abaixo do tampo e a linha da câmera até ela atravessa o tampo.
     function escondidaPelaMesa(cam, b) {
@@ -668,7 +655,7 @@
       poligono([cam.p(-W2, L - m, 0), cam.p(W2, L - m, 0), cam.p(W2, L, 0), cam.p(-W2, L, 0)]); g.fill();
       poligono([cam.p(-W2, 0, 0), cam.p(-W2 + m, 0, 0), cam.p(-W2 + m, L, 0), cam.p(-W2, L, 0)]); g.fill();
       poligono([cam.p(W2 - m, 0, 0), cam.p(W2, 0, 0), cam.p(W2, L, 0), cam.p(W2 - m, L, 0)]); g.fill();
-      g.strokeStyle = 'rgba(238,243,248,.9)'; g.lineWidth = 1 * d;
+      g.strokeStyle = 'rgba(238,243,248,.9)'; g.lineWidth = PIXEL * d;
       const a = cam.p(0, m, 0), b = cam.p(0, L - m, 0);
       g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke();
     }

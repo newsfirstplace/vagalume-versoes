@@ -20,6 +20,7 @@
   const TABULEIROS = new Set([1356475873, 1356469514, 2100000708, 886652737, 886652738, 886647434, 886634006, 886655528, 1356476911]);
 
   const NOMES = { xadrez: 'Xadrez', damas: 'Damas', pingpong: 'Ping-pong' };
+  const VISUAL_BOT_PP = 'hd-180-7.hr-893-45.ch-3030-64.lg-275-64.sh-290-110';
   const NIVEIS = [['facil', 'Fácil'], ['medio', 'Médio'], ['dificil', 'Difícil']];
   const GLIFO = { k: '♚', q: '♛', r: '♜', b: '♝', n: '♞', p: '♟' };
   const NOME_PECA = { k: 'rei', q: 'dama', r: 'torre', b: 'bispo', n: 'cavalo', p: 'peão' };
@@ -343,6 +344,25 @@
   .vl-jg.vl-nativo .vl-cr-meu b { color: var(--n-acento); text-shadow: 0 0 12px color-mix(in srgb, var(--n-acento) 50%, transparent); }
   .vl-jg.vl-nativo .vl-pp-pontos { color: var(--n-acento); text-shadow: 0 0 12px color-mix(in srgb, var(--n-acento) 60%, transparent); font-family: ui-monospace, Consolas, monospace; }
   .vl-jg.vl-nativo .vl-pp-estado { color: var(--n-texto); }
+  /* Ping-pong por dentro no jeito do hotel (como o ZERA!): fonte de pixel, painéis com borda preta, botões claros. */
+  .vl-jg.vl-nativo .vl-pp, .vl-jg.vl-nativo .vl-pp-acoes { font-family: Goldfish, Volter, 'Ubuntu', system-ui, sans-serif; }
+  .vl-jg.vl-nativo .vl-pp .vl-pp-jogador { border-radius: 6px; border: 2px solid #000; background: linear-gradient(#34495e, #2a3b4c); box-shadow: inset 0 0 0 2px rgba(255,255,255,.07); padding: 6px 10px; }
+  .vl-jg.vl-nativo .vl-pp .vl-pp-jogador.eu { background: linear-gradient(#3e5872, #30465b); box-shadow: inset 0 0 0 2px rgba(255,255,255,.1), 0 0 0 3px #ffcc00; }
+  .vl-jg.vl-nativo .vl-pp .vl-pp-jogador .nome { font: 700 18px/1 Goldfish, Volter, 'Ubuntu', system-ui, sans-serif; color: #fff; }
+  .vl-jg.vl-nativo .vl-pp .vl-pp-jogador .vl-jg-cabeca { width: 38px; height: 38px; border-radius: 6px; background: linear-gradient(#3c5a76, #22384d); box-shadow: 0 0 0 2px #000, inset 0 0 0 2px rgba(255,255,255,.14); }
+  .vl-jg.vl-nativo .vl-pp .vl-pp-jogador .vl-jg-cabeca img { image-rendering: pixelated; transform: translate(-50%, -54%) scale(.9); }
+  .vl-jg.vl-nativo .vl-pp .vl-pp-pontos { font: 700 32px/1 Goldfish, Volter, 'Ubuntu', system-ui, sans-serif; color: #ffcc00; text-shadow: 2px 0 #000, -2px 0 #000, 0 2px #000, 0 -2px #000, 0 4px 0 #000; }
+  .vl-jg.vl-nativo .vl-pp .vl-pp-saque { border-radius: 0; width: 10px; height: 10px; }
+  .vl-jg.vl-nativo .vl-pp .vl-pp-saque.ativo { background: #ff9b3d; box-shadow: 0 0 0 2px #000, inset 0 2px 0 rgba(255,255,255,.5); }
+  .vl-jg.vl-nativo .vl-pp .vl-pp-meio { font: 16px/1 Goldfish, Volter, 'Ubuntu', system-ui, sans-serif; color: #ffe27a; text-transform: none; letter-spacing: 0; }
+  .vl-jg.vl-nativo .vl-pp .vl-pp-mesa { border-radius: 6px; background: #07080c; box-shadow: 0 0 0 2px #000, 0 0 0 4px #4a6a86, 0 0 0 6px #000; }
+  .vl-jg.vl-nativo .vl-pp .vl-pp-canvas { image-rendering: pixelated; }
+  .vl-jg.vl-nativo .vl-pp .vl-pp-estado { border-radius: 6px; border: 2px solid #000; background: linear-gradient(#2c3e50, #1f2d3a); font: 18px/1.2 Goldfish, Volter, 'Ubuntu', system-ui, sans-serif; color: #fff; box-shadow: inset 0 0 0 2px rgba(255,255,255,.06); }
+  .vl-jg.vl-nativo .vl-pp .vl-pp-dica { font: 15px/1.25 Goldfish, Volter, 'Ubuntu', system-ui, sans-serif; color: #b9c8d8; }
+  .vl-jg.vl-nativo .vl-pp-acoes .vl-jg-botao { font: 700 18px/1 Goldfish, Volter, 'Ubuntu', system-ui, sans-serif; padding: 8px 16px 9px; border: 2px solid #000; border-radius: 6px; background: linear-gradient(#ffffff, #c9cdd2); color: #111;
+    text-transform: none; letter-spacing: 0; box-shadow: inset 0 -3px 0 rgba(0,0,0,.18), 0 3px 0 #000; }
+  .vl-jg.vl-nativo .vl-pp-acoes .vl-jg-botao:hover:not(:disabled) { background: linear-gradient(#ffffff, #d6dade); filter: none; }
+  .vl-jg.vl-nativo .vl-pp-acoes .vl-jg-botao.forte { background: linear-gradient(#fff07a, #f5b81c); }
   /* Lista de jogos: destaque no topo, duas seções e cartões com capa 16:9. */
   .vl-jg.vl-nativo.tema-hub { --n-fundo: #0F1117; --n-barra: #141823; --n-borda: rgba(255,255,255,.08); --n-texto: #eef0f4; --n-suave: rgba(238,240,244,.6);
     --n-acento: #FACC15; --n-acento-texto: #1a1400; --n-acento-sombra: #a8870a; --n-titulo-cor: #eef0f4;
@@ -998,7 +1018,9 @@
         p.pp = VL.pingPongTela.criar({
           minhaCor: o.minhaCor, modo: o.modo, nivel: o.nivel, primeiro: 'w',
           nome: (cor) => nomeDe(cor),
-          cabeca: (cor) => (p.modo === 'bot' && cor !== p.minhaCor ? el('span', { class: 'vl-jg-cabeca', 'aria-hidden': 'true', texto: '🤖' }) : cabeca(nomeDe(cor))),
+          // O bot tem visual do hotel (no placar e em pé atrás da mesa).
+          cabeca: (cor) => cabeca(nomeDe(cor), p.modo === 'bot' && cor !== p.minhaCor ? VISUAL_BOT_PP : null),
+          visual: (cor) => (p.modo === 'bot' && cor !== p.minhaCor ? VISUAL_BOT_PP : visualDe(nomeDe(cor))),
           enviar: (dado, confiavel) => ppEnviar(p, dado, confiavel),
           atraso: () => Math.min(0.4, (p.ppRtt || 0) / 2000),
           som: (tipo) => { if (tipo !== 'fim' && ctx.secao().som !== false && SONS_PP[tipo]) bipes(SONS_PP[tipo], tipo === 'mesa' ? 0.045 : 0.08); },

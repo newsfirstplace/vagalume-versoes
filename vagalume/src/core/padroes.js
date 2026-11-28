@@ -126,10 +126,11 @@
     'Assistir partidas: quem está jogando ganha um ícone em cima da cabeça; clique nele (ou em Jogando agora, na lista de jogos) para assistir ao vivo. Vale para todos os jogos; no ping-pong, o placar ao vivo.',
     'Chat nos jogos: o botão de balão no título da janela abre a conversa da partida, com quem joga e com quem assiste. No ZERA!, a fala aparece num balão em cima do avatar.',
     'Janela dos jogos: o botão − deixa só uma barrinha com a fase da partida (Sua vez, Vez de alguém, relógio, placar) e o ⤡ deixa a janela menor.',
-    'Ping-pong, Corrida de Digitação e Ludo com visual novo no estilo do Xadrez, cada um com as suas cores.',
+    'Ludo e Ping-pong por dentro em pixel art, no jeito do ZERA!: tabuleiro, peões e dado desenhados ponto a ponto, e o ping-pong num quarto do hotel com torcida de avatares e o adversário em pé atrás da mesa.',
+    'Ping-pong, Corrida de Digitação e Ludo com visual novo no estilo do Xadrez nas salas de espera, cada um com as suas cores.',
   ];
 
-  const api = { PADROES, CATALOGO, GRUPOS, NOVIDADES, ESQUEMA: 1, VERSAO: '0.1.19' };
+  const api = { PADROES, CATALOGO, GRUPOS, NOVIDADES, ESQUEMA: 1, VERSAO: '0.1.20' };
   raiz.VL = raiz.VL || {};
   raiz.VL.padroes = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
