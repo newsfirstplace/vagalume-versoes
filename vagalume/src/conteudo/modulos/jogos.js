@@ -44,7 +44,7 @@
   const VS = '︎'; // mostra o símbolo como texto, não como emoji
 
   const CSS = `
-  .vl-jg { pointer-events: auto; position: fixed; z-index: 30; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(820px, calc(100vw - 24px));
+  .vl-jg { pointer-events: auto; position: fixed; z-index: 30; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(calc(820px + var(--jg-chat, 0px)), calc(100vw - 24px));
     max-height: calc(100vh - 24px); display: flex; flex-direction: column; color: #e9eef7; font: 13px/1.4 system-ui, 'Segoe UI', sans-serif;
     background: linear-gradient(180deg, #1a1f2b, #10131b); border: 1px solid rgba(214,242,74,.35);
     border-radius: 16px; box-shadow: 0 18px 60px rgba(0,0,0,.55), 0 0 0 1px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.06); overflow: hidden; outline: none; }
@@ -294,7 +294,7 @@
     --n-acento: #d6f24a; --n-acento-texto: #1a2108; --n-acento-sombra: #7d8f1f; --n-cartao: rgba(255,255,255,.05); --n-cartao-borda: rgba(255,255,255,.1);
     --n-titulo-fonte: 800 15px/1 system-ui, 'Segoe UI', sans-serif; --n-titulo-cor: #fff; --n-logo-fonte: 900 40px/1 system-ui, 'Segoe UI', sans-serif; --n-logo-cor: #fff; --n-logo-sombra: 0 4px 0 rgba(0,0,0,.35);
     --n-capa: linear-gradient(135deg, #1d2333, #10131b); --n-ultimo: rgba(255,214,90,.45);
-    width: min(960px, calc(100vw - 24px)); background: var(--n-fundo); color: var(--n-texto); border: 1px solid var(--n-borda); border-radius: 20px; box-shadow: 0 30px 90px rgba(0,0,0,.7), 0 0 0 1px rgba(0,0,0,.6); }
+    width: min(calc(960px + var(--jg-chat, 0px)), calc(100vw - 24px)); background: var(--n-fundo); color: var(--n-texto); border: 1px solid var(--n-borda); border-radius: 20px; box-shadow: 0 30px 90px rgba(0,0,0,.7), 0 0 0 1px rgba(0,0,0,.6); }
   .vl-jg.vl-nativo .vl-jg-cab { background: var(--n-barra); border-bottom: 1px solid var(--n-borda); padding: 9px 14px; }
   .vl-jg.vl-nativo .vl-jg-cab b { font: var(--n-titulo-fonte); letter-spacing: 1.5px; text-transform: uppercase; color: var(--n-titulo-cor); }
   .vl-jg.vl-nativo .vl-jg-cab .vl-jg-ic { width: auto; background: none; box-shadow: none; color: var(--n-titulo-cor); font-size: 20px; }
@@ -451,7 +451,7 @@
     --n-titulo-fonte: 700 18px/1 Goldfish, Volter, 'Ubuntu', system-ui, sans-serif; --n-titulo-cor: #fff;
     --n-logo-fonte: 700 46px/1 Goldfish, Volter, 'Ubuntu', system-ui, sans-serif; --n-logo-cor: #ffcc00; --n-logo-sombra: 3px 0 #000, -3px 0 #000, 0 3px #000, 0 -3px #000, 3px 3px #000, -3px -3px #000, 3px -3px #000, -3px 3px #000, 0 7px 0 rgba(0,0,0,.4);
     --n-capa: radial-gradient(ellipse at 78% 55%, rgba(47,147,91,.55), transparent 55%), linear-gradient(135deg, #2b4a63, #172530);
-    width: min(944px, calc(100vw - 24px)); border: 2px solid #000; border-radius: 10px; box-shadow: 0 0 0 2px #4a6a86, 0 30px 90px rgba(0,0,0,.7); }
+    width: min(calc(944px + var(--jg-chat, 0px)), calc(100vw - 24px)); border: 2px solid #000; border-radius: 10px; box-shadow: 0 0 0 2px #4a6a86, 0 30px 90px rgba(0,0,0,.7); }
   .vl-jg.vl-nativo.tema-cartas .vl-jg-cab { border-bottom: 2px solid #000; }
   .vl-jg.vl-nativo.tema-cartas .vl-jg-cab b { letter-spacing: .5px; text-transform: none; text-shadow: 0 2px 0 rgba(0,0,0,.45); }
   .vl-jg.vl-nativo.tema-cartas .vl-jg-corpo { position: relative; }
@@ -769,7 +769,7 @@
           el('button', { type: 'button', title: 'Fechar', 'aria-label': 'Fechar', texto: '×', onclick: fechar }),
         ]);
         corpo = el('div', { class: 'vl-jg-corpo' });
-        janela = el('div', { class: 'vl-jg', role: 'dialog', 'aria-label': 'Jogos do Vagalume', tabindex: '0' }, [cab, corpo, chat1 ? chat1.painel : null]);
+        janela = el('div', { class: 'vl-jg', role: 'dialog', 'aria-label': 'Jogos do Vagalume', tabindex: '0' }, [cab, el('div', { class: 'vl-jg-meio' }, [corpo, chat1 ? chat1.painel : null])]);
         janela.addEventListener('keydown', function (ev) {
           if ((ev.key === 'ArrowLeft' || ev.key === 'ArrowRight') && partida && partida.jogo !== 'pingpong' && !/^(INPUT|TEXTAREA|SELECT)$/.test(ev.target.tagName)) {
             ev.preventDefault(); ev.stopPropagation();
@@ -812,7 +812,7 @@
         janela.querySelector('.vl-jg-voltar').hidden = !jogo || !!(partida && !partida.fim);
         if (chat1) {
           if (partida && chatDa !== partida) { chatDa = partida; chat1.limpar(); }
-          chat1.mostrar(!!partida && (partida.modo === 'rede' || partida.modo === 'assistir' || !!(partida.plateia && partida.plateia.size)));
+          chat1.mostrar(!!partida); // em todas as partidas (contra o bot também: quem assiste pode chegar)
         }
         camada.trocar(corpo, partida ? (partida.jogo === 'pingpong' ? (partida.modo === 'assistir' ? telaPlacarPP() : telaPingPong()) : telaPartida()) : jogo ? telaInicio() : telaHub());
         if (partida && partida.fim && !partida.festejado && !partida.animando) { partida.festejado = true; festejar(partida); }

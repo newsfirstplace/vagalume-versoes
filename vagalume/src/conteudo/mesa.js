@@ -17,34 +17,68 @@
 
   // ---------- chat da partida (a mesa e a janela de um contra um usam) ----------
   const limparFala = (x) => String(x == null ? '' : x).replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 140);
-  // Botão 💬 (com as não lidas) para o título da janela e um painel por cima do jogo; op.mandar(texto) envia.
+  // Coluna ao lado do jogo, aberta de saída (pedido do usuário); minimizada, fecha como uma cortina (as pregas se
+  // juntam) e vira uma faixa que abre de novo. A janela fica mais larga pela coluna (--jg-chat), então o jogo não
+  // encolhe; abrir e fechar mexe só na borda da direita. O botão 💬 do título também abre e fecha. op.mandar(texto) envia.
+  let chatFechado = false; // como a pessoa deixou por último (vale para as duas janelas, nesta sessão)
   function criarChat(op) {
-    let aberto = false, naoLidas = 0, ultimo = 0;
+    let aberto = !chatFechado, mostrado = false, naoLidas = 0, ultimo = 0;
     const contador = el('span', { class: 'vl-chat-n', 'aria-hidden': 'true', hidden: true });
-    const botao = el('button', { type: 'button', class: 'vl-jg-chat-bt', title: 'Chat da partida', 'aria-label': 'Chat da partida', 'aria-pressed': 'false', hidden: true, onclick() { alternar(); } },
+    const botao = el('button', { type: 'button', class: 'vl-jg-chat-bt', title: 'Chat da partida', 'aria-label': 'Chat da partida', 'aria-pressed': String(aberto), hidden: true, onclick() { alternar(); } },
       [el('span', { 'aria-hidden': 'true', texto: '💬' }), contador]);
     const vazio = el('p', { class: 'vl-chat-vazio', texto: 'Mande um oi! Quem joga e quem assiste lê aqui.' });
     const lista = el('div', { class: 'vl-chat-lista', role: 'log', 'aria-live': 'polite', 'aria-label': 'Mensagens da partida' });
     const campo = el('input', { type: 'text', maxlength: '140', autocomplete: 'off', placeholder: 'Escreva aqui…', 'aria-label': 'Mensagem para a partida' });
     campo.addEventListener('keydown', function (ev) { ev.stopPropagation(); if (ev.key === 'Escape') alternar(false); }); // o jogo não reage ao que se digita aqui
-    const painel = el('div', { class: 'vl-chat', hidden: true, role: 'dialog', 'aria-label': 'Chat da partida' }, [
-      el('div', { class: 'vl-chat-cab' }, [el('b', { texto: 'Chat da partida' }), el('button', { type: 'button', title: 'Fechar o chat', 'aria-label': 'Fechar o chat', texto: '×', onclick() { alternar(false); } })]),
-      vazio, lista,
-      el('form', { class: 'vl-chat-form', onsubmit(ev) {
-        ev.preventDefault();
-        const x = limparFala(campo.value);
-        if (!x || Date.now() - ultimo < 700) return;
-        ultimo = Date.now();
-        campo.value = '';
-        op.mandar(x);
-      } }, [campo, el('button', { type: 'submit', class: 'vl-jg-botao', texto: 'Enviar' })]),
+    const contadorAba = el('span', { class: 'vl-chat-n', 'aria-hidden': 'true', hidden: true });
+    const aba = el('button', { type: 'button', class: 'vl-chat-aba', title: 'Abrir o chat', 'aria-label': 'Abrir o chat da partida', tabindex: aberto ? '-1' : '0', onclick() { alternar(true); } },
+      [el('span', { class: 'ic', 'aria-hidden': 'true', texto: '💬' }), el('span', { class: 'txt', 'aria-hidden': 'true', texto: 'Chat' }), contadorAba]);
+    const painel = el('aside', { class: 'vl-chat' + (aberto ? '' : ' fechado'), hidden: true, 'aria-label': 'Chat da partida' }, [
+      el('div', { class: 'vl-chat-conteudo' }, [
+        el('div', { class: 'vl-chat-cab' }, [el('b', { texto: 'Chat da partida' }), el('button', { type: 'button', title: 'Minimizar o chat', 'aria-label': 'Minimizar o chat', texto: '›', onclick() { alternar(false); } })]),
+        vazio, lista,
+        el('form', { class: 'vl-chat-form', onsubmit(ev) {
+          ev.preventDefault();
+          const x = limparFala(campo.value);
+          if (!x || Date.now() - ultimo < 700) return;
+          ultimo = Date.now();
+          campo.value = '';
+          op.mandar(x);
+        } }, [campo, el('button', { type: 'submit', class: 'vl-jg-botao', texto: 'Enviar' })]),
+      ]),
+      el('i', { class: 'vl-chat-cortina', 'aria-hidden': 'true' }),
+      aba,
     ]);
-    function contar() { contador.hidden = !naoLidas; contador.textContent = naoLidas > 9 ? '9+' : String(naoLidas); botao.classList.toggle('novas', naoLidas > 0); }
+    // Largura da coluna na janela; ao abrir e fechar, a janela deixa de ficar centralizada e só a borda da direita anda.
+    function largura(fixar) {
+      const j = typeof painel.closest === 'function' ? painel.closest('.vl-jg') : null;
+      if (!j || !j.style || !j.style.setProperty) return;
+      const nova = mostrado ? (aberto ? 292 : 58) : 0;
+      if (fixar && j.offsetWidth) {
+        const r = j.getBoundingClientRect(), z = r.width / j.offsetWidth || 1;
+        const antes = parseFloat(j.style.getPropertyValue('--jg-chat')) || 0;
+        const esquerda = Math.max(12, Math.min(r.left, innerWidth - (r.width + (nova - antes) * z) - 12));
+        j.style.transform = 'none'; j.style.left = r.left / z + 'px'; j.style.top = r.top / z + 'px';
+        void j.offsetWidth; // aplica a posição sem animar
+        j.classList.add('vl-jg-ajustando');
+        j.style.left = esquerda / z + 'px';
+        clearTimeout(j.vlAjuste); j.vlAjuste = setTimeout(() => j.classList.remove('vl-jg-ajustando'), 650);
+      }
+      j.style.setProperty('--jg-chat', nova + 'px');
+    }
+    function contar() {
+      for (const c of [contador, contadorAba]) { c.hidden = !naoLidas; c.textContent = naoLidas > 9 ? '9+' : String(naoLidas); }
+      botao.classList.toggle('novas', naoLidas > 0); aba.classList.toggle('novas', naoLidas > 0);
+    }
     function alternar(abrir) {
+      const antes = aberto;
       aberto = typeof abrir === 'boolean' ? abrir : !aberto;
-      painel.hidden = !aberto;
+      chatFechado = !aberto;
+      painel.classList.toggle('fechado', !aberto);
       botao.setAttribute('aria-pressed', String(aberto));
-      if (aberto) { naoLidas = 0; contar(); lista.scrollTop = lista.scrollHeight; setTimeout(() => campo.focus(), 0); }
+      aba.tabIndex = aberto ? -1 : 0;
+      if (aberto !== antes) largura(true);
+      if (aberto) { naoLidas = 0; contar(); lista.scrollTop = lista.scrollHeight; if (aberto !== antes) setTimeout(() => campo.focus(), 380); }
     }
     return {
       botao, painel,
@@ -58,21 +92,52 @@
         if (!aberto && !minha) { naoLidas++; contar(); }
       },
       limpar() { lista.replaceChildren(); vazio.hidden = false; naoLidas = 0; contar(); },
-      mostrar(sim) { botao.hidden = !sim; if (!sim && aberto) alternar(false); },
+      mostrar(sim) { if (mostrado === !!sim) return; mostrado = !!sim; botao.hidden = !sim; painel.hidden = !sim; largura(false); },
     };
   }
   const CSS_CHAT = `
   .vl-jg-chat-bt { position: relative; }
   .vl-jg-chat-bt.novas { animation: vl-chat-pisca .9s ease-in-out infinite alternate; }
   @keyframes vl-chat-pisca { to { box-shadow: 0 0 0 2px var(--n-acento, #d6f24a), 0 0 12px var(--n-acento, #d6f24a); } }
-  .vl-chat-n { position: absolute; top: -6px; right: -6px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: #e5484d; color: #fff; border: 1px solid #000; font: 700 10px/14px system-ui, sans-serif; }
-  .vl-jg-corpo { isolation: isolate; } /* o que o jogo empilha fica dentro do corpo; o chat fica na frente */
-  .vl-chat { position: absolute; z-index: 40; right: 10px; top: 58px; bottom: 10px; width: min(290px, calc(100% - 20px)); display: flex; flex-direction: column; border-radius: 12px; overflow: hidden;
-    background: #0e131c; border: 1px solid rgba(255,255,255,.14); box-shadow: 0 14px 40px rgba(0,0,0,.55); color: #e9eef7; font: 13px/1.35 system-ui, 'Segoe UI', sans-serif; }
+  .vl-chat-n { position: absolute; top: -6px; right: -6px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: #e5484d; color: #fff; border: 1px solid #000; font: 700 10px/14px system-ui, sans-serif; text-align: center; }
+  .vl-jg-corpo { isolation: isolate; } /* o que o jogo empilha fica dentro do corpo */
+  /* O jogo e o chat lado a lado; a janela cresce pela largura do chat e anima junto com ele. */
+  .vl-jg { transition: width .5s cubic-bezier(.65,0,.35,1); }
+  .vl-jg.vl-jg-ajustando { transition: width .5s cubic-bezier(.65,0,.35,1), left .5s cubic-bezier(.65,0,.35,1); }
+  .vl-jg-meio { display: flex; flex: 1 1 auto; min-height: 0; }
+  .vl-jg-meio > .vl-jg-corpo { flex: 1 1 auto; min-width: 0; }
+  .vl-jg.minimizada .vl-jg-meio { display: none; }
+  .vl-chat { position: relative; flex: none; align-self: stretch; width: 280px; min-height: 220px; margin: 10px 10px 10px 2px; border-radius: 12px; overflow: hidden;
+    background: #0e131c; border: 1px solid rgba(255,255,255,.14); color: #e9eef7; font: 13px/1.35 system-ui, 'Segoe UI', sans-serif;
+    transition: width .5s cubic-bezier(.65,0,.35,1); }
+  .vl-chat.fechado { width: 46px; }
+  .vl-jg.vl-nativo .vl-chat { background: rgba(0,0,0,.3); border-color: var(--n-cartao-borda); color: var(--n-texto); } /* nas cores de cada jogo */
+  .vl-jg.vl-nativo .vl-chat-vazio { color: var(--n-suave); }
   .vl-chat[hidden], .vl-jg-chat-bt[hidden], .vl-chat-vazio[hidden], .vl-chat-n[hidden] { display: none !important; }
-  .vl-jg.minimizada .vl-chat { display: none !important; }
+  .vl-chat-conteudo { position: absolute; left: 0; top: 0; bottom: 0; width: 280px; display: flex; flex-direction: column; transition: opacity .25s ease .22s; }
+  .vl-chat.fechado .vl-chat-conteudo { opacity: 0; pointer-events: none; transition-delay: 0s; }
+  /* A cortina: pregas de tecido que se juntam ao fechar e se abrem ao abrir. */
+  .vl-chat-cortina { position: absolute; inset: 0; z-index: 2; pointer-events: none; opacity: 0;
+    background-color: color-mix(in srgb, var(--n-acento, #d6f24a) 30%, #141822);
+    background-image: linear-gradient(90deg, rgba(0,0,0,.55), rgba(255,255,255,.16) 38%, rgba(255,255,255,.04) 62%, rgba(0,0,0,.55)),
+      linear-gradient(180deg, rgba(255,255,255,.14), transparent 16%, transparent 84%, rgba(0,0,0,.45));
+    background-size: 30px 100%, 100% 100%; background-repeat: repeat-x, no-repeat;
+    transition: opacity .3s ease .05s, background-size .5s cubic-bezier(.65,0,.35,1); }
+  .vl-chat.fechado .vl-chat-cortina { opacity: 1; background-size: 9px 100%, 100% 100%; transition: opacity .25s ease, background-size .5s cubic-bezier(.65,0,.35,1); }
+  .vl-chat-aba { position: absolute; inset: 0; z-index: 3; display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 14px 0; border: 0; background: none; color: #fff; cursor: pointer;
+    opacity: 0; pointer-events: none; transition: opacity .15s; }
+  .vl-chat.fechado .vl-chat-aba { opacity: 1; pointer-events: auto; transition: opacity .25s ease .35s; }
+  .vl-chat-aba .ic { font-size: 18px; filter: drop-shadow(0 2px 0 rgba(0,0,0,.5)); transition: transform .15s; }
+  .vl-chat-aba .txt { writing-mode: vertical-rl; font: 800 12px/1 system-ui, sans-serif; letter-spacing: 3px; text-transform: uppercase; text-shadow: 0 1px 0 rgba(0,0,0,.7); }
+  .vl-chat-aba .vl-chat-n { position: static; }
+  .vl-chat-aba:hover .ic, .vl-chat-aba:focus-visible .ic { transform: scale(1.18); }
+  .vl-chat-aba:focus-visible { outline: 2px solid #fff; outline-offset: -4px; }
+  .vl-chat-aba.novas .ic { animation: vl-chat-pula .6s ease-in-out infinite alternate; }
+  @keyframes vl-chat-pula { to { transform: translateY(-3px); } }
+  @media (prefers-reduced-motion: reduce) { .vl-jg, .vl-chat, .vl-chat-cortina, .vl-chat-conteudo, .vl-chat-aba { transition: none !important; } }
   .vl-chat-cab { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px 8px 12px; background: rgba(255,255,255,.05); border-bottom: 1px solid rgba(255,255,255,.08); }
-  .vl-chat-cab button { width: 24px; height: 24px; border-radius: 50%; border: 1px solid rgba(255,255,255,.15); background: transparent; color: inherit; cursor: pointer; }
+  .vl-chat-cab button { width: 24px; height: 24px; border-radius: 50%; border: 1px solid rgba(255,255,255,.15); background: transparent; color: inherit; cursor: pointer; font-size: 15px; line-height: 1; }
+  .vl-chat-cab button:hover { background: rgba(255,255,255,.12); }
   .vl-chat-vazio { margin: 12px; color: #8f9bb0; font-size: 12px; }
   .vl-chat-lista { flex: 1; min-height: 0; overflow: auto; padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; }
   .vl-chat-msg { align-self: flex-start; max-width: 92%; padding: 6px 9px; border-radius: 10px 10px 10px 3px; background: rgba(255,255,255,.07); overflow-wrap: anywhere; }
@@ -89,7 +154,7 @@
   .vl-ms-assistindo .vl-jg-botao { padding: 4px 12px; font-size: 12px; }
   `;
   const CSS = `
-  .vl-jg.vl-ms { width: min(900px, calc(100vw - 24px)); }
+  .vl-jg.vl-ms { width: min(calc(900px + var(--jg-chat, 0px)), calc(100vw - 24px)); }
   .vl-ms .vl-jg-corpo { padding: 14px 16px 16px; }
   .vl-ms-arte { position: absolute; inset: 0; pointer-events: none; }
   .vl-jg-cartao .vl-jg-mini.corrida, .vl-jg-cartao .vl-jg-mini.pistas, .vl-jg-cartao .vl-jg-mini.ludo, .vl-jg-cartao .vl-jg-mini.sinuca, .vl-jg-cartao .vl-jg-mini.cartas,
@@ -422,7 +487,7 @@
         el('button', { type: 'button', title: 'Fechar', 'aria-label': 'Fechar', texto: '×', onclick: sair })]);
       cab.addEventListener('dblclick', function (ev) { if (!ev.target.closest('button')) alternarMinimizada(); });
       corpo = el('div', { class: 'vl-jg-corpo vl-ms-corpo' });
-      janela = el('div', { class: 'vl-jg vl-ms', role: 'dialog', 'aria-label': 'Mesa de jogos', tabindex: '0' }, [cab, corpo, chat.painel]);
+      janela = el('div', { class: 'vl-jg vl-ms', role: 'dialog', 'aria-label': 'Mesa de jogos', tabindex: '0' }, [cab, el('div', { class: 'vl-jg-meio' }, [corpo, chat.painel])]);
       janela.addEventListener('keydown', function (ev) { ev.stopPropagation(); if (ev.key === 'Escape' && !(mesa && mesa.fase === 'jogo')) sair(); });
       cab.addEventListener('pointerdown', function (ev) {
         if (ev.button !== 0 || ev.target.closest('button')) return;
@@ -446,7 +511,7 @@
       icone.textContent = def.glifo;
       voltarBotao.hidden = mesa.fase === 'jogo';
       if (chatDaMesa !== mesa.sessao) { chatDaMesa = mesa.sessao; chat.limpar(); }
-      chat.mostrar(!!(mesa.assistindo || mesa.plateia && mesa.plateia.size || mesa.jogadores.some((p) => !p.bot && !mesmo(p.nome, eu()))));
+      chat.mostrar(true); // em todos os jogos, também na sala de espera
       if (mesa.fase === 'sala') { camada.trocar(corpo, telaSala(def)); mostrarFase(); return; }
       if (mesa.assistindo && !mesa.visao) { camada.trocar(corpo, [el('div', { class: 'vl-jg-vazio' }, [el('b', { texto: 'Entrando para assistir…' }), el('span', { texto: 'Pedindo a partida a ' + mesa.anfitriao + '.' })])]); mostrarFase(); return; }
       if (!mesa.tela) {
