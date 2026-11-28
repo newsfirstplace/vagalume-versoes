@@ -68,21 +68,44 @@
   .vl-ms-opcoes { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px 16px; }
   .vl-ms-op { display: flex; flex-direction: column; gap: 6px; }
   .vl-ms-op .vl-jg-rotulo { margin: 0; }
-  .vl-ms-lugares { display: flex; flex-direction: column; gap: 6px; max-height: 236px; overflow: auto; padding-right: 2px; }
-  .vl-ms-lugar.vazio { border: 1px dashed rgba(255,255,255,.12); background: transparent; }
-  .vl-ms-lugar.vazio .vl-jg-cabeca { background: rgba(255,255,255,.05); color: #6c778c; }
-  .vl-ms-lugar.vazio .quem b { color: #7f8aa0; font-weight: 500; }
-  .vl-ms-lugar.bot .quem small::before { background: #9b8cff; }
+  .vl-ms-lugares { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 190px)); justify-content: center; gap: 8px; }
+  .vl-ms-lugar { position: relative; display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 0; padding: 12px 8px 10px; border-radius: 12px; text-align: center;
+    background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1); }
+  .vl-ms-lugar .vl-jg-cabeca { width: 46px; height: 46px; font-size: 18px; margin-bottom: 3px; box-shadow: 0 0 0 2px rgba(0,0,0,.35); }
+  .vl-ms-lugar .vl-jg-cabeca img { transform: translate(-50%, -52%) scale(1.05); }
+  .vl-ms-lugar b { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+  .vl-ms-lugar small { color: #8f9bb0; font-size: 11px; }
+  .vl-ms-lugar .num { position: absolute; left: 9px; top: 6px; font-size: 11px; font-weight: 800; color: rgba(255,255,255,.3); }
+  .vl-ms-lugar .tirar { position: absolute; right: 6px; top: 6px; width: 22px; height: 22px; padding: 0; border-radius: 50%; border: 1px solid rgba(255,255,255,.15); background: rgba(0,0,0,.25); color: #cdd6e4; cursor: pointer; font-size: 13px; line-height: 1; }
+  .vl-ms-lugar .tirar:hover, .vl-ms-lugar .tirar:focus-visible { background: #c0392b; color: #fff; border-color: #000; }
+  .vl-ms-lugar.dono small { color: #e9ffa0; font-weight: 700; }
+  .vl-ms-lugar.eu { border-color: rgba(214,242,74,.6); box-shadow: inset 0 0 0 1px rgba(214,242,74,.35); }
+  .vl-ms-lugar.bot .vl-jg-cabeca { background: rgba(155,140,255,.2); }
+  .vl-ms-lugar.vazio { border-style: dashed; border-color: rgba(255,255,255,.18); background: transparent; }
+  .vl-ms-lugar.vazio .vl-jg-cabeca { background: rgba(255,255,255,.05); color: #6c778c; box-shadow: none; }
+  .vl-ms-lugar.vazio b { color: #7f8aa0; font-weight: 500; }
+  .vl-ms-lugar.vazio .vl-jg-botao { padding: 4px 14px; font-size: 12px; margin-top: 3px; }
   .vl-ms-tag { font-size: 10.5px; padding: 2px 8px; border-radius: 999px; background: rgba(214,242,74,.14); color: #e9ffa0; border: 1px solid rgba(214,242,74,.3); white-space: nowrap; }
-  .vl-ms-bots { display: flex; flex-direction: column; gap: 6px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,.07); }
-  .vl-ms-bots-linha { display: flex; gap: 8px; align-items: center; }
-  .vl-ms-bots-linha .vl-jg-seg { flex: 1; }
+  .vl-jg-bloco-cab .vl-jg-esp { flex: 1; }
+  .vl-ms-nivel { display: flex; align-items: center; gap: 8px; }
+  .vl-ms-nivel .vl-jg-rotulo { margin: 0; }
+  .vl-ms-nivel .vl-jg-seg button { padding: 4px 12px; font-size: 12px; }
+  .vl-ms-chamar-colunas { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+  .vl-ms-chamar { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+  .vl-ms-chamar .vl-jg-rotulo { margin: 0; }
+  .vl-jg-vazio.pequeno { padding: 12px; font-size: 12px; }
+  .vl-jg.vl-nativo .vl-ms-lugar { background: var(--n-cartao); border-color: var(--n-cartao-borda); }
+  .vl-jg.vl-nativo .vl-ms-lugar.vazio { background: transparent; }
+  .vl-jg.vl-nativo .vl-ms-lugar.eu { border-color: var(--n-acento); box-shadow: inset 0 0 0 1px var(--n-acento); }
+  .vl-jg.vl-nativo .vl-ms-lugar.dono small { color: var(--n-acento); }
+  .vl-jg.vl-nativo.tema-cartas .vl-ms-lugar b, .vl-jg.vl-nativo.tema-ludo .vl-ms-lugar b { font-family: Goldfish, Volter, 'Ubuntu', system-ui, sans-serif; font-size: 14px; }
   .vl-jg-seg button:disabled { cursor: default; opacity: .55; }
   .vl-jg-seg button[aria-pressed="true"]:disabled { opacity: .8; }
   .vl-ms-espera { display: flex; align-items: center; gap: 10px; padding: 12px; border-radius: 12px; background: rgba(214,242,74,.06); border: 1px solid rgba(214,242,74,.2); color: #e9ffa0; }
   .vl-ms-espera i { width: 10px; height: 10px; flex: none; border-radius: 50%; background: #d6f24a; box-shadow: 0 0 10px #d6f24a; animation: vl-ms-pisca 1.2s ease-in-out infinite; }
   @keyframes vl-ms-pisca { 50% { opacity: .25; transform: scale(.7); } }
-  .vl-ms-comecar { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .vl-ms-comecar { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; position: sticky; bottom: -16px; z-index: 2; margin: 0 -16px -16px; padding: 12px 16px 14px;
+    background: rgba(10,14,22,.82); backdrop-filter: blur(6px); border-top: 1px solid rgba(255,255,255,.08); }
   .vl-ms-comecar .vl-jg-botao.grande { margin-top: 0; min-width: 220px; }
   .vl-ms-comecar .vl-jg-nota { margin: 0; }
   .vl-ms-convite { pointer-events: auto; position: fixed; z-index: 40; left: 50%; top: 40%; transform: translate(-50%, -50%); width: min(340px, calc(100vw - 24px)); background: linear-gradient(180deg, #1a1f2b, #10131b); border: 1px solid rgba(214,242,74,.6); border-radius: 18px; padding: 18px; color: #e8eef7; text-align: center; box-shadow: 0 0 30px rgba(214,242,74,.22), 0 20px 50px rgba(0,0,0,.6); font: 13px/1.4 system-ui, sans-serif; }
@@ -143,7 +166,42 @@
     const op = opcoesMesa || {};
     const estilo = el('style', { texto: CSS });
     camada.area().appendChild(estilo);
-    let janela = null, corpo = null, titulo = null, icone = null, voltarBotao = null;
+    let janela = null, corpo = null, titulo = null, icone = null, voltarBotao = null, fase = null, minimizada = false, compacta = false;
+    function alternarMinimizada() {
+      if (!janela) return;
+      minimizada = !minimizada;
+      janela.classList.toggle('minimizada', minimizada);
+      const b = janela.querySelector('.vl-jg-min');
+      b.textContent = minimizada ? '□' : '−';
+      b.title = minimizada ? 'Restaurar' : 'Minimizar';
+      mostrarFase();
+    }
+    function alternarTamanho() {
+      if (!janela) return;
+      const r = janela.getBoundingClientRect();
+      compacta = !compacta;
+      janela.classList.toggle('compacta', compacta);
+      if (janela.style.transform === 'none') { const z = janela.getBoundingClientRect().width / (janela.offsetWidth || 1) || 1; janela.style.left = r.left / z + 'px'; janela.style.top = r.top / z + 'px'; }
+      const b = janela.querySelector('.vl-jg-tam');
+      b.textContent = compacta ? '⤢' : '⤡';
+      b.title = compacta ? 'Tamanho normal' : 'Diminuir a janela';
+    }
+    // Fase da partida no título da janela minimizada: a tela do jogo diz (resumo) ou vem da vez da visão.
+    function faseDaMesa() {
+      if (!mesa) return { texto: '', minha: false };
+      if (mesa.fase === 'sala') return { texto: 'Sala de espera · ' + mesa.jogadores.length + ' na mesa', minha: false };
+      if (mesa.fase === 'fim') return { texto: 'Fim de partida', minha: false };
+      if (mesa.tela && mesa.tela.resumo) { try { const r = mesa.tela.resumo(); if (r) return r; } catch (e) { /* segue com a vez */ } }
+      const v = mesa.visao || {}, vez = typeof v.vez === 'string' ? v.vez : null;
+      return vez ? { texto: mesmo(vez, eu()) ? 'Sua vez' : 'Vez de ' + vez, minha: mesmo(vez, eu()) } : { texto: JOGOS[mesa.jogo].nome + ' em andamento', minha: false };
+    }
+    function mostrarFase() {
+      if (!fase) return;
+      const f = faseDaMesa();
+      fase.textContent = f.texto;
+      fase.classList.toggle('minha', !!f.minha);
+    }
+    const relogioFase = setInterval(function () { if (minimizada) mostrarFase(); }, 1000);
     let mesa = null;   // { jogo, sessao, anfitriao, souAnfitriao, jogadores: [{ nome, bot }], opcoes, nivelBot, fase, estado, versao, visao, tela }
     let convite = null; // convite recebido: { no, relogio }
     let relogio = null;
@@ -258,8 +316,12 @@
       titulo = el('b', { texto: 'Jogos' });
       icone = el('span', { class: 'vl-jg-ic', 'aria-hidden': 'true' });
       voltarBotao = el('button', { type: 'button', class: 'vl-jg-voltar', title: 'Todos os jogos', 'aria-label': 'Todos os jogos', texto: '‹', onclick() { if (mesa && mesa.fase === 'jogo') return; sair(); if (op.voltar) op.voltar(); } });
-      const cab = el('div', { class: 'vl-jg-cab' }, [voltarBotao, icone, titulo, el('span', { class: 'vl-jg-esp' }),
+      fase = el('span', { class: 'vl-jg-fase', role: 'status', title: 'Abrir', onclick: alternarMinimizada });
+      const cab = el('div', { class: 'vl-jg-cab' }, [voltarBotao, icone, titulo, fase, el('span', { class: 'vl-jg-esp' }),
+        el('button', { type: 'button', class: 'vl-jg-tam', title: 'Diminuir a janela', 'aria-label': 'Diminuir a janela', texto: '⤡', onclick: alternarTamanho }),
+        el('button', { type: 'button', class: 'vl-jg-min', title: 'Minimizar', 'aria-label': 'Minimizar', texto: '−', onclick: alternarMinimizada }),
         el('button', { type: 'button', title: 'Fechar', 'aria-label': 'Fechar', texto: '×', onclick: sair })]);
+      cab.addEventListener('dblclick', function (ev) { if (!ev.target.closest('button')) alternarMinimizada(); });
       corpo = el('div', { class: 'vl-jg-corpo vl-ms-corpo' });
       janela = el('div', { class: 'vl-jg vl-ms', role: 'dialog', 'aria-label': 'Mesa de jogos', tabindex: '0' }, [cab, corpo]);
       janela.addEventListener('keydown', function (ev) { ev.stopPropagation(); if (ev.key === 'Escape' && !(mesa && mesa.fase === 'jogo')) sair(); });
@@ -267,7 +329,8 @@
         if (ev.button !== 0 || ev.target.closest('button')) return;
         const r = janela.getBoundingClientRect(), x0 = ev.clientX, y0 = ev.clientY;
         cab.setPointerCapture(ev.pointerId);
-        const mover = (e) => { janela.style.transform = 'none'; janela.style.left = Math.max(0, Math.min(innerWidth - janela.offsetWidth, r.left + e.clientX - x0)) + 'px'; janela.style.top = Math.max(0, Math.min(innerHeight - 44, r.top + e.clientY - y0)) + 'px'; };
+        const z = r.width / (janela.offsetWidth || r.width) || 1; // na janela menor o zoom também encolhe left/top
+        const mover = (e) => { janela.style.transform = 'none'; janela.style.left = Math.max(0, Math.min(innerWidth - r.width, r.left + e.clientX - x0)) / z + 'px'; janela.style.top = Math.max(0, Math.min(innerHeight - 44, r.top + e.clientY - y0)) / z + 'px'; };
         const fim = () => { cab.removeEventListener('pointermove', mover); cab.removeEventListener('pointerup', fim); };
         cab.addEventListener('pointermove', mover); cab.addEventListener('pointerup', fim);
       });
@@ -286,6 +349,7 @@
       if (mesa.fase === 'sala') { camada.trocar(corpo, telaSala(def)); return; }
       if (!mesa.tela) { mesa.tela = def.montar(apiTela()); corpo.replaceChildren(mesa.tela.el); }
       if (mesa.visao) mesa.tela.atualizar(mesa.visao);
+      mostrarFase();
       const fim = mesa.fase === 'fim' && mesa.resultado;
       const resAntigo = corpo.querySelector('.vl-ms-res');
       if (resAntigo) resAntigo.remove();
@@ -316,26 +380,34 @@
       const humanos = mesa.jogadores.filter((p) => !p.bot).length;
       const pode = mesa.jogadores.length >= def.min && humanos >= (def.minPessoas || 0);
       const nivelRotulo = (id) => (def.bots.length > 1 ? 'Bot ' + String((def.bots.find(([b]) => b === id) || [, ''])[1]).toLowerCase() : 'Bot');
-      const lugares = mesa.jogadores.map((p) => el('div', { class: 'vl-jg-linha-pessoa vl-ms-lugar' + (p.bot ? ' bot' : '') }, [
-        rosto(p.nome),
-        el('span', { class: 'quem' }, [el('b', { texto: p.nome + (mesmo(p.nome, eu()) ? ' (você)' : '') }), el('small', { texto: p.bot ? nivelRotulo(p.bot) : mesmo(p.nome, mesa.anfitriao) ? 'Abriu a mesa' : 'Na mesa' })]),
-        mesmo(p.nome, mesa.anfitriao) ? el('span', { class: 'vl-ms-tag', texto: 'Anfitrião' }) : null,
-        anf && !mesmo(p.nome, eu()) ? el('button', { type: 'button', class: 'vl-jg-botao discreto', 'data-foco': 'tirar-' + p.nome, texto: 'Tirar', onclick() { tirar(p.nome); } }) : null,
-      ]));
-      for (let k = 0, vagas = Math.min(3, def.max - mesa.jogadores.length); k < vagas; k++) {
-        lugares.push(el('div', { class: 'vl-jg-linha-pessoa vl-ms-lugar vazio' }, [el('span', { class: 'vl-jg-cabeca', 'aria-hidden': 'true', texto: '+' }), el('span', { class: 'quem' }, [el('b', { texto: 'Lugar livre' })])]));
-      }
+      // Lugares em cartões, como as cadeiras da mesa: avatar, nome e quem é; um lugar livre chama um bot.
       if (!mesa.nivelBot && def.bots.length) mesa.nivelBot = def.bots[Math.min(1, def.bots.length - 1)][0];
+      const lugares = mesa.jogadores.map((p, i) => {
+        const voce = mesmo(p.nome, eu()), dono = mesmo(p.nome, mesa.anfitriao);
+        return el('div', { class: 'vl-ms-lugar' + (p.bot ? ' bot' : '') + (voce ? ' eu' : '') + (dono ? ' dono' : '') }, [
+          el('span', { class: 'num', 'aria-hidden': 'true', texto: String(i + 1) }),
+          rosto(p.nome),
+          el('b', { texto: voce ? 'Você' : p.nome, title: p.nome }),
+          el('small', { texto: p.bot ? nivelRotulo(p.bot) : dono ? 'Anfitrião' : 'Pronto' }),
+          anf && !voce ? el('button', { type: 'button', class: 'tirar', 'data-foco': 'tirar-' + p.nome, title: 'Tirar da mesa', 'aria-label': 'Tirar ' + p.nome + ' da mesa', texto: '×', onclick() { tirar(p.nome); } }) : null,
+        ]);
+      });
+      const livres = def.max <= 8 ? def.max - mesa.jogadores.length : Math.min(2, def.max - mesa.jogadores.length);
+      for (let k = 0; k < livres; k++) {
+        const i = mesa.jogadores.length + k;
+        lugares.push(el('div', { class: 'vl-ms-lugar vazio' }, [
+          el('span', { class: 'num', 'aria-hidden': 'true', texto: String(i + 1) }),
+          el('span', { class: 'vl-jg-cabeca', 'aria-hidden': 'true', texto: '+' }),
+          el('b', { texto: 'Lugar livre' }),
+          anf && def.bots.length ? el('button', { type: 'button', class: 'vl-jg-botao discreto', 'data-foco': 'bot-' + i, onclick() { botNovo(mesa.nivelBot); } }, [el('span', { texto: '+ Bot' })])
+            : el('small', { texto: anf ? 'Chame alguém' : 'Esperando alguém' }),
+        ]));
+      }
       const blocoJogadores = el('section', { class: 'vl-jg-bloco' }, [
-        el('div', { class: 'vl-jg-bloco-cab' }, [el('span', { class: 'ic', 'aria-hidden': 'true', texto: '🪑' }), el('h3', { texto: 'Na mesa · ' + mesa.jogadores.length + ' de ' + def.max })]),
+        el('div', { class: 'vl-jg-bloco-cab' }, [el('span', { class: 'ic', 'aria-hidden': 'true', texto: '🪑' }), el('h3', { texto: 'Na mesa · ' + mesa.jogadores.length + ' de ' + def.max }),
+          el('span', { class: 'vl-jg-esp' }),
+          anf && def.bots.length > 1 && !cheio ? el('div', { class: 'vl-ms-nivel' }, [el('span', { class: 'vl-jg-rotulo', texto: 'Nível dos bots' }), seg('Nível do bot', def.bots, mesa.nivelBot, (id) => { mesa.nivelBot = id; desenhar(); })]) : null]),
         el('div', { class: 'vl-ms-lugares' }, lugares),
-        anf && def.bots.length ? el('div', { class: 'vl-ms-bots' }, [
-          el('span', { class: 'vl-jg-rotulo', texto: 'Adicionar bot' }),
-          el('div', { class: 'vl-ms-bots-linha' }, [
-            def.bots.length > 1 ? seg('Nível do bot', def.bots, mesa.nivelBot, (id) => { mesa.nivelBot = id; desenhar(); }) : null,
-            el('button', { type: 'button', class: 'vl-jg-botao', 'data-foco': 'mais-bot', disabled: cheio, onclick() { botNovo(mesa.nivelBot); } }, [el('span', { texto: '+ 🤖 Bot' })]),
-          ]),
-        ]) : null,
       ]);
       let blocoLado;
       if (anf) {
@@ -350,13 +422,17 @@
             el('span', { class: 'quem' }, [el('b', { texto: n }), el('small', { texto: dentro ? 'Já está na mesa' : chamado ? 'Esperando aceitar…' : sub })]),
             el('button', { type: 'button', class: 'vl-jg-botao' + (dentro || chamado ? ' discreto' : ''), 'data-foco': 'conv-' + n, texto: dentro ? 'Na mesa' : chamado ? 'Chamado' : 'Convidar', disabled: dentro || chamado || cheio, onclick: acao })]);
         };
-        const linhas = noQuarto.map((n) => linha(n, 'Neste quarto', () => convidar(n)))
-          .concat(amigos.map((a) => linha(a.nome, 'Amigo em outro quarto', () => convidarAmigo(a))));
+        const lista = (rotulo, linhas, vazio) => el('div', { class: 'vl-ms-chamar' }, [
+          el('span', { class: 'vl-jg-rotulo', texto: rotulo + ' · ' + linhas.length }),
+          linhas.length ? el('div', { class: 'vl-jg-gente' }, linhas) : el('div', { class: 'vl-jg-vazio pequeno' }, [el('span', { texto: vazio })]),
+        ]);
         blocoLado = el('section', { class: 'vl-jg-bloco' }, [
           el('div', { class: 'vl-jg-bloco-cab' }, [el('span', { class: 'ic', 'aria-hidden': 'true', texto: '👥' }), el('h3', { texto: 'Chamar para a mesa' })]),
-          el('div', { class: 'vl-jg-gente' }, linhas.length ? linhas : [el('div', { class: 'vl-jg-vazio' }, [el('b', { texto: 'Ninguém para chamar agora' }),
-            el('span', { texto: def.bots.length ? 'Chame quem usa o Vagalume ou espere um amigo ficar online. Dá para jogar com bots enquanto isso.' : 'Chame quem usa o Vagalume para o quarto ou espere um amigo ficar online.' })])]),
-          el('p', { class: 'vl-jg-nota', texto: mesa.naSala ? 'Quem está no quarto recebe o convite na tela; amigos de outros quartos, pelo console. A pessoa precisa usar o Vagalume.' : 'Para chamar amigos de outros quartos, ligue a Conexão do jogo.' }),
+          el('div', { class: 'vl-ms-chamar-colunas' }, [
+            lista('Neste quarto', noQuarto.map((n) => linha(n, 'Neste quarto', () => convidar(n))), 'Ninguém com o Vagalume neste quarto.' + (def.bots.length ? ' Dá para jogar com bots.' : '')),
+            lista('Amigos online', amigos.map((a) => linha(a.nome, 'Em outro quarto', () => convidarAmigo(a))), mesa.naSala ? 'Nenhum amigo online agora.' : 'Ligue a Conexão do jogo para chamar amigos de outros quartos.'),
+          ]),
+          el('p', { class: 'vl-jg-nota', texto: 'Quem está no quarto recebe o convite na tela; amigos de outros quartos, pelo console. A pessoa precisa usar o Vagalume.' }),
         ]);
       } else {
         blocoLado = el('section', { class: 'vl-jg-bloco' }, [
@@ -380,7 +456,7 @@
           ]),
         ]),
         opcoes,
-        el('div', { class: 'vl-jg-colunas' }, [blocoJogadores, blocoLado]),
+        blocoJogadores, blocoLado,
         anf ? el('div', { class: 'vl-ms-comecar' }, [
           el('button', { type: 'button', class: 'vl-jg-botao forte grande', 'data-foco': 'comecar', disabled: !pode, onclick: comecar }, [el('span', { 'aria-hidden': 'true', texto: '▶' }), el('span', { texto: 'Começar a partida' })]),
           el('p', { class: 'vl-jg-nota', texto: pode ? 'Tudo pronto: ' + mesa.jogadores.length + ' na mesa.' : (def.minPessoas ? 'Precisa de pelo menos ' + def.minPessoas + ' pessoas com o Vagalume (este jogo não tem bots).' : 'Precisa de pelo menos ' + def.min + ' jogadores (bots contam).') }),
@@ -593,7 +669,7 @@
       if (++tentativas < 60) setTimeout(ligar, 1000);
     };
     ligar();
-    ctx.aoParar(function () { sair(); sairDaSala(); fecharConvite(); if (tirarOuvinte) tirarOuvinte(); estilo.remove(); if (janela) janela.remove(); janela = null; });
+    ctx.aoParar(function () { clearInterval(relogioFase); sair(); sairDaSala(); fecharConvite(); if (tirarOuvinte) tirarOuvinte(); estilo.remove(); if (janela) janela.remove(); janela = null; });
     return { abrir, receber, mesa: () => mesa };
   }
 

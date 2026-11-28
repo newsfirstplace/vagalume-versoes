@@ -835,7 +835,15 @@
     canvas.addEventListener('click', (ev) => { if (noMonte(ev) && podeAgir() && v.comprada == null) agir({ tipo: 'comprar' }); });
     new ResizeObserver(() => { if (cena.isConnected) { medir(); desenharDom(); } }).observe(cena);
 
-    return { el: raizEl, atualizar };
+    // Resumo para o título da janela minimizada.
+    function resumo() {
+      if (!v) return null;
+      if (v.fim) return { texto: v.fim.vencedor === eu ? 'Você zerou!' : v.fim.vencedor + ' zerou!', minha: false };
+      if (v.esquecido) return { texto: v.esquecido.nome === eu ? 'Grite ÚLTIMA!' : v.esquecido.nome + ' esqueceu do ÚLTIMA!', minha: true };
+      const n = v.mao.length, minha = v.vez === eu;
+      return { texto: (minha ? 'Sua vez' + (v.acumulado ? ' · +' + v.acumulado + ' na mesa' : '') : 'Vez de ' + v.vez) + ' · você tem ' + n + (n === 1 ? ' carta' : ' cartas'), minha };
+    }
+    return { el: raizEl, atualizar, resumo };
   }
 
   VL.mesa.registrar('cartas', {

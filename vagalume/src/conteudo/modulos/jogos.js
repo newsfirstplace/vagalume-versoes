@@ -56,6 +56,14 @@
   .vl-jg-cab button { background: rgba(255,255,255,.06); color: #dfe6f2; border: 1px solid rgba(255,255,255,.12); border-radius: 8px; width: 28px; height: 26px; cursor: pointer; font-size: 15px; }
   .vl-jg-cab button:hover { background: rgba(214,242,74,.2); color: #fff; }
   .vl-jg.minimizada .vl-jg-corpo { display: none; }
+  .vl-jg.minimizada { width: auto !important; min-width: 300px; max-width: calc(100vw - 24px); }
+  .vl-jg-cab .vl-jg-fase { display: none; min-width: 0; max-width: 380px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 4px 12px; border-radius: 999px; background: rgba(0,0,0,.38);
+    font: 600 12.5px/1.25 system-ui, 'Segoe UI', sans-serif; color: #fff; cursor: pointer; }
+  .vl-jg.minimizada .vl-jg-cab .vl-jg-fase:not(:empty) { display: inline-block; }
+  .vl-jg.minimizada .vl-jg-cab .vl-jg-fase.minha { background: var(--n-acento, #ffcc00); color: var(--n-acento-texto, #2b1d00); box-shadow: 0 0 12px var(--n-acento, #ffcc00); animation: vl-jg-fase .9s ease-in-out infinite alternate; }
+  @keyframes vl-jg-fase { to { filter: brightness(1.25); } }
+  .vl-jg.compacta { zoom: .78; }
+  @media (prefers-reduced-motion: reduce) { .vl-jg.minimizada .vl-jg-cab .vl-jg-fase.minha { animation: none; } }
   .vl-jg-corpo { padding: 16px; overflow: auto; }
   .vl-jg h3 { margin: 0 0 8px; font-size: 12px; letter-spacing: .6px; text-transform: uppercase; color: #b7c3d6; }
   .vl-jg-cartao { display: flex; gap: 12px; align-items: center; padding: 14px; border-radius: 14px; cursor: pointer; text-align: left; color: inherit;
@@ -658,8 +666,45 @@
         sairDoCanal();
         if (janela) janela.style.display = 'none';
       }
+      // Janela menor (o mesmo jogo, em 78%).
+      let compacta = false;
+      function alternarTamanho() {
+        const r = janela.getBoundingClientRect();
+        compacta = !compacta;
+        janela.classList.toggle('compacta', compacta);
+        // Janela arrastada: o canto fica no mesmo lugar da tela (o zoom também muda left/top).
+        if (janela.style.transform === 'none') { const z = janela.getBoundingClientRect().width / (janela.offsetWidth || 1) || 1; janela.style.left = r.left / z + 'px'; janela.style.top = r.top / z + 'px'; }
+        const b = janela.querySelector('.vl-jg-tam');
+        b.textContent = compacta ? '⤢' : '⤡';
+        b.title = compacta ? 'Tamanho normal' : 'Diminuir a janela';
+        b.setAttribute('aria-label', b.title);
+      }
+      // Fase da partida para o título da janela minimizada: de quem é a vez, o relógio ou o placar.
+      const mmss = (ms) => { const t = Math.max(0, Math.ceil(ms / 1000)); return Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0'); };
+      function faseDaPartida() {
+        const p = partida;
+        if (!p) return { texto: '', minha: false };
+        if (p.fim) return { texto: 'Fim de partida', minha: false };
+        const outro = p.minhaCor === 'w' ? 'b' : 'w';
+        if (p.jogo === 'pingpong') {
+          const st = p.pp && p.pp.estado ? p.pp.estado() : null, pt = st && st.pontos;
+          return { texto: pt ? 'Você ' + pt[p.minhaCor] + ' x ' + pt[outro] + ' ' + nomeDe(outro) : 'Ping-pong em andamento', minha: false };
+        }
+        const minha = !!(p.estado && p.estado.vez === p.minhaCor);
+        const relogio = p.ritmo && p.ritmo !== 'livre' && p.estado ? ' · ' + mmss(restante(p, p.estado.vez)) : '';
+        return { texto: (minha ? 'Sua vez' : 'Vez de ' + nomeDe(p.estado.vez)) + relogio, minha };
+      }
+      function mostrarFase() {
+        if (!janela) return;
+        const f = faseDaPartida(), n = janela.querySelector('.vl-jg-fase');
+        n.textContent = f.texto;
+        n.classList.toggle('minha', f.minha);
+      }
+      const relogioFase = setInterval(function () { if (janela && minimizada) mostrarFase(); }, 1000);
+      ctx.aoParar(function () { clearInterval(relogioFase); });
       function alternarMinimizada() {
         minimizada = !minimizada;
+        mostrarFase();
         janela.classList.toggle('minimizada', minimizada);
         const b = janela.querySelector('.vl-jg-min');
         b.textContent = minimizada ? '□' : '−';
@@ -669,7 +714,8 @@
         const cab = el('div', { class: 'vl-jg-cab' }, [
           el('button', { type: 'button', class: 'vl-jg-voltar', title: 'Todos os jogos', 'aria-label': 'Todos os jogos', texto: '‹', onclick: voltarAosJogos }),
           el('span', { class: 'vl-jg-ic', 'aria-hidden': 'true', texto: '♞' + VS }),
-          el('b', { class: 'vl-jg-titulo', texto: 'Jogos' }), el('span', { class: 'vl-jg-esp' }),
+          el('b', { class: 'vl-jg-titulo', texto: 'Jogos' }), el('span', { class: 'vl-jg-fase', role: 'status', title: 'Abrir', onclick: alternarMinimizada }), el('span', { class: 'vl-jg-esp' }),
+          el('button', { type: 'button', class: 'vl-jg-tam', title: 'Diminuir a janela', 'aria-label': 'Diminuir a janela', texto: '⤡', onclick: alternarTamanho }),
           el('button', { type: 'button', class: 'vl-jg-min', title: 'Minimizar', 'aria-label': 'Minimizar', texto: '−', onclick: alternarMinimizada }),
           el('button', { type: 'button', title: 'Fechar', 'aria-label': 'Fechar', texto: '×', onclick: fechar }),
         ]);
@@ -688,11 +734,12 @@
           if (ev.button !== 0 || ev.target.closest('button')) return;
           const r = janela.getBoundingClientRect();
           const x0 = ev.clientX, y0 = ev.clientY, l0 = r.left, t0 = r.top;
+          const z = r.width / (janela.offsetWidth || r.width) || 1; // na janela menor o zoom também encolhe left/top
           cab.setPointerCapture(ev.pointerId);
           const mover = (e) => {
             janela.style.transform = 'none';
-            janela.style.left = Math.max(0, Math.min(innerWidth - janela.offsetWidth, l0 + e.clientX - x0)) + 'px';
-            janela.style.top = Math.max(0, Math.min(innerHeight - 44, t0 + e.clientY - y0)) + 'px';
+            janela.style.left = Math.max(0, Math.min(innerWidth - r.width, l0 + e.clientX - x0)) / z + 'px';
+            janela.style.top = Math.max(0, Math.min(innerHeight - 44, t0 + e.clientY - y0)) / z + 'px';
           };
           const fim = () => { cab.removeEventListener('pointermove', mover); cab.removeEventListener('pointerup', fim); cab.removeEventListener('pointercancel', fim); };
           cab.addEventListener('pointermove', mover); cab.addEventListener('pointerup', fim); cab.addEventListener('pointercancel', fim);
@@ -716,6 +763,7 @@
         janela.querySelector('.vl-jg-voltar').hidden = !jogo || !!(partida && !partida.fim);
         camada.trocar(corpo, partida ? (partida.jogo === 'pingpong' ? telaPingPong() : telaPartida()) : jogo ? telaInicio() : telaHub());
         if (partida && partida.fim && !partida.festejado && !partida.animando) { partida.festejado = true; festejar(partida); }
+        mostrarFase();
       }
       function festejar(p) {
         const v = p.fim.vencedor;
